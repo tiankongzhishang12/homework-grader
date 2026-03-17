@@ -1,0 +1,125 @@
+2026-03-02 11:21:27,314 [INFO] Rubric loaded: env-science-assessment-v1.0 (v1.0) — 4 criteria
+2026-03-02 11:21:27,315 [INFO] Starting batch scoring — mode=real-time, model=claude-sonnet-4-5-20250514, workers=5
+2026-03-02 11:21:27,316 [INFO] Found 2 IR files in workspace/ir/ir
+2026-03-02 11:21:27,316 [INFO] Submissions to process: 2
+2026-03-02 11:21:37,652 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 11:21:37,717 [ERROR] Failed to score anon-002: can't multiply sequence by non-int of type 'float'
+Traceback (most recent call last):
+  File "scripts/batch_score.py", line 1116, in run_realtime_mode
+    result = await score_one_submission(
+  File "scripts/batch_score.py", line 828, in score_one_submission
+    validation_errors = validate_scoring_response(score_json, rubric)
+  File "scripts/batch_score.py", line 561, in validate_scoring_response
+    expected_wt += rc.weight * score
+TypeError: can't multiply sequence by non-int of type 'float'
+2026-03-02 11:21:48,710 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 11:21:48,712 [ERROR] Failed to score anon-001: can't multiply sequence by non-int of type 'float'
+Traceback (most recent call last):
+  File "scripts/batch_score.py", line 1116, in run_realtime_mode
+    result = await score_one_submission(
+  File "scripts/batch_score.py", line 828, in score_one_submission
+    validation_errors = validate_scoring_response(score_json, rubric)
+  File "scripts/batch_score.py", line 561, in validate_scoring_response
+    expected_wt += rc.weight * score
+TypeError: can't multiply sequence by non-int of type 'float'
+2026-03-02 11:21:48,714 [INFO] ============================================================
+2026-03-02 11:21:48,714 [INFO] BATCH SCORING SUMMARY
+2026-03-02 11:21:48,714 [INFO] ============================================================
+2026-03-02 11:21:48,715 [INFO] Batch ID:   ir
+2026-03-02 11:21:48,715 [INFO] Rubric:     env-science-assessment-v1.0
+2026-03-02 11:21:48,715 [INFO] Mode:       real-time
+2026-03-02 11:21:48,715 [INFO] Total:      2
+2026-03-02 11:21:48,715 [INFO] Completed:  0
+2026-03-02 11:21:48,715 [INFO] Failed:     2
+2026-03-02 11:21:48,715 [INFO] Pending:    0
+2026-03-02 11:21:48,715 [INFO] ------------------------------------------------------------
+2026-03-02 11:21:48,715 [INFO] FAILED SUBMISSIONS:
+2026-03-02 11:21:48,715 [INFO]   anon-002 — can't multiply sequence by non-int of type 'float' (attempts: 1)
+2026-03-02 11:21:48,715 [INFO]   anon-001 — can't multiply sequence by non-int of type 'float' (attempts: 1)
+2026-03-02 11:21:48,715 [INFO] ============================================================
+2026-03-02 11:24:07,920 [INFO] Rubric loaded: env-science-assessment-v1.0 (v1.0) — 4 criteria
+2026-03-02 11:24:07,920 [INFO] Starting batch scoring — mode=real-time, model=claude-sonnet-4-5-20250514, workers=5
+2026-03-02 11:24:07,921 [INFO] Found 2 IR files in workspace/ir/ir
+2026-03-02 11:24:07,922 [INFO] Submissions to process: 2
+2026-03-02 11:24:19,470 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 11:24:19,493 [WARNING] Validation issues for anon-002: Missing criteria in response: {'risk_analysis', 'standards_compliance', 'recommendation_actionability'}; Criterion 'technical_accuracy': score must be integer 1-5 (got 1); Criterion 'technical_accuracy': confidence must be 0.0-1.0 (got 1.0); Criterion 'standard_compliance': score must be integer 1-5 (got 1); Criterion 'standard_compliance': confidence must be 0.0-1.0 (got 1.0); Criterion 'impact_analysis_completeness': score must be integer 1-5 (got 2); Criterion 'impact_analysis_completeness': confidence must be 0.0-1.0 (got 0.9); Criterion 'suggestion_operability': score must be integer 1-5 (got 2); Criterion 'suggestion_operability': confidence must be 0.0-1.0 (got 0.95); weighted_total mismatch: response=1.45, computed=0.3
+2026-03-02 11:24:23,773 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 11:24:23,775 [INFO] [1/2] Scored anon-002 — weighted_total=0.30 (15832ms)
+2026-03-02 11:24:41,300 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 11:24:41,347 [WARNING] Validation issues for anon-001: Missing criteria in response: {'risk_analysis', 'standards_compliance', 'recommendation_actionability'}; Criterion 'technical_accuracy': score must be integer 1-5 (got 4); Criterion 'standard_compliance': score must be integer 1-5 (got 4); Criterion 'impact_analysis_completeness': score must be integer 1-5 (got 5); Criterion 'suggestion_operability': score must be integer 1-5 (got 5); weighted_total mismatch: response=4.5, computed=1.2
+2026-03-02 11:24:47,678 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 11:24:47,681 [INFO] [2/2] Scored anon-001 — weighted_total=1.20 (23904ms)
+2026-03-02 11:24:47,682 [INFO] ============================================================
+2026-03-02 11:24:47,682 [INFO] BATCH SCORING SUMMARY
+2026-03-02 11:24:47,682 [INFO] ============================================================
+2026-03-02 11:24:47,683 [INFO] Batch ID:   ir
+2026-03-02 11:24:47,683 [INFO] Rubric:     env-science-assessment-v1.0
+2026-03-02 11:24:47,683 [INFO] Mode:       real-time
+2026-03-02 11:24:47,683 [INFO] Total:      2
+2026-03-02 11:24:47,683 [INFO] Completed:  2
+2026-03-02 11:24:47,683 [INFO] Failed:     0
+2026-03-02 11:24:47,683 [INFO] Pending:    0
+2026-03-02 11:24:47,683 [INFO] Est. cost:  $0.0496
+2026-03-02 11:24:47,683 [INFO] ============================================================
+2026-03-02 21:27:48,355 [ERROR] Rubric error: Criterion 'keyword_coverage': missing anchors for scale values [2, 4]
+2026-03-02 21:33:20,369 [INFO] Rubric loaded: os-db-concept-check-v1.0 (v1.0) — 3 criteria
+2026-03-02 21:33:20,369 [INFO] Starting batch scoring — mode=real-time, model=claude-sonnet-4-5-20250514, workers=5
+2026-03-02 21:33:20,370 [INFO] Found 3 IR files in workspace/ir/ir
+2026-03-02 21:33:20,370 [INFO] Submissions to process: 3
+2026-03-02 21:33:20,370 [ERROR] ANTHROPIC_API_KEY environment variable not set
+2026-03-02 21:36:16,618 [INFO] Rubric loaded: os-db-concept-check-v1.0 (v1.0) — 3 criteria
+2026-03-02 21:36:16,619 [INFO] Starting batch scoring — mode=real-time, model=claude-sonnet-4-5-20250514, workers=5
+2026-03-02 21:36:16,620 [INFO] Found 3 IR files in workspace/ir/ir
+2026-03-02 21:36:16,620 [INFO] Submissions to process: 3
+2026-03-02 21:36:29,304 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:36:29,376 [WARNING] Validation issues for anon-001: Missing criteria in response: {'error_detection', 'semantic_understanding', 'keyword_coverage'}; Criterion 'keyword_matching': score must be integer 1-5 (got 3); Criterion 'semantic_depth': score must be integer 1-5 (got 4); Criterion 'error_correction': score must be integer 1-5 (got 2); weighted_total mismatch: response=3.1, computed=0.0
+2026-03-02 21:36:33,807 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:36:33,851 [INFO] [1/3] Scored anon-001 — weighted_total=0.00 (17157ms)
+2026-03-02 21:36:40,782 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:36:40,829 [WARNING] Validation issues for anon-002: Missing criteria in response: {'keyword_coverage'}; Criterion 'keyword_matching': score must be integer 1-5 (got 1); Criterion 'keyword_matching': confidence must be 0.0-1.0 (got 1.0); Criterion 'semantic_understanding': score must be integer 1-5 (got 1); Criterion 'semantic_understanding': confidence must be 0.0-1.0 (got 1.0); Criterion 'error_detection': score must be integer 1-5 (got 1); Criterion 'error_detection': confidence must be 0.0-1.0 (got 1.0); weighted_total mismatch: response=1.0, computed=0.7
+2026-03-02 21:36:44,334 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:36:44,378 [INFO] [2/3] Scored anon-002 — weighted_total=0.70 (10526ms)
+2026-03-02 21:36:53,000 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:36:53,043 [WARNING] Validation issues for anon-003: Missing criteria in response: {'error_detection', 'semantic_understanding', 'keyword_coverage'}; Criterion 'keyword_matching': score must be integer 1-5 (got 1); Criterion 'keyword_matching': confidence must be 0.0-1.0 (got 1.0); Criterion 'semantic_depth': score must be integer 1-5 (got 1); Criterion 'semantic_depth': confidence must be 0.0-1.0 (got 1.0); Criterion 'error_correction': score must be integer 1-5 (got 1); Criterion 'error_correction': confidence must be 0.0-1.0 (got 1.0); weighted_total mismatch: response=1.0, computed=0.0
+2026-03-02 21:37:12,474 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:37:12,477 [INFO] [3/3] Scored anon-003 — weighted_total=0.00 (28097ms)
+2026-03-02 21:37:12,479 [INFO] ============================================================
+2026-03-02 21:37:12,479 [INFO] BATCH SCORING SUMMARY
+2026-03-02 21:37:12,479 [INFO] ============================================================
+2026-03-02 21:37:12,480 [INFO] Batch ID:   ir
+2026-03-02 21:37:12,480 [INFO] Rubric:     os-db-concept-check-v1.0
+2026-03-02 21:37:12,480 [INFO] Mode:       real-time
+2026-03-02 21:37:12,480 [INFO] Total:      3
+2026-03-02 21:37:12,480 [INFO] Completed:  3
+2026-03-02 21:37:12,480 [INFO] Failed:     0
+2026-03-02 21:37:12,480 [INFO] Pending:    0
+2026-03-02 21:37:12,480 [INFO] Est. cost:  $0.0570
+2026-03-02 21:37:12,481 [INFO] ============================================================
+2026-03-02 21:49:41,886 [INFO] Rubric loaded: generic-concept-check-v1.0 (v1.0) — 3 criteria
+2026-03-02 21:49:41,887 [INFO] Starting batch scoring — mode=real-time, model=claude-sonnet-4-5-20250514, workers=5
+2026-03-02 21:49:41,887 [INFO] Found 3 IR files in workspace/ir/ir
+2026-03-02 21:49:41,888 [INFO] Submissions to process: 3
+2026-03-02 21:50:32,194 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:50:32,264 [WARNING] Validation issues for anon-003: Missing criteria in response: {'concept_coverage', 'error_detection', 'logic_and_expression'}; Criterion 'core_concept_coverage': score must be integer 1-5 (got 2); Criterion 'logic_and_depth': score must be integer 1-5 (got 2); Criterion 'fact_and_logic_error_check': score must be integer 1-5 (got 3); weighted_total mismatch: response=2.3, computed=0.0
+2026-03-02 21:50:36,696 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:50:36,699 [INFO] [1/3] Scored anon-003 — weighted_total=0.00 (54777ms)
+2026-03-02 21:51:20,221 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:51:20,265 [WARNING] Validation issues for anon-002: Missing criteria in response: {'concept_coverage', 'error_detection', 'logic_and_expression'}; Criterion 'core_concept_coverage': score must be integer 1-5 (got 4); Criterion 'logic_and_depth': score must be integer 1-5 (got 4); Criterion 'fact_and_logic_error_check': score must be integer 1-5 (got 3); weighted_total mismatch: response=3.7, computed=0.0
+2026-03-02 21:51:39,265 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:51:39,311 [INFO] [2/3] Scored anon-002 — weighted_total=0.00 (62610ms)
+2026-03-02 21:53:41,035 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:53:41,078 [WARNING] Validation issues for anon-001: Missing criteria in response: {'concept_coverage', 'error_detection', 'logic_and_expression'}; Criterion 'core_concept_coverage': score must be integer 1-5 (got 3); Criterion 'logic_and_expression_depth': score must be integer 1-5 (got 3); Criterion 'fact_and_logic_error_correction': score must be integer 1-5 (got 2); weighted_total mismatch: response=2.67, computed=0.0
+2026-03-02 21:53:48,239 [INFO] HTTP Request: POST https://open.bigmodel.cn/api/anthropic/v1/messages "HTTP/1.1 200 OK"
+2026-03-02 21:53:48,243 [INFO] [3/3] Scored anon-001 — weighted_total=0.00 (128931ms)
+2026-03-02 21:53:48,244 [INFO] ============================================================
+2026-03-02 21:53:48,244 [INFO] BATCH SCORING SUMMARY
+2026-03-02 21:53:48,244 [INFO] ============================================================
+2026-03-02 21:53:48,244 [INFO] Batch ID:   ir
+2026-03-02 21:53:48,244 [INFO] Rubric:     generic-concept-check-v1.0
+2026-03-02 21:53:48,244 [INFO] Mode:       real-time
+2026-03-02 21:53:48,244 [INFO] Total:      3
+2026-03-02 21:53:48,244 [INFO] Completed:  3
+2026-03-02 21:53:48,244 [INFO] Failed:     0
+2026-03-02 21:53:48,245 [INFO] Pending:    0
+2026-03-02 21:53:48,245 [INFO] Est. cost:  $0.0705
+2026-03-02 21:53:48,245 [INFO] ============================================================

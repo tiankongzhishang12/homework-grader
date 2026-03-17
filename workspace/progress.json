@@ -1,0 +1,34 @@
+{
+  "batch_id": "workspace",
+  "rubric_id": "self-select-login-payment-v2",
+  "mode": "real-time",
+  "started_at": "2026-03-17T08:00:09+00:00",
+  "last_updated": "2026-03-17T08:02:22+00:00",
+  "total": 3,
+  "completed": 2,
+  "failed": 1,
+  "pending": 0,
+  "completed_ids": [
+    "anon-001",
+    "anon-002"
+  ],
+  "failed_ids": [
+    {
+      "id": "anon-003",
+      "error": "Unterminated string starting at: line 1 column 320 (char 319)",
+      "attempts": 1,
+      "last_attempt": "2026-03-17T08:02:22+00:00"
+    }
+  ],
+  "pending_ids": [],
+  "processing_order": [
+    "anon-001",
+    "anon-002",
+    "anon-003"
+  ],
+  "stats": {
+    "total_input_tokens": 14721,
+    "total_output_tokens": 3532,
+    "total_cost_usd": 0.010744
+  }
+}

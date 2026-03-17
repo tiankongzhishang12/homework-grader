@@ -1,5 +1,2 @@
-.venv/
-__pycache__/
-*.pyc
-.vscode/
-workspace/
+_ssh/
+sshkey/
