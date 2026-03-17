@@ -1,0 +1,8 @@
+openai:
+  api_key: "XDKS-147852369"
+  base_url: "http://localhost:8317/v1"
+  model: "gpt-5.4"
+
+grading:
+  workspace_path: "workspace"
+  rubric_path: "examples/self-select-rubric.yaml"

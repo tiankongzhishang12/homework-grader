@@ -15,20 +15,23 @@ Requires Python 3.10+.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import logging
 import re
 import time
 import unicodedata
+import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, NamedTuple
+from xml.etree import ElementTree as ET
 
 import fitz  # PyMuPDF
 import yaml
 from docx import Document as DocxDocument
-from PIL import Image
+from PIL import Image, ImageOps
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -57,6 +60,15 @@ REFERENCE_KEYWORDS = [
 ]
 
 EMPTY_THRESHOLD = 10  # word/char count below this → empty_submission
+IMAGE_CONTEXT_WINDOW = 2
+IMAGE_CONTEXT_MAX_CHARS = 280
+
+DOCX_NS = {
+    "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+    "pr": "http://schemas.openxmlformats.org/package/2006/relationships",
+}
 
 logger = logging.getLogger("preprocess")
 
@@ -166,6 +178,19 @@ def count_words(text: str, language: str) -> int:
             and unicodedata.category(ch)[0] not in ("P", "S", "Z")
         )
     return len(text.split())
+
+
+def _normalize_whitespace(text: str) -> str:
+    """Collapse repeated whitespace into single spaces."""
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _clip_text(text: str, max_chars: int = IMAGE_CONTEXT_MAX_CHARS) -> str:
+    """Trim long helper strings used in image context fields."""
+    text = _normalize_whitespace(text)
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
 
 
 # ---------------------------------------------------------------------------
@@ -341,6 +366,281 @@ def extract_image_metadata(file_path: Path) -> ImageMetadata:
         file_size_bytes=size_bytes,
         color_mode=mode,
     )
+
+
+
+def extract_image_metadata_from_bytes(image_bytes: bytes) -> ImageMetadata:
+    """Extract image metadata directly from in-memory bytes."""
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        img.verify()
+    with Image.open(io.BytesIO(image_bytes)) as img:
+        width, height = img.size
+        mode = img.mode
+    return ImageMetadata(
+        width=width,
+        height=height,
+        file_size_bytes=len(image_bytes),
+        color_mode=mode,
+    )
+
+
+def _resample_lanczos() -> Any:
+    resampling = getattr(Image, "Resampling", Image)
+    return getattr(resampling, "LANCZOS")
+
+
+def _perform_ocr(image_bytes: bytes) -> tuple[str, str]:
+    """Run OCR when pytesseract is available, otherwise return a status marker."""
+    try:
+        import pytesseract  # type: ignore
+    except ImportError:
+        return "", "unavailable:pytesseract_not_installed"
+
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as img:
+            prepared = ImageOps.grayscale(img)
+            prepared = ImageOps.autocontrast(prepared)
+            width, height = prepared.size
+            if max(width, height) < 1800:
+                prepared = prepared.resize(
+                    (width * 2, height * 2),
+                    _resample_lanczos(),
+                )
+
+            candidates: list[str] = []
+            for lang in ("chi_sim+eng", "eng"):
+                for config in ("--psm 6", "--psm 11"):
+                    try:
+                        text = pytesseract.image_to_string(
+                            prepared,
+                            lang=lang,
+                            config=config,
+                        ).strip()
+                    except Exception:
+                        continue
+                    if text:
+                        candidates.append(text)
+
+            if not candidates:
+                return "", "empty"
+            best = max(candidates, key=lambda item: len(_normalize_whitespace(item)))
+            return best, "success"
+    except Exception as exc:
+        return "", f"error:{exc}"
+
+
+def _guess_visual_type(
+    file_name: str,
+    context_text: str,
+    extracted_text: str,
+    width: int,
+    height: int,
+) -> str:
+    """Best-effort type guess for embedded images/diagrams."""
+    combined = " ".join([file_name, context_text, extracted_text]).lower()
+    aspect_ratio = (height / width) if width else 0
+
+    sequence_terms = (
+        "时序",
+        "时序图",
+        "sequence",
+        "lifeline",
+        "message",
+        "activation",
+    )
+    flow_terms = (
+        "流程图",
+        "flowchart",
+        "流程",
+        "decision",
+        "start",
+        "end",
+    )
+    architecture_terms = (
+        "架构",
+        "architecture",
+        "组件图",
+        "部署图",
+    )
+    screenshot_terms = (
+        "截图",
+        "screenshot",
+        "screen",
+        "页面",
+        "界面",
+        "ui",
+    )
+    sequence_hint_terms = (
+        "登录",
+        "支付",
+        "订单",
+        "请求",
+        "响应",
+    )
+
+    if any(keyword in combined for keyword in sequence_terms):
+        return "sequence_diagram"
+    if any(keyword in combined for keyword in flow_terms):
+        return "flowchart"
+    if any(keyword in combined for keyword in architecture_terms):
+        return "architecture_diagram"
+    if any(keyword in combined for keyword in screenshot_terms):
+        return "screenshot"
+    if aspect_ratio > 1.6 and any(keyword in combined for keyword in sequence_hint_terms):
+        return "sequence_diagram_candidate"
+    return "image"
+
+
+def _build_image_description(
+    visual_type: str,
+    width: int,
+    height: int,
+    context_before: str,
+    context_after: str,
+    extracted_text: str,
+) -> str:
+    parts = [f"Embedded {visual_type} candidate ({width}x{height})."]
+    if context_before:
+        parts.append(f"Context before: {context_before}.")
+    if context_after:
+        parts.append(f"Context after: {context_after}.")
+    if extracted_text:
+        parts.append(f"OCR preview: {_clip_text(extracted_text, 120)}.")
+    else:
+        parts.append("OCR text not available.")
+    return " ".join(parts)
+
+
+def _find_neighbor_text(
+    paragraph_events: list[dict[str, Any]],
+    start_index: int,
+    step: int,
+    max_items: int = IMAGE_CONTEXT_WINDOW,
+) -> str:
+    found: list[str] = []
+    idx = start_index + step
+    while 0 <= idx < len(paragraph_events) and len(found) < max_items:
+        text = paragraph_events[idx]["text"]
+        if text:
+            found.append(text)
+        idx += step
+    if step < 0:
+        found.reverse()
+    return _clip_text(" ".join(found))
+
+
+def _parse_docx_relationships(zf: zipfile.ZipFile) -> dict[str, str]:
+    rels_path = "word/_rels/document.xml.rels"
+    if rels_path not in zf.namelist():
+        return {}
+
+    root = ET.fromstring(zf.read(rels_path))
+    rels: dict[str, str] = {}
+    for rel in root.findall("pr:Relationship", DOCX_NS):
+        rel_id = rel.attrib.get("Id", "")
+        target = rel.attrib.get("Target", "")
+        rel_type = rel.attrib.get("Type", "")
+        if rel_id and target and rel_type.endswith("/image"):
+            rels[rel_id] = target
+    return rels
+
+
+def extract_docx_images(file_path: Path) -> list[dict[str, Any]]:
+    """Extract embedded DOCX images with nearby text context and optional OCR."""
+    image_entries: list[dict[str, Any]] = []
+    with zipfile.ZipFile(file_path) as zf:
+        if "word/document.xml" not in zf.namelist():
+            return image_entries
+
+        rels = _parse_docx_relationships(zf)
+        root = ET.fromstring(zf.read("word/document.xml"))
+        body = root.find("w:body", DOCX_NS)
+        if body is None:
+            return image_entries
+
+        paragraph_events: list[dict[str, Any]] = []
+        embed_attr = f"{{{DOCX_NS['r']}}}embed"
+
+        for para_index, paragraph in enumerate(body.findall("w:p", DOCX_NS), start=1):
+            text = _normalize_whitespace(
+                "".join(node.text or "" for node in paragraph.findall(".//w:t", DOCX_NS))
+            )
+            rel_ids: list[str] = []
+            for blip in paragraph.findall(".//a:blip", DOCX_NS):
+                rel_id = blip.attrib.get(embed_attr, "")
+                if rel_id:
+                    rel_ids.append(rel_id)
+            paragraph_events.append(
+                {
+                    "paragraph_index": para_index,
+                    "text": text,
+                    "image_rel_ids": rel_ids,
+                }
+            )
+
+        image_index = 0
+        for event_index, event in enumerate(paragraph_events):
+            if not event["image_rel_ids"]:
+                continue
+
+            context_before = _find_neighbor_text(paragraph_events, event_index, -1)
+            context_after = _find_neighbor_text(paragraph_events, event_index, 1)
+            inline_text = _clip_text(event["text"])
+            merged_context = " ".join(
+                part for part in (inline_text, context_before, context_after) if part
+            )
+
+            for rel_id in event["image_rel_ids"]:
+                target = rels.get(rel_id, "")
+                if not target:
+                    continue
+
+                image_path = target.lstrip("/")
+                if not image_path.startswith("word/"):
+                    image_path = f"word/{image_path}"
+                if image_path not in zf.namelist():
+                    continue
+
+                image_index += 1
+                image_bytes = zf.read(image_path)
+                img_meta = extract_image_metadata_from_bytes(image_bytes)
+                extracted_text, ocr_status = _perform_ocr(image_bytes)
+                visual_type = _guess_visual_type(
+                    file_name=Path(image_path).name,
+                    context_text=merged_context,
+                    extracted_text=extracted_text,
+                    width=img_meta.width,
+                    height=img_meta.height,
+                )
+                description = _build_image_description(
+                    visual_type=visual_type,
+                    width=img_meta.width,
+                    height=img_meta.height,
+                    context_before=context_before,
+                    context_after=context_after,
+                    extracted_text=extracted_text,
+                )
+                image_entries.append(
+                    {
+                        "file": f"embedded:{file_path.name}:{Path(image_path).name}",
+                        "container_path": image_path,
+                        "image_index": image_index,
+                        "paragraph_index": event["paragraph_index"],
+                        "caption": inline_text,
+                        "context": merged_context,
+                        "context_before": context_before,
+                        "context_after": context_after,
+                        "description": description,
+                        "type": visual_type,
+                        "width": img_meta.width,
+                        "height": img_meta.height,
+                        "file_size_bytes": img_meta.file_size_bytes,
+                        "color_mode": img_meta.color_mode,
+                        "extracted_text": extracted_text,
+                        "ocr_status": ocr_status,
+                    }
+                )
+    return image_entries
 
 
 # ---------------------------------------------------------------------------
@@ -519,6 +819,7 @@ def build_text_ir(
     source_files: list[str],
     full_text: str,
     sections: list[Section],
+    image_entries: list[dict[str, Any]],
     metadata: TextMetadata,
     gate_results: list[GateResult],
     processing_log: list[ProcessingLogEntry],
@@ -535,6 +836,7 @@ def build_text_ir(
             "heading_count": metadata.heading_count,
             "has_references": metadata.has_references,
             "language": metadata.language,
+            "image_count": len(image_entries),
         },
         "content": {
             "full_text": full_text,
@@ -542,6 +844,7 @@ def build_text_ir(
                 {"heading": s.heading, "level": s.level, "text": s.text}
                 for s in sections
             ],
+            "images": image_entries,
         },
         "gate_results": [
             {
@@ -627,23 +930,17 @@ def process_text_file(
     student_id: str,
     rubric: dict[str, Any] | None,
 ) -> dict[str, Any] | None:
-    """Process a single .docx or .pdf file into an IR dict.
-
-    Returns None if the file cannot be processed.
-    """
+    """Process a single .docx or .pdf file into an IR dict."""
     ctx = ProcessingContext()
     ext = file_path.suffix.lower()
     source_files = [f"raw/{file_path.name}"]
 
-    # --- Step 1: Format detection ---
     if ext not in SUPPORTED_TEXT_EXTENSIONS:
-        ctx.add_log("format_detection", "error",
-                     message=f"Unsupported extension: {ext}")
+        ctx.add_log("format_detection", "error", message=f"Unsupported extension: {ext}")
         logger.error("Unsupported text extension '%s' for %s", ext, file_path.name)
         return None
     ctx.add_log("format_detection", "success", message=f"Detected {ext}")
 
-    # --- Step 2: Text extraction ---
     try:
         if ext == ".docx":
             (full_text, sections), dur = _timed(extract_docx, file_path)
@@ -651,106 +948,135 @@ def process_text_file(
             (full_text, sections), dur = _timed(extract_pdf, file_path)
         ctx.add_log("text_extraction", "success", duration_ms=dur)
     except PermissionError as exc:
-        ctx.add_log("text_extraction", "error",
-                     message=f"Protected file: {exc}")
+        ctx.add_log("text_extraction", "error", message=f"Protected file: {exc}")
         logger.error("Password-protected file: %s", file_path.name)
-        return _build_error_ir(
-            student_id, source_files, "protected_file",
-            str(exc), ctx.log,
-        )
+        return _build_error_ir(student_id, source_files, "protected_file", str(exc), ctx.log)
     except Exception as exc:
-        ctx.add_log("text_extraction", "error",
-                     message=f"Extraction failed: {exc}")
+        ctx.add_log("text_extraction", "error", message=f"Extraction failed: {exc}")
         logger.error("Failed to extract %s: %s", file_path.name, exc)
-        return _build_error_ir(
-            student_id, source_files, "corrupted_file",
-            str(exc), ctx.log,
-        )
+        return _build_error_ir(student_id, source_files, "corrupted_file", str(exc), ctx.log)
 
-    # --- Step 3: Metadata extraction ---
+    image_entries: list[dict[str, Any]] = []
+    if ext == ".docx":
+        try:
+            image_entries, dur = _timed(extract_docx_images, file_path)
+            ocr_statuses = sorted({entry.get("ocr_status", "") for entry in image_entries if entry.get("ocr_status")})
+            message = f"extracted {len(image_entries)} embedded image(s)"
+            if ocr_statuses:
+                message += f"; OCR statuses: {', '.join(ocr_statuses)}"
+            ctx.add_log("embedded_image_extraction", "success", duration_ms=dur, message=message)
+        except Exception as exc:
+            ctx.add_log("embedded_image_extraction", "warning", message=f"Image extraction failed: {exc}")
+            logger.warning("Failed to extract embedded images from %s: %s", file_path.name, exc)
+
     metadata, dur = _timed(extract_text_metadata, full_text, sections)
     ctx.add_log("metadata_extraction", "success", duration_ms=dur)
 
-    # --- Step 3b: Empty check ---
-    if metadata.word_count < EMPTY_THRESHOLD:
-        ctx.add_log("empty_check", "warning",
-                     message=f"word_count={metadata.word_count} < {EMPTY_THRESHOLD}")
-        logger.warning("Empty submission: %s (word_count=%d)",
-                        file_path.name, metadata.word_count)
+    if metadata.word_count < EMPTY_THRESHOLD and not image_entries:
+        ctx.add_log("empty_check", "warning", message=f"word_count={metadata.word_count} < {EMPTY_THRESHOLD}")
+        logger.warning("Empty submission: %s (word_count=%d)", file_path.name, metadata.word_count)
         return _build_error_ir(
-            student_id, source_files, "empty_submission",
+            student_id,
+            source_files,
+            "empty_submission",
             f"Word count {metadata.word_count} below threshold {EMPTY_THRESHOLD}",
             ctx.log,
         )
-    ctx.add_log("empty_check", "success",
-                 message=f"word_count={metadata.word_count}")
+    ctx.add_log("empty_check", "success", message=f"word_count={metadata.word_count}, image_count={len(image_entries)}")
 
-    # --- Step 4: Gate checks ---
     gate_results: list[GateResult] = []
     if rubric is not None:
         gate_results, dur = _timed(
-            run_gate_checks, rubric, full_text, sections,
-            metadata.language, source_files,
+            run_gate_checks,
+            rubric,
+            full_text,
+            sections,
+            metadata.language,
+            source_files,
         )
-        ctx.add_log("gate_checks", "success", duration_ms=dur,
-                     message=f"{len(gate_results)} gates evaluated")
+        ctx.add_log("gate_checks", "success", duration_ms=dur, message=f"{len(gate_results)} gates evaluated")
     else:
         ctx.add_log("gate_checks", "skipped", message="No rubric provided")
 
-    # --- Step 5: Build IR ---
-    ir = build_text_ir(
+    return build_text_ir(
         student_id=student_id,
         source_files=source_files,
         full_text=full_text,
         sections=sections,
+        image_entries=image_entries,
         metadata=metadata,
         gate_results=gate_results,
         processing_log=ctx.log,
     )
-    return ir
+
+
+def _build_standalone_image_entry(file_path: Path, img_meta: ImageMetadata) -> dict[str, Any]:
+    image_bytes = file_path.read_bytes()
+    extracted_text, ocr_status = _perform_ocr(image_bytes)
+    visual_type = _guess_visual_type(
+        file_name=file_path.name,
+        context_text=file_path.stem,
+        extracted_text=extracted_text,
+        width=img_meta.width,
+        height=img_meta.height,
+    )
+    description = _build_image_description(
+        visual_type=visual_type,
+        width=img_meta.width,
+        height=img_meta.height,
+        context_before=file_path.stem,
+        context_after="",
+        extracted_text=extracted_text,
+    )
+    return {
+        "file": f"raw/{file_path.name}",
+        "description": description,
+        "type": visual_type,
+        "caption": file_path.stem,
+        "context": file_path.stem,
+        "visual_elements": "",
+        "extracted_text": extracted_text,
+        "ocr_status": ocr_status,
+        "design_observations": "",
+        "width": img_meta.width,
+        "height": img_meta.height,
+        "file_size_bytes": img_meta.file_size_bytes,
+        "color_mode": img_meta.color_mode,
+    }
 
 
 def process_image_file(
     file_path: Path,
     student_id: str,
 ) -> dict[str, Any] | None:
-    """Process a single image file (.jpg/.png) into an IR dict.
-
-    Returns None if the image cannot be processed.
-    """
+    """Process a single image file (.jpg/.png) into an IR dict."""
     ctx = ProcessingContext()
     source_files = [f"raw/{file_path.name}"]
 
-    # --- Step 1: Validate and extract metadata ---
     try:
         img_meta, dur = _timed(extract_image_metadata, file_path)
-        ctx.add_log("image_validation", "success", duration_ms=dur,
-                     message=f"{img_meta.width}x{img_meta.height} {img_meta.color_mode}")
-    except Exception as exc:
-        ctx.add_log("image_validation", "error",
-                     message=f"Image unreadable: {exc}")
-        logger.error("Failed to read image %s: %s", file_path.name, exc)
-        return _build_error_ir(
-            student_id, source_files, "corrupted_file",
-            str(exc), ctx.log,
+        ctx.add_log(
+            "image_validation",
+            "success",
+            duration_ms=dur,
+            message=f"{img_meta.width}x{img_meta.height} {img_meta.color_mode}",
         )
+    except Exception as exc:
+        ctx.add_log("image_validation", "error", message=f"Image unreadable: {exc}")
+        logger.error("Failed to read image %s: %s", file_path.name, exc)
+        return _build_error_ir(student_id, source_files, "corrupted_file", str(exc), ctx.log)
 
-    # --- Step 2: Build image entry with placeholder ---
+    image_entry, dur = _timed(_build_standalone_image_entry, file_path, img_meta)
+    ctx.add_log(
+        "image_content_extraction",
+        "success",
+        duration_ms=dur,
+        message=f"type={image_entry['type']}, ocr_status={image_entry['ocr_status']}",
+    )
+
     resolution = f"{img_meta.width}x{img_meta.height}"
     size_mb = img_meta.file_size_bytes / (1024 * 1024)
-    image_entry = {
-        "file": f"raw/{file_path.name}",
-        "description": "Vision API analysis required",
-        "type": "",
-        "visual_elements": "",
-        "extracted_text": "",
-        "design_observations": "",
-    }
-    ctx.add_log("content_placeholder", "success",
-                 message="Placeholder set; Vision API analysis required")
-
-    # --- Step 3: Build IR ---
-    ir = build_image_ir(
+    return build_image_ir(
         student_id=student_id,
         source_files=source_files,
         image_entries=[image_entry],
@@ -759,7 +1085,6 @@ def process_image_file(
         gate_results=[],
         processing_log=ctx.log,
     )
-    return ir
 
 
 def _build_error_ir(
@@ -781,12 +1106,14 @@ def _build_error_ir(
             "heading_count": 0,
             "has_references": False,
             "language": "",
+            "image_count": 0,
             "error_type": error_type,
             "error_message": error_message,
         },
         "content": {
             "full_text": "",
             "sections": [],
+            "images": [],
         },
         "gate_results": [],
         "processing_log": [

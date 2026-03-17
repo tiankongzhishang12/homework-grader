@@ -1,6 +1,6 @@
 # Scoring Prompt Template
 
-> Used by the evaluation engine to score one submission against one Rubric.
+3> Used by the evaluation engine to score one submission against one Rubric.
 > Placeholders in `{curly_braces}` are filled at runtime.
 
 ---

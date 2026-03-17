@@ -17,7 +17,21 @@ A Rubric-driven AI grading system built as a [Claude Code](https://docs.anthropi
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI installed
 - Python ≥ 3.10 (for preprocessing and batch scripts)
-- An Anthropic API key (`ANTHROPIC_API_KEY` environment variable)
+- An OpenAI API key (`OPENAI_API_KEY` environment variable)
+- If you use your own OpenAI-compatible gateway, set `OPENAI_BASE_URL` as well
+
+You can also put these values in `grader-config.yaml` in the project root:
+
+```yaml
+openai:
+  api_key: "your-api-key"
+  base_url: "http://your-host:port/v1"
+  model: "gpt-5-mini"
+
+grading:
+  workspace_path: "workspace"
+  rubric_path: "examples/self-select-rubric.yaml"
+```
 
 ## Installation
 
@@ -87,11 +101,12 @@ For many submissions, use the Python scripts:
 # Preprocess submissions to IR format
 python scripts/preprocess.py workspace/raw/ --output workspace/ir/ --rubric my-rubric.yaml
 
-# Score all (real-time mode for < 50 submissions)
-python scripts/batch_score.py workspace/ --rubric my-rubric.yaml --mode real-time
+# Score all submissions
+python scripts/batch_score.py workspace/ --rubric my-rubric.yaml
 
-# Or use Batch API for large batches (50% cost savings)
-python scripts/batch_score.py workspace/ --rubric my-rubric.yaml --mode batch
+# Or use a custom OpenAI-compatible endpoint
+OPENAI_BASE_URL=https://your-gateway.example.com/v1 \
+python scripts/batch_score.py workspace/ --rubric my-rubric.yaml
 ```
 
 ### 5. Export to Excel
@@ -295,7 +310,7 @@ Student names and IDs are never sent. All submissions are anonymized during prep
 Yes. Set `comment_guidelines.language` in your Rubric YAML to any language code (e.g., `zh-CN`, `en`, `ja`). The AI generates comments in that language.
 
 ## References
-
+ 
 | Document | Content |
 |----------|---------|
 | `references/evaluation-methodology.md` | Scoring theory, CoT, confidence calibration |

@@ -129,7 +129,7 @@ def build_grade_table(
         dim_scores = {}
         for dim in score.get("dimension_scores", []):
             dim_name = dim.get("criterion_name", dim.get("criterion_id", "?"))
-            dim_scores[dim_name] = dim.get("score", 0)
+            dim_scores[dim_name] = float(dim.get("score", 0))
 
         # Comment
         comment = score.get("comment", {})
@@ -227,7 +227,7 @@ def build_statistics(
                 name = dim.get("criterion_name", dim.get("criterion_id", "?"))
                 dim_totals.setdefault(name, []).append(dim.get("score", 0))
         for name, values in dim_totals.items():
-            mean_val = sum(values) / len(values) if values else 0
+            mean_val = sum(float(v) for v in values) / len(values) if values else 0
             stats.append((f"  {name}", round(mean_val, 2)))
 
     # Top deduction reasons
@@ -236,7 +236,7 @@ def build_statistics(
     deduction_counts: dict[str, int] = {}
     for score in scores:
         for dim in score.get("dimension_scores", []):
-            if dim.get("score", 5) <= 2:
+            if float(dim.get("score", 5)) <= 2:
                 reason = dim.get("criterion_name", "unknown")
                 deduction_counts[reason] = deduction_counts.get(reason, 0) + 1
     top_deductions = sorted(deduction_counts.items(), key=lambda x: x[1], reverse=True)[:5]

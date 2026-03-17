@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
 """Batch scoring orchestrator for the homework-grader Skill.
 
-Scores preprocessed IR files against a Rubric using the Claude API.
-Supports real-time (Messages API) and batch (Batch API) modes with
-progress tracking, resume, anti-position-bias randomization, and
-per-item error isolation.
+Scores preprocessed IR files against a Rubric using the OpenAI API.
+Supports real-time mode with progress tracking, resume, anti-position-bias
+randomization, and per-item error isolation.
 
 Usage:
     python batch_score.py <workspace_dir> --rubric <rubric.yaml> \\
-        [--mode real-time|batch] [--workers 5] [--resume]
+        [--workers 5] [--resume]
 
 Examples:
     # Real-time mode, 5 concurrent workers
     python batch_score.py workspace/research-methods-20260315 \\
         --rubric rubric.yaml
-
-    # Batch API mode (50% cost discount)
-    python batch_score.py workspace/research-methods-20260315 \\
-        --rubric rubric.yaml --mode batch
 
     # Resume an interrupted batch
     python batch_score.py workspace/research-methods-20260315 \\
@@ -28,6 +23,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
+import io
 import json
 import logging
 import os
@@ -35,13 +32,27 @@ import random
 import sys
 import tempfile
 import time
+import zipfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import anthropic
+from openai import APITimeoutError, APIConnectionError, APIStatusError, OpenAI, RateLimitError
 import yaml
+from export_excel import (
+    build_detail_table,
+    build_grade_table,
+    build_statistics,
+    load_mapping,
+    load_scores,
+    write_excel,
+)
+
+try:
+    from PIL import Image  # type: ignore
+except Exception:  # noqa: BLE001
+    Image = None
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -57,17 +68,22 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-DEFAULT_MODEL = "claude-sonnet-4-5-20250514"
-DEFAULT_TEMPERATURE = 0.2
+DEFAULT_MODEL = "gpt-5-mini"
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_WORKERS = 5
 MAX_RETRIES = 3
 INITIAL_BACKOFF_S = 2.0
-BATCH_POLL_INTERVAL_S = 60
+MAX_ATTACHED_IMAGES = 3
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
-# Pricing per million tokens (Claude Sonnet 4.5, as of 2026-02)
-INPUT_PRICE_PER_MTOK = 3.0
-OUTPUT_PRICE_PER_MTOK = 15.0
+# Pricing per million tokens (rough estimate for the default model).
+INPUT_PRICE_PER_MTOK = 0.25
+OUTPUT_PRICE_PER_MTOK = 2.0
+
+_OPENAI_CLIENT: OpenAI | None = None
+_PROJECT_CONFIG: dict[str, Any] | None = None
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "grader-config.yaml"
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -111,6 +127,8 @@ class Rubric:
     id: str
     name: str
     version: float
+    description: str
+    instruction: str
     criteria: list[RubricCriterion]
     thresholds: RubricThresholds
     comment_guidelines: CommentGuidelines
@@ -180,6 +198,8 @@ def load_rubric(path: Path) -> Rubric:
     rubric_id = rubric_data.get("id", "")
     rubric_name = rubric_data.get("name", "")
     rubric_version = rubric_data.get("version", 1.0)
+    rubric_description = rubric_data.get("description", "")
+    rubric_instruction = rubric_data.get("instruction", "")
     if not rubric_id:
         raise ValueError("Rubric must have a non-empty 'id'")
 
@@ -252,8 +272,10 @@ def load_rubric(path: Path) -> Rubric:
     )
     return Rubric(
         id=rubric_id,
-        name=rubric_name,
+        name=rubric_name or rubric_id,
         version=rubric_version,
+        description=rubric_description,
+        instruction=rubric_instruction,
         criteria=criteria,
         thresholds=thresholds,
         comment_guidelines=comment_guidelines,
@@ -316,11 +338,20 @@ def build_scoring_user_prompt(
     submission_type: str,
 ) -> str:
     """Build the user prompt for scoring a single submission."""
-    # Rubric dimensions section
+    rubric_metadata = []
+    if rubric.description:
+        rubric_metadata.append(f"**Rubric Description**: {rubric.description}")
+    if rubric.instruction:
+        rubric_metadata.append(
+            f"**Assignment Instruction**:\n{rubric.instruction}"
+        )
+    rubric_metadata_text = "\n\n".join(rubric_metadata)
+
     dimensions_text = ""
     for c in rubric.criteria:
         anchor_rows = "\n".join(
-            f"| {score} | {c.anchors[score]} |" for score in sorted(c.anchors, reverse=True)
+            f"| {score} | {c.anchors[score]} |"
+            for score in sorted(c.anchors, reverse=True)
         )
         dimensions_text += f"""
 #### {c.name} (weight: {c.weight})
@@ -335,17 +366,16 @@ def build_scoring_user_prompt(
 **Evidence type**: {c.evidence_type}
 """
 
-    # JSON output format — dimension template
     dim_json_example = json.dumps(
         {
             "criterion_id": "<criterion key>",
             "criterion_name": "<criterion name>",
             "weight": 0.0,
-            "score": "<1-5>",
+            "score": 4,
             "evidence": "<quoted text or observation>",
-            "reasoning": "<chain-of-thought>",
+            "reasoning": "<concise rubric-based rationale>",
             "improvement": "<specific suggestion>",
-            "confidence": "<0.0-1.0>",
+            "confidence": 0.82,
         },
         ensure_ascii=False,
         indent=6,
@@ -355,6 +385,8 @@ def build_scoring_user_prompt(
 
 **Rubric ID**: {rubric.id}
 **Rubric Name**: {rubric.name}
+
+{rubric_metadata_text}
 
 ### Dimensions
 {dimensions_text}
@@ -371,24 +403,23 @@ def build_scoring_user_prompt(
 
 ## Scoring Instructions
 
+Use every relevant evidence block in the submission. If there is an
+Images / Diagrams section, you must inspect it for diagram-related criteria.
+Do not give credit for required artifacts that are absent or not supported by
+the available evidence.
+
 For **each** dimension listed above, produce the following in strict order:
 
-1. **Evidence** — Quote the student's own words (if evidence_type = quote) or \
-describe your observation (if evidence_type = observation / metric). If no \
-relevant content exists, state "No relevant evidence found."
-2. **Reasoning** — Compare the evidence against anchor descriptions. Explain \
-which anchor level it matches and why. Note any borderline considerations.
-3. **Score** — An integer from 1 to 5.
-4. **Improvement** — One specific, actionable suggestion the student could \
-follow next time.
-5. **Confidence** — A float from 0.0 to 1.0 indicating how confident you are \
-in this score.
+1. **Evidence** - Quote the student's own words (if evidence_type = quote) or describe your observation (if evidence_type = observation / metric). If no relevant content exists, state "No relevant evidence found."
+2. **Reasoning** - Compare the evidence against anchor descriptions. Explain which anchor level it matches and why. Note any borderline considerations.
+3. **Score** - An integer from 1 to 5.
+4. **Improvement** - One specific, actionable suggestion the student could follow next time.
+5. **Confidence** - A float from 0.0 to 1.0 indicating how confident you are in this score.
 
 After scoring all dimensions:
 
-6. **Weighted Total** — Calculate: Σ(weight × score) rounded to 2 decimal places.
-7. **Overall Confidence** — The mean of per-dimension confidence values, \
-rounded to 2 decimal places.
+6. **Weighted Total** - Calculate: sum(weight * score) rounded to 2 decimal places.
+7. **Overall Confidence** - The mean of per-dimension confidence values, rounded to 2 decimal places.
 
 ## Output Format
 
@@ -403,7 +434,6 @@ Respond with **only** the following JSON (no markdown fences, no commentary):
   "weighted_total": <float>,
   "overall_confidence": <float>
 }}"""
-
 
 def build_comment_user_prompt(
     rubric: Rubric,
@@ -495,7 +525,7 @@ def build_comment_system_prompt(rubric: Rubric) -> str:
 
 
 def extract_json_from_response(text: str) -> dict[str, Any]:
-    """Parse JSON from Claude's response, stripping markdown fences if present."""
+    """Parse JSON from the model response, stripping markdown fences if present."""
     cleaned = text.strip()
 
     # Remove markdown code fences if present
@@ -520,25 +550,45 @@ def validate_scoring_response(
     """
     errors: list[str] = []
 
-    # Check dimension_scores present
     dims = data.get("dimension_scores")
     if not isinstance(dims, list) or len(dims) == 0:
         errors.append("Missing or empty dimension_scores")
         return errors
 
-    # Check all criteria present
-    expected_ids = {c.criterion_id for c in rubric.criteria}
-    found_ids = {d.get("criterion_id", "") for d in dims}
-    missing = expected_ids - found_ids
-    if missing:
-        errors.append(f"Missing criteria in response: {missing}")
+    rubric_criteria = list(rubric.criteria)
 
-    # Validate each dimension
-    for dim in dims:
-        cid = dim.get("criterion_id", "?")
+    if len(dims) != len(rubric_criteria):
+        errors.append(
+            f"dimension_scores length mismatch: expected {len(rubric_criteria)}, got {len(dims)}"
+        )
+
+    for i, dim in enumerate(dims):
+        if i >= len(rubric_criteria):
+            break
+
+        rc = rubric_criteria[i]
+
+        raw_score = dim.get("score")
+        if isinstance(raw_score, str) and raw_score.strip().isdigit():
+            dim["score"] = int(raw_score.strip())
+
+        raw_confidence = dim.get("confidence")
+        if isinstance(raw_confidence, str):
+            try:
+                dim["confidence"] = float(raw_confidence.strip())
+            except ValueError:
+                pass
+
+        dim["criterion_id"] = rc.criterion_id
+        dim["criterion_name"] = rc.name
+        dim["weight"] = rc.weight
+
+        cid = rc.criterion_id
+
         score = dim.get("score")
         if not isinstance(score, int) or score < 1 or score > 5:
             errors.append(f"Criterion '{cid}': score must be integer 1-5 (got {score})")
+
         confidence = dim.get("confidence")
         if confidence is not None and (
             not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 1
@@ -547,26 +597,47 @@ def validate_scoring_response(
                 f"Criterion '{cid}': confidence must be 0.0-1.0 (got {confidence})"
             )
 
-    # Validate weighted_total
+    expected_wt = 0.0
+    for i, dim in enumerate(dims):
+        if i >= len(rubric_criteria):
+            break
+
+        rc = rubric_criteria[i]
+        score = dim.get("score", 0)
+        try:
+            expected_wt += rc.weight * float(score)
+        except Exception:
+            errors.append(f"Invalid score for '{rc.criterion_id}': {score}")
+
+    expected_wt = round(expected_wt, 2)
     wt = data.get("weighted_total")
-    if wt is not None:
-        # Recompute for verification
-        expected_wt = 0.0
-        for dim in dims:
-            cid = dim.get("criterion_id", "")
-            score = dim.get("score", 0)
-            # Find weight from rubric
-            for rc in rubric.criteria:
-                if rc.criterion_id == cid:
-                    expected_wt += rc.weight * score
-                    break
-        expected_wt = round(expected_wt, 2)
-        if abs(float(wt) - expected_wt) > 0.1:
-            errors.append(
-                f"weighted_total mismatch: response={wt}, computed={expected_wt}"
-            )
-            # Fix it — use computed value
-            data["weighted_total"] = expected_wt
+    if wt is None or abs(float(wt) - expected_wt) > 0.1:
+        errors.append(
+            f"weighted_total mismatch: response={wt}, computed={expected_wt}"
+        )
+        data["weighted_total"] = expected_wt
+
+    confidence_values = [
+        float(dim["confidence"])
+        for dim in dims
+        if isinstance(dim.get("confidence"), (int, float))
+    ]
+    expected_confidence = (
+        round(sum(confidence_values) / len(confidence_values), 2)
+        if confidence_values
+        else 0.0
+    )
+    overall_confidence = data.get("overall_confidence")
+    if (
+        overall_confidence is None
+        or not isinstance(overall_confidence, (int, float))
+        or abs(float(overall_confidence) - expected_confidence) > 0.1
+    ):
+        errors.append(
+            "overall_confidence mismatch: "
+            f"response={overall_confidence}, computed={expected_confidence}"
+        )
+        data["overall_confidence"] = expected_confidence
 
     return errors
 
@@ -595,43 +666,247 @@ def load_ir_file(path: Path) -> dict[str, Any]:
 def get_submission_content(ir: dict[str, Any]) -> str:
     """Extract submission content from an IR record for the scoring prompt."""
     content = ir.get("content", {})
+    submission_type = ir.get("submission_type", "text")
 
-    # Prefer full_text for text submissions
+    blocks: list[str] = [
+        "## Submission Evidence Summary",
+        f"- Submission type: {submission_type}",
+    ]
+
+    text_sections: list[str] = []
+
     full_text = content.get("full_text", "")
     if full_text:
-        return full_text
+        text_sections.append("## Full Text\n\n" + full_text.strip())
 
-    # Fall back to sections
     sections = content.get("sections", [])
-    if sections:
+    if sections and not full_text:
         parts = []
         for section in sections:
             heading = section.get("heading", "")
             level = section.get("level", 2)
-            text = section.get("text", "")
+            text_value = section.get("text", "")
             prefix = "#" * level
-            parts.append(f"{prefix} {heading}\n\n{text}")
-        return "\n\n".join(parts)
+            parts.append(f"{prefix} {heading}\n\n{text_value}")
+        if parts:
+            text_sections.append("## Sections\n\n" + "\n\n".join(parts))
 
-    # Image descriptions
-    images = content.get("images", [])
-    if images:
-        parts = []
-        for i, img in enumerate(images, 1):
-            desc = img.get("description", "")
-            extracted = img.get("extracted_text", "")
-            parts.append(f"[Image {i}]\n{desc}")
-            if extracted:
-                parts.append(f"Extracted text: {extracted}")
-        return "\n\n".join(parts)
-
-    # Transcript
     transcript = content.get("transcript", "")
-    if transcript:
-        return transcript
+    if transcript and not full_text:
+        text_sections.append("## Transcript\n\n" + transcript.strip())
 
-    return "(No content extracted)"
+    images = content.get("images", [])
+    image_sections: list[str] = []
+    for i, img in enumerate(images, 1):
+        item_lines = [f"### Image {i}"]
+        for key, label in (
+            ("type", "Heuristic Type (may be wrong)"),
+            ("caption", "Caption"),
+            ("description", "Description"),
+            ("extracted_text", "Extracted Text"),
+            ("ocr_text", "OCR Text"),
+            ("alt_text", "Alt Text"),
+            ("context", "Context"),
+        ):
+            value = img.get(key, "")
+            if value:
+                item_lines.append(f"{label}: {value}")
 
+        remaining_pairs = []
+        for key, value in img.items():
+            if key in {
+                "type",
+                "caption",
+                "description",
+                "extracted_text",
+                "ocr_text",
+                "alt_text",
+                "context",
+            }:
+                continue
+            if isinstance(value, (str, int, float, bool)) and str(value).strip():
+                remaining_pairs.append(f"{key}={value}")
+
+        if remaining_pairs:
+            item_lines.append("Metadata: " + "; ".join(remaining_pairs))
+
+        image_sections.append("\n".join(item_lines))
+
+    blocks.append(f"- Image/diagram count: {len(images)}")
+
+    if text_sections:
+        blocks.extend(text_sections)
+    if image_sections:
+        blocks.append(
+            "## Images / Diagrams\n\n"
+            "Note: image type/description fields are heuristic. "
+            "Always judge the diagram from the image itself.\n\n"
+            + "\n\n".join(image_sections)
+        )
+    if len(blocks) == 2:
+        blocks.append("(No content extracted)")
+
+    return "\n\n".join(blocks)
+
+
+
+def _resolve_workspace_source_file(workspace: Path, relative_path: str) -> Path:
+    normalized = relative_path.replace("\\", "/")
+    return workspace / Path(*[part for part in normalized.split("/") if part])
+
+
+def _maybe_upscale_image(image_bytes: bytes) -> bytes:
+    """Best-effort upscale to improve diagram readability for vision models."""
+    if Image is None:
+        return image_bytes
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as img:
+            width, height = img.size
+            max_dim = max(width, height)
+            if max_dim >= 2400:
+                return image_bytes
+
+            scale = 2 if max_dim >= 1200 else 3
+            new_size = (int(width * scale), int(height * scale))
+            resampling = getattr(Image, "Resampling", Image)
+            resized = img.resize(new_size, resample=getattr(resampling, "LANCZOS"))
+            out = io.BytesIO()
+            resized.save(out, format="PNG")
+            data = out.getvalue()
+            if len(data) <= MAX_IMAGE_BYTES:
+                return data
+    except Exception as exc:
+        logger.warning("Image upscale failed: %s", exc)
+    return image_bytes
+
+
+def _guess_media_type(path_str: str) -> str | None:
+    suffix = Path(path_str).suffix.lower()
+    if suffix == ".png":
+        return "image/png"
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if suffix == ".webp":
+        return "image/webp"
+    if suffix == ".gif":
+        return "image/gif"
+    return None
+
+
+def _image_priority(image_entry: dict[str, Any]) -> tuple[int, int]:
+    image_type = str(image_entry.get("type", "")).lower()
+    ocr_status = str(image_entry.get("ocr_status", "")).lower()
+    priority = 9
+    if "sequence" in image_type:
+        priority = 0
+    elif "diagram" in image_type:
+        priority = 1
+    elif "flow" in image_type:
+        priority = 2
+    elif image_type and image_type != "image":
+        priority = 3
+    elif image_entry.get("caption") or image_entry.get("context"):
+        priority = 4
+    return (priority, 0 if ocr_status == "success" else 1)
+
+
+def _load_image_bytes_for_entry(
+    workspace: Path,
+    ir: dict[str, Any],
+    image_entry: dict[str, Any],
+) -> tuple[bytes, str] | None:
+    file_ref = str(image_entry.get("file", ""))
+    container_path = str(image_entry.get("container_path", ""))
+
+    if file_ref.startswith("raw/"):
+        source_path = _resolve_workspace_source_file(workspace, file_ref)
+        if source_path.is_file():
+            return source_path.read_bytes(), source_path.name
+
+    if container_path:
+        for source in ir.get("source_files", []):
+            source_str = str(source)
+            if not source_str.lower().endswith(".docx"):
+                continue
+            docx_path = _resolve_workspace_source_file(workspace, source_str)
+            if not docx_path.is_file():
+                continue
+            with zipfile.ZipFile(docx_path) as zf:
+                if container_path in zf.namelist():
+                    return zf.read(container_path), container_path
+
+    return None
+
+
+def build_scoring_message_content(
+    workspace: Path,
+    rubric: Rubric,
+    ir: dict[str, Any],
+) -> tuple[list[dict[str, Any]], int]:
+    student_id = ir.get("student_id", "unknown")
+    submission_type = ir.get("submission_type", "text")
+    content_text = get_submission_content(ir)
+    prompt = build_scoring_user_prompt(rubric, student_id, content_text, submission_type)
+
+    user_content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    image_entries = list(ir.get("content", {}).get("images", []))
+    attached_count = 0
+
+    if image_entries:
+        user_content.append(
+            {
+                "type": "text",
+                "text": (
+                    "The submission has image evidence. Inspect every attached image directly, "
+                    "especially for diagram-related criteria. Do not rely only on OCR summaries."
+                ),
+            }
+        )
+
+    for image_entry in sorted(image_entries, key=_image_priority):
+        if attached_count >= MAX_ATTACHED_IMAGES:
+            break
+        loaded = _load_image_bytes_for_entry(workspace, ir, image_entry)
+        if loaded is None:
+            continue
+        image_bytes, image_name = loaded
+        image_bytes = _maybe_upscale_image(image_bytes)
+        if len(image_bytes) > MAX_IMAGE_BYTES:
+            logger.warning(
+                "Skipping oversized image for %s: %s (%d bytes)",
+                student_id,
+                image_name,
+                len(image_bytes),
+            )
+            continue
+
+        media_type = _guess_media_type(image_name)
+        if media_type is None:
+            logger.warning("Skipping unsupported image type for %s: %s", student_id, image_name)
+            continue
+
+        caption = str(image_entry.get("caption", "")).strip()
+        if not caption:
+            caption = image_name
+        user_content.append(
+            {
+                "type": "text",
+                "text": f"Attached image {attached_count + 1}: {caption}",
+            }
+        )
+        user_content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": base64.b64encode(image_bytes).decode("ascii"),
+                },
+            }
+        )
+        attached_count += 1
+
+    return user_content, attached_count
 
 # ---------------------------------------------------------------------------
 # Score file writing (atomic)
@@ -782,15 +1057,147 @@ def estimate_cost(
     return round(cost, 6)
 
 
+def _load_project_config() -> dict[str, Any]:
+    """Load runtime configuration from grader-config.yaml if present."""
+    global _PROJECT_CONFIG
+    if _PROJECT_CONFIG is not None:
+        return _PROJECT_CONFIG
+
+    if not DEFAULT_CONFIG_PATH.exists():
+        _PROJECT_CONFIG = {}
+        return _PROJECT_CONFIG
+
+    try:
+        with open(DEFAULT_CONFIG_PATH, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        if not isinstance(data, dict):
+            logger.warning(
+                "Ignoring invalid config file %s: top-level value must be a mapping",
+                DEFAULT_CONFIG_PATH,
+            )
+            _PROJECT_CONFIG = {}
+            return _PROJECT_CONFIG
+        _PROJECT_CONFIG = data
+        logger.info("Loaded runtime config from %s", DEFAULT_CONFIG_PATH)
+        return _PROJECT_CONFIG
+    except Exception as exc:
+        logger.warning("Failed to load config file %s: %s", DEFAULT_CONFIG_PATH, exc)
+        _PROJECT_CONFIG = {}
+        return _PROJECT_CONFIG
+
+
+def _config_value(*keys: str) -> str:
+    """Read a string value from grader-config.yaml."""
+    current: Any = _load_project_config()
+    for key in keys:
+        if not isinstance(current, dict):
+            return ""
+        current = current.get(key)
+    if current is None:
+        return ""
+    return str(current).strip()
+
+
+def _resolve_configured_path(config_value: str) -> Path | None:
+    """Resolve a config path relative to the project root."""
+    value = config_value.strip()
+    if not value:
+        return None
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return PROJECT_ROOT / path
+
+
+def _get_openai_client() -> OpenAI:
+    """Return a cached OpenAI client configured from environment variables."""
+    global _OPENAI_CLIENT
+    if _OPENAI_CLIENT is None:
+        api_key = (
+            os.environ.get("OPENAI_API_KEY", "").strip()
+            or _config_value("openai", "api_key")
+        )
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY not set. Configure it in the environment "
+                "or grader-config.yaml"
+            )
+        base_url = (
+            os.environ.get("OPENAI_BASE_URL", "").strip()
+            or _config_value("openai", "base_url")
+        )
+        client_kwargs: dict[str, Any] = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        _OPENAI_CLIENT = OpenAI(**client_kwargs)
+    return _OPENAI_CLIENT
+
+
+def _build_openai_input(
+    system_prompt: str,
+    user_content: str | list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert the local content representation into Responses API input."""
+    if isinstance(user_content, str):
+        normalized_user_content = [{"type": "input_text", "text": user_content}]
+    else:
+        normalized_user_content = []
+        for item in user_content:
+            if item.get("type") == "text":
+                normalized_user_content.append(
+                    {"type": "input_text", "text": item.get("text", "")}
+                )
+                continue
+
+            if item.get("type") == "image":
+                source = item.get("source", {})
+                if source.get("type") != "base64":
+                    continue
+                media_type = source.get("media_type", "")
+                data = source.get("data", "")
+                normalized_user_content.append(
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:{media_type};base64,{data}",
+                    }
+                )
+
+    return [
+        {
+            "role": "system",
+            "content": [{"type": "input_text", "text": system_prompt}],
+        },
+        {
+            "role": "user",
+            "content": normalized_user_content,
+        },
+    ]
+
+
+def _extract_response_text(response: Any) -> str:
+    """Extract plain text from a Responses API result."""
+    output_text = getattr(response, "output_text", "")
+    if output_text:
+        return output_text
+
+    chunks: list[str] = []
+    for item in getattr(response, "output", []) or []:
+        for content in getattr(item, "content", []) or []:
+            text_value = getattr(content, "text", "")
+            if text_value:
+                chunks.append(text_value)
+    return "\n".join(chunks).strip()
+
+
 # ---------------------------------------------------------------------------
 # Real-time scoring engine
 # ---------------------------------------------------------------------------
 
 
 async def score_one_submission(
-    client: anthropic.AsyncAnthropic,
     model: str,
     rubric: Rubric,
+    workspace: Path,
     ir: dict[str, Any],
     semaphore: asyncio.Semaphore,
 ) -> ScoringResult:
@@ -800,26 +1207,26 @@ async def score_one_submission(
     backoff on transient failures.
     """
     student_id = ir.get("student_id", "unknown")
-    submission_type = ir.get("submission_type", "text")
-    content_text = get_submission_content(ir)
 
     total_input_tokens = 0
     total_output_tokens = 0
     start_ms = time.monotonic_ns() // 1_000_000
 
     # --- Step 1: Scoring call ---
-    scoring_user_prompt = build_scoring_user_prompt(
-        rubric, student_id, content_text, submission_type
+    scoring_user_content, attached_image_count = build_scoring_message_content(
+        workspace=workspace,
+        rubric=rubric,
+        ir=ir,
     )
 
-    score_data = await _call_with_retry(
-        client=client,
-        model=model,
-        system_prompt=SCORING_SYSTEM_PROMPT,
-        user_prompt=scoring_user_prompt,
-        semaphore=semaphore,
-        context=f"scoring {student_id}",
-    )
+    async with semaphore:
+        score_data = await asyncio.to_thread(
+            _call_with_retry,
+            model=model,
+            system_prompt=SCORING_SYSTEM_PROMPT,
+            user_content=scoring_user_content,
+            context=f"scoring {student_id}",
+        )
     total_input_tokens += score_data["_input_tokens"]
     total_output_tokens += score_data["_output_tokens"]
 
@@ -835,14 +1242,14 @@ async def score_one_submission(
     comment_system = build_comment_system_prompt(rubric)
     comment_user = build_comment_user_prompt(rubric, score_json)
 
-    comment_data = await _call_with_retry(
-        client=client,
-        model=model,
-        system_prompt=comment_system,
-        user_prompt=comment_user,
-        semaphore=semaphore,
-        context=f"comment {student_id}",
-    )
+    async with semaphore:
+        comment_data = await asyncio.to_thread(
+            _call_with_retry,
+            model=model,
+            system_prompt=comment_system,
+            user_content=comment_user,
+            context=f"comment {student_id}",
+        )
     total_input_tokens += comment_data["_input_tokens"]
     total_output_tokens += comment_data["_output_tokens"]
 
@@ -890,6 +1297,7 @@ async def score_one_submission(
             "input_tokens": total_input_tokens,
             "output_tokens": total_output_tokens,
             "duration_ms": duration_ms,
+            "attached_image_blocks": attached_image_count,
         },
     }
 
@@ -902,16 +1310,14 @@ async def score_one_submission(
     )
 
 
-async def _call_with_retry(
-    client: anthropic.AsyncAnthropic,
+def _call_with_retry(
     model: str,
     system_prompt: str,
-    user_prompt: str,
-    semaphore: asyncio.Semaphore,
+    user_content: str | list[dict[str, Any]],
     context: str,
     max_retries: int = MAX_RETRIES,
 ) -> dict[str, Any]:
-    """Call the Claude Messages API with retry and exponential backoff.
+    """Call the OpenAI Responses API with retry and exponential backoff.
 
     Returns a dict with _text, _input_tokens, _output_tokens keys.
     """
@@ -920,43 +1326,39 @@ async def _call_with_retry(
 
     for attempt in range(1, max_retries + 1):
         try:
-            async with semaphore:
-                response = await client.messages.create(
-                    model=model,
-                    max_tokens=DEFAULT_MAX_TOKENS,
-                    temperature=DEFAULT_TEMPERATURE,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-
-            # Extract text content
-            text_content = ""
-            for block in response.content:
-                if block.type == "text":
-                    text_content += block.text
+            client = _get_openai_client()
+            response = client.responses.create(
+                model=model,
+                input=_build_openai_input(system_prompt, user_content),
+                max_output_tokens=DEFAULT_MAX_TOKENS,
+            )
+            usage = getattr(response, "usage", None)
+            input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+            output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+            text_content = _extract_response_text(response)
+            if not text_content:
+                raise RuntimeError("OpenAI response did not contain text output")
 
             return {
                 "_text": text_content,
-                "_input_tokens": response.usage.input_tokens,
-                "_output_tokens": response.usage.output_tokens,
+                "_input_tokens": input_tokens,
+                "_output_tokens": output_tokens,
             }
 
-        except anthropic.RateLimitError as exc:
-            retry_after = _parse_retry_after(exc)
+        except RateLimitError as exc:
             logger.warning(
-                "[%s] Rate limited (attempt %d). Waiting %.1fs...",
+                "[%s] Rate limited (attempt %d/%d). Waiting %.1fs...",
                 context,
                 attempt,
-                retry_after,
+                max_retries,
+                backoff,
             )
-            await asyncio.sleep(retry_after)
             last_error = exc
-            # Do not count rate limits against max_retries
-            continue
-
-        except (anthropic.APITimeoutError, anthropic.APIConnectionError) as exc:
+            time.sleep(backoff)
+            backoff *= 2
+        except (APITimeoutError, APIConnectionError) as exc:
             logger.warning(
-                "[%s] Transient error (attempt %d/%d): %s. Retrying in %.1fs...",
+                "[%s] Transient OpenAI error (attempt %d/%d): %s. Retrying in %.1fs...",
                 context,
                 attempt,
                 max_retries,
@@ -964,40 +1366,43 @@ async def _call_with_retry(
                 backoff,
             )
             last_error = exc
-            await asyncio.sleep(backoff)
+            time.sleep(backoff)
             backoff *= 2
-
-        except anthropic.APIStatusError as exc:
-            if exc.status_code == 529:
-                # Overloaded — treat like rate limit
+        except APIStatusError as exc:
+            if exc.status_code in {408, 409, 429, 500, 502, 503, 504}:
                 logger.warning(
-                    "[%s] API overloaded (attempt %d). Waiting %.1fs...",
+                    "[%s] OpenAI API status %s (attempt %d/%d). Retrying in %.1fs...",
                     context,
+                    exc.status_code,
                     attempt,
+                    max_retries,
                     backoff,
                 )
                 last_error = exc
-                await asyncio.sleep(backoff)
+                time.sleep(backoff)
                 backoff *= 2
-            else:
-                raise
+                continue
+            raise
+        except Exception as exc:
+            error_str = str(exc).lower()
+            if "timeout" in error_str or "connection" in error_str or "network" in error_str:
+                logger.warning(
+                    "[%s] Transient error (attempt %d/%d): %s. Retrying in %.1fs...",
+                    context,
+                    attempt,
+                    max_retries,
+                    exc,
+                    backoff,
+                )
+                last_error = exc
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+            raise
 
     raise RuntimeError(
         f"[{context}] All {max_retries} retries exhausted. Last error: {last_error}"
     )
-
-
-def _parse_retry_after(exc: anthropic.RateLimitError) -> float:
-    """Extract Retry-After seconds from a rate limit error."""
-    # Try to get the retry-after header from the response
-    try:
-        if hasattr(exc, "response") and exc.response is not None:
-            retry_after = exc.response.headers.get("retry-after")
-            if retry_after:
-                return float(retry_after)
-    except (ValueError, AttributeError):
-        pass
-    return 30.0  # Default wait
 
 
 async def run_realtime_mode(
@@ -1075,13 +1480,17 @@ async def run_realtime_mode(
         _print_summary(progress, batch_mode=False)
         return
 
-    # Initialize API client
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    # Check API key
+    api_key = (
+        os.environ.get("OPENAI_API_KEY", "").strip()
+        or _config_value("openai", "api_key")
+    )
     if not api_key:
-        logger.error("ANTHROPIC_API_KEY environment variable not set")
+        logger.error(
+            "OPENAI_API_KEY not set. Configure it in the environment or grader-config.yaml"
+        )
         sys.exit(1)
 
-    client = anthropic.AsyncAnthropic(api_key=api_key)
     semaphore = asyncio.Semaphore(workers)
 
     # Accumulate stats for summary
@@ -1114,9 +1523,9 @@ async def run_realtime_mode(
                 continue
 
             result = await score_one_submission(
-                client=client,
                 model=model,
                 rubric=rubric,
+                workspace=workspace,
                 ir=ir,
                 semaphore=semaphore,
             )
@@ -1206,258 +1615,7 @@ def _record_failure(
 # ---------------------------------------------------------------------------
 
 
-async def run_batch_mode(
-    workspace: Path,
-    rubric: Rubric,
-    model: str,
-    resume: bool,
-) -> None:
-    """Execute Batch API scoring mode."""
-    ir_dir = workspace / "ir"
-    scores_dir = workspace / "scores"
-    progress_path = workspace / "progress.json"
 
-    # Discover IR files
-    ir_files = sorted(ir_dir.glob("*.json"))
-    all_ids = [p.stem for p in ir_files]
-    id_to_path = {p.stem: p for p in ir_files}
-
-    if not all_ids:
-        logger.error("No IR files found in %s", ir_dir)
-        return
-
-    logger.info("Found %d IR files in %s", len(all_ids), ir_dir)
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        logger.error("ANTHROPIC_API_KEY environment variable not set")
-        sys.exit(1)
-
-    client = anthropic.Anthropic(api_key=api_key)
-
-    # Check for existing batch to resume
-    progress: Progress | None = None
-    if resume and progress_path.exists():
-        progress = load_progress(progress_path)
-
-    # If resuming with an existing batch_id that started Batch API
-    if progress is not None and progress.mode == "batch" and progress.stats.get("api_batch_id"):
-        api_batch_id = progress.stats["api_batch_id"]
-        logger.info("Resuming Batch API poll for batch %s", api_batch_id)
-    else:
-        # Build new batch
-        processing_order = list(all_ids)
-        random.shuffle(processing_order)
-
-        # Filter out gate-failed submissions
-        to_process: list[str] = []
-        gate_failed_ids: list[str] = []
-        for sid in processing_order:
-            ir_path = id_to_path.get(sid)
-            if ir_path is None:
-                continue
-            ir = load_ir_file(ir_path)
-            gate_failed = any(
-                not g.get("passed", True) and g.get("on_fail") == "fail"
-                for g in ir.get("gate_results", [])
-            )
-            if gate_failed:
-                gate_failed_ids.append(sid)
-                logger.info("Skipping %s — gate FAILED (on_fail=fail)", sid)
-            else:
-                to_process.append(sid)
-
-        if not to_process:
-            logger.info("No submissions to process after gate filtering")
-            return
-
-        # Build JSONL requests
-        jsonl_lines: list[str] = []
-        for sid in to_process:
-            ir_path = id_to_path[sid]
-            ir = load_ir_file(ir_path)
-            submission_type = ir.get("submission_type", "text")
-            content_text = get_submission_content(ir)
-
-            user_prompt = build_scoring_user_prompt(
-                rubric, sid, content_text, submission_type
-            )
-
-            request_body = {
-                "custom_id": sid,
-                "params": {
-                    "model": model,
-                    "max_tokens": DEFAULT_MAX_TOKENS,
-                    "temperature": DEFAULT_TEMPERATURE,
-                    "system": SCORING_SYSTEM_PROMPT,
-                    "messages": [{"role": "user", "content": user_prompt}],
-                },
-            }
-            jsonl_lines.append(json.dumps(request_body, ensure_ascii=False))
-
-        logger.info("Built %d batch requests", len(jsonl_lines))
-
-        # Create batch via API
-        jsonl_content = "\n".join(jsonl_lines)
-
-        batch = client.messages.batches.create(
-            requests=[json.loads(line) for line in jsonl_lines]
-        )
-        api_batch_id = batch.id
-        logger.info("Batch created: %s", api_batch_id)
-
-        # Initialize progress
-        progress = Progress(
-            batch_id=workspace.name,
-            rubric_id=rubric.id,
-            mode="batch",
-            started_at=_now_iso(),
-            last_updated=_now_iso(),
-            total=len(all_ids),
-            pending=len(to_process),
-            pending_ids=to_process,
-            processing_order=processing_order,
-            stats={"api_batch_id": api_batch_id},
-        )
-
-        # Record gate-failed items
-        for sid in gate_failed_ids:
-            _record_failure(progress, sid, "Gate check failed (on_fail=fail)", 0)
-
-        save_progress(progress_path, progress)
-
-    # Poll for batch completion
-    assert progress is not None
-    api_batch_id = progress.stats.get("api_batch_id", "")
-    logger.info("Polling batch %s (interval: %ds)...", api_batch_id, BATCH_POLL_INTERVAL_S)
-
-    while True:
-        batch_status = client.messages.batches.retrieve(api_batch_id)
-        status = batch_status.processing_status
-
-        logger.info(
-            "Batch %s status: %s (counts: %s)",
-            api_batch_id,
-            status,
-            {
-                "processing": batch_status.request_counts.processing,
-                "succeeded": batch_status.request_counts.succeeded,
-                "errored": batch_status.request_counts.errored,
-            },
-        )
-
-        if status == "ended":
-            break
-
-        await asyncio.sleep(BATCH_POLL_INTERVAL_S)
-
-    # Download and process results
-    logger.info("Batch completed. Processing results...")
-
-    async_client = anthropic.AsyncAnthropic(api_key=api_key)
-    comment_semaphore = asyncio.Semaphore(5)
-
-    scored_count = 0
-    failed_count = 0
-
-    for result in client.messages.batches.results(api_batch_id):
-        custom_id = result.custom_id
-
-        if result.result.type == "succeeded":
-            try:
-                # Extract text from the message response
-                message = result.result.message
-                text_content = ""
-                for block in message.content:
-                    if block.type == "text":
-                        text_content += block.text
-
-                score_json = extract_json_from_response(text_content)
-                validation_errors = validate_scoring_response(score_json, rubric)
-                if validation_errors:
-                    logger.warning(
-                        "Validation issues for %s: %s",
-                        custom_id,
-                        "; ".join(validation_errors),
-                    )
-
-                # Generate comment via real-time call
-                comment_system = build_comment_system_prompt(rubric)
-                comment_user = build_comment_user_prompt(rubric, score_json)
-
-                comment_result = await _call_with_retry(
-                    client=async_client,
-                    model=model,
-                    system_prompt=comment_system,
-                    user_prompt=comment_user,
-                    semaphore=comment_semaphore,
-                    context=f"comment {custom_id}",
-                )
-                comment_json = extract_json_from_response(comment_result["_text"])
-
-                # Load IR for gate_results
-                ir_path = id_to_path.get(custom_id)
-                ir = load_ir_file(ir_path) if ir_path else {}
-                gate_status = {
-                    "all_passed": all(
-                        g.get("passed", True) for g in ir.get("gate_results", [])
-                    ),
-                    "details": ir.get("gate_results", []),
-                }
-
-                weighted_total = score_json.get("weighted_total", 0.0)
-                overall_confidence = score_json.get("overall_confidence", 0.0)
-
-                final_record = {
-                    "student_id": custom_id,
-                    "rubric_id": rubric.id,
-                    "scored_at": _now_iso(),
-                    "gate_status": gate_status,
-                    "dimension_scores": score_json.get("dimension_scores", []),
-                    "weighted_total": weighted_total,
-                    "percentile_score": compute_percentile(weighted_total),
-                    "grade": classify_grade(weighted_total, rubric.thresholds),
-                    "overall_confidence": overall_confidence,
-                    "review_flag": determine_review_flag(
-                        overall_confidence, gate_status
-                    ),
-                    "comment": {
-                        "strengths": comment_json.get("strengths", ""),
-                        "weaknesses": comment_json.get("weaknesses", ""),
-                        "suggestions": comment_json.get("suggestions", ""),
-                        "full_text": comment_json.get("full_text", ""),
-                    },
-                    "metadata": {
-                        "model": model,
-                        "input_tokens": message.usage.input_tokens,
-                        "output_tokens": message.usage.output_tokens,
-                        "duration_ms": 0,
-                    },
-                }
-
-                save_score_file(scores_dir, custom_id, final_record)
-                progress.completed_ids.append(custom_id)
-                if custom_id in progress.pending_ids:
-                    progress.pending_ids.remove(custom_id)
-                scored_count += 1
-
-            except Exception as exc:
-                logger.error("Failed to process result for %s: %s", custom_id, exc)
-                _record_failure(progress, custom_id, str(exc), 1)
-                failed_count += 1
-        else:
-            # Error result from Batch API
-            error_msg = str(getattr(result.result, "error", "Unknown batch error"))
-            logger.error("Batch API error for %s: %s", custom_id, error_msg)
-            _record_failure(progress, custom_id, error_msg, 1)
-            failed_count += 1
-
-    progress.completed = len(progress.completed_ids)
-    progress.pending = len(progress.pending_ids)
-    save_progress(progress_path, progress)
-
-    logger.info("Batch results processed: %d scored, %d failed", scored_count, failed_count)
-    _print_summary(progress, batch_mode=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1468,6 +1626,28 @@ async def run_batch_mode(
 def _print_summary(progress: Progress, batch_mode: bool) -> None:
     """Log a batch completion summary."""
     logger.info("=" * 60)
+
+
+def export_timestamped_excel(workspace: Path) -> Path | None:
+    """Export current scores to a new timestamped Excel workbook."""
+    scores_dir = workspace / "scores"
+    mapping_path = workspace / "student-mapping.csv"
+    reports_dir = workspace / "reports"
+
+    scores = load_scores(scores_dir)
+    if not scores:
+        logger.warning("Skipping Excel export because no scores were found in %s", scores_dir)
+        return None
+
+    mapping = load_mapping(mapping_path)
+    grade_df = build_grade_table(scores, mapping)
+    stats = build_statistics(grade_df, scores)
+    detail_df = build_detail_table(scores, mapping)
+
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    output_path = reports_dir / f"grades-{timestamp}.xlsx"
+    write_excel(grade_df, stats, detail_df, output_path)
+    return output_path
     logger.info("BATCH SCORING SUMMARY")
     logger.info("=" * 60)
     logger.info("Batch ID:   %s", progress.batch_id)
@@ -1519,9 +1699,6 @@ examples:
   # Real-time scoring with default 5 workers
   python batch_score.py workspace/batch-001 --rubric my-rubric.yaml
 
-  # Batch API mode (50%% cost discount, results in ≤24h)
-  python batch_score.py workspace/batch-001 --rubric my-rubric.yaml --mode batch
-
   # Resume an interrupted run
   python batch_score.py workspace/batch-001 --rubric my-rubric.yaml --resume
 """,
@@ -1529,26 +1706,19 @@ examples:
     parser.add_argument(
         "workspace",
         type=Path,
+        nargs="?",
         help="Workspace directory (must contain ir/ subdirectory with IR JSON files)",
     )
     parser.add_argument(
         "--rubric",
         type=Path,
-        required=True,
         help="Path to the Rubric YAML file",
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["real-time", "batch"],
-        default="real-time",
-        help="Processing mode: real-time (Messages API) or batch (Batch API). "
-        "Default: real-time",
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=DEFAULT_WORKERS,
-        help=f"Number of concurrent workers for real-time mode. Default: {DEFAULT_WORKERS}",
+        help=f"Number of concurrent workers. Default: {DEFAULT_WORKERS}",
     )
     parser.add_argument(
         "--resume",
@@ -1562,24 +1732,43 @@ examples:
         help="Override the scoring model (default: env SCORING_MODEL or "
         f"{DEFAULT_MODEL})",
     )
-    parser.add_argument(
-        "--poll-interval",
-        type=int,
-        default=BATCH_POLL_INTERVAL_S,
-        help=f"Batch API poll interval in seconds. Default: {BATCH_POLL_INTERVAL_S}",
-    )
     return parser.parse_args(argv)
 
 
 async def async_main(args: argparse.Namespace) -> None:
     """Async entry point."""
-    workspace: Path = args.workspace
-    rubric_path: Path = args.rubric
-    mode: str = args.mode
+    configured_workspace = _resolve_configured_path(
+        _config_value("grading", "workspace_path")
+    )
+    configured_rubric = _resolve_configured_path(
+        _config_value("grading", "rubric_path")
+    )
+
+    workspace: Path | None = args.workspace or configured_workspace
+    rubric_path: Path | None = args.rubric or configured_rubric
     workers: int = args.workers
 
     # Resolve model
-    model = args.model or os.environ.get("SCORING_MODEL", DEFAULT_MODEL)
+    model = (
+        args.model
+        or os.environ.get("SCORING_MODEL", "").strip()
+        or _config_value("openai", "model")
+        or DEFAULT_MODEL
+    )
+
+    if workspace is None:
+        logger.error(
+            "Workspace not set. Pass it on the command line or configure grading.workspace_path "
+            "in grader-config.yaml"
+        )
+        sys.exit(1)
+
+    if rubric_path is None:
+        logger.error(
+            "Rubric path not set. Pass --rubric or configure grading.rubric_path in "
+            "grader-config.yaml"
+        )
+        sys.exit(1)
 
     # Validate workspace
     ir_dir = workspace / "ir"
@@ -1607,31 +1796,23 @@ async def async_main(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     logger.info(
-        "Starting batch scoring — mode=%s, model=%s, workers=%d",
-        mode,
+        "Starting batch scoring — model=%s, workers=%d",
         model,
         workers,
     )
 
-    # Update poll interval if provided
-    global BATCH_POLL_INTERVAL_S
-    BATCH_POLL_INTERVAL_S = args.poll_interval
+    # Always use real-time mode
+    await run_realtime_mode(
+        workspace=workspace,
+        rubric=rubric,
+        model=model,
+        workers=workers,
+        resume=args.resume,
+    )
 
-    if mode == "real-time":
-        await run_realtime_mode(
-            workspace=workspace,
-            rubric=rubric,
-            model=model,
-            workers=workers,
-            resume=args.resume,
-        )
-    else:
-        await run_batch_mode(
-            workspace=workspace,
-            rubric=rubric,
-            model=model,
-            resume=args.resume,
-        )
+    excel_path = export_timestamped_excel(workspace)
+    if excel_path is not None:
+        logger.info("Generated Excel report: %s", excel_path)
 
 
 def main() -> None:

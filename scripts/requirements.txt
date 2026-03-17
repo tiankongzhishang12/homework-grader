@@ -4,7 +4,7 @@
 # Python >= 3.10 required
 
 # --- Core ---
-anthropic>=0.39.0        # Claude API client (Messages + Batch API)
+openai>=1.0.0            # OpenAI API client
 PyYAML>=6.0              # Rubric YAML parsing
 jsonschema>=4.20.0       # Schema validation for Rubric and IR
 
@@ -14,11 +14,11 @@ PyMuPDF>=1.24.0          # .pdf text extraction (import as fitz)
 Pillow>=10.0.0           # Image validation and metadata
 
 # --- Data Processing & Export ---
-pandas>=2.1.0            # Data manipulation and statistics
+pandas>=2.0.0            # Data manipulation and statistics
 openpyxl>=3.1.0          # Excel (.xlsx) generation
 
 # --- Statistics ---
-scipy>=1.11.0            # Cohen's kappa, Spearman rho, distribution tests
+scipy>=1.10.0            # Cohen's kappa, Spearman rho, distribution tests
 
 # --- Utilities ---
 tqdm>=4.66.0             # Progress bars for batch processing

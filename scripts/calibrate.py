@@ -471,7 +471,7 @@ def main() -> None:
 
     # Generate report
     import os
-    model_id = os.environ.get("SCORING_MODEL", "claude-sonnet-4-5-20250514")
+    model_id = os.environ.get("SCORING_MODEL", "qwen3.5-plus")
     report = generate_report(
         rubric_id=rubric_id,
         rubric_version=rubric_version,
