@@ -62,6 +62,33 @@ REFERENCE_KEYWORDS = [
 EMPTY_THRESHOLD = 10  # word/char count below this → empty_submission
 IMAGE_CONTEXT_WINDOW = 2
 IMAGE_CONTEXT_MAX_CHARS = 280
+ASSIGNMENT_CUE_PATTERNS = [
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in [
+        r"\u9898\u76ee\u8981\u6c42",
+        r"\u4f5c\u4e1a\u8981\u6c42",
+        r"\u8bf7\u5b8c\u6210\u4ee5\u4e0b",
+        r"\u6587\u5b57\u63cf\u8ff0",
+        r"\u65f6\u5e8f\u56fe\u7ed8\u5236",
+        r"\u8bc4\u5206\u65f6\u5fc5\u987b",
+        r"\u73b0\u5728\u4f60\u8981",
+        r"submission requirements",
+        r"assignment instructions?",
+        r"task:",
+    ]
+]
+ANSWER_MARKER_PATTERNS = [
+    re.compile(pattern, re.IGNORECASE | re.MULTILINE)
+    for pattern in [
+        r"(^|\n)\s*\u7b54[\uFF1A:]\s*",
+        r"(^|\n)\s*\u7b54\u6848[\uFF1A:]\s*",
+        r"(^|\n)\s*\u4f5c\u7b54[\uFF1A:]\s*",
+        r"(^|\n)\s*\u56de\u7b54[\uFF1A:]\s*",
+        r"(^|\n)\s*\u89e3\u7b54[\uFF1A:]\s*",
+        r"(^|\n)\s*response[\uFF1A:]\s*",
+        r"(^|\n)\s*answer[\uFF1A:]\s*",
+    ]
+]
 
 DOCX_NS = {
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
@@ -141,6 +168,16 @@ class ProcessingContext:
         ))
 
 
+@dataclass(frozen=True)
+class TextSegmentation:
+    """Heuristic split between assignment prompt and student answer."""
+
+    assignment_text: str
+    student_answer: str
+    evidence_quality: str
+    split_method: str
+
+
 # ---------------------------------------------------------------------------
 # CJK / language helpers
 # ---------------------------------------------------------------------------
@@ -191,6 +228,78 @@ def _clip_text(text: str, max_chars: int = IMAGE_CONTEXT_MAX_CHARS) -> str:
     if len(text) <= max_chars:
         return text
     return text[: max_chars - 3].rstrip() + "..."
+
+
+def _is_instruction_like_paragraph(paragraph: str) -> bool:
+    text = paragraph.strip()
+    if not text:
+        return False
+
+    cue_hits = sum(1 for pattern in ASSIGNMENT_CUE_PATTERNS if pattern.search(text))
+    if cue_hits > 0:
+        return True
+
+    if len(text) <= 80 and text.endswith(("\uFF1A", ":")):
+        return True
+
+    numbered_prefix = re.match(
+        r"^\s*(\d+[\.\)]|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+\u3001)",
+        text,
+    )
+    if numbered_prefix and len(text) <= 160:
+        return True
+
+    return False
+
+
+def split_assignment_and_answer(full_text: str) -> TextSegmentation:
+    """Split extracted text into assignment prompt and student answer."""
+    text = full_text.strip()
+    if not text:
+        return TextSegmentation("", "", "partial", "empty")
+
+    for pattern in ANSWER_MARKER_PATTERNS:
+        match = pattern.search(text)
+        if not match:
+            continue
+
+        assignment_text = text[: match.start()].strip()
+        student_answer = text[match.end() :].strip()
+        if student_answer:
+            return TextSegmentation(
+                assignment_text=assignment_text,
+                student_answer=student_answer,
+                evidence_quality="complete",
+                split_method="answer_marker",
+            )
+
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    if not paragraphs:
+        return TextSegmentation("", text, "partial", "fallback")
+
+    instruction_prefix_count = 0
+    for paragraph in paragraphs:
+        if _is_instruction_like_paragraph(paragraph):
+            instruction_prefix_count += 1
+            continue
+        break
+
+    if instruction_prefix_count >= 2:
+        assignment_text = "\n\n".join(paragraphs[:instruction_prefix_count]).strip()
+        student_answer = "\n\n".join(paragraphs[instruction_prefix_count:]).strip()
+        if student_answer:
+            return TextSegmentation(
+                assignment_text=assignment_text,
+                student_answer=student_answer,
+                evidence_quality="partial",
+                split_method="instruction_prefix",
+            )
+
+    has_assignment_cues = sum(
+        1 for pattern in ASSIGNMENT_CUE_PATTERNS if pattern.search(text[:1200])
+    ) >= 2
+    quality = "partial" if has_assignment_cues else "complete"
+    return TextSegmentation("", text, quality, "fallback")
 
 
 # ---------------------------------------------------------------------------
@@ -724,6 +833,26 @@ def run_length_gate(
     )
 
 
+def run_image_count_gate(
+    gate: dict[str, Any],
+    image_entries: list[dict[str, Any]],
+) -> GateResult:
+    """Execute an image-count gate check."""
+    params = gate.get("parameters", {})
+    min_images: int = params.get("min_images", 1)
+    image_count = len(image_entries)
+    passed = image_count >= min_images
+    details = f"Image count: {image_count} (required: >= {min_images})"
+
+    return GateResult(
+        gate_id=gate["id"],
+        gate_name=gate.get("name", gate["id"]),
+        passed=passed,
+        details=details,
+        on_fail=gate.get("on_fail", "warn"),
+    )
+
+
 def run_structure_gate(
     gate: dict[str, Any],
     sections: list[Section],
@@ -774,6 +903,7 @@ def run_gate_checks(
     sections: list[Section],
     language: str,
     source_files: list[str],
+    image_entries: list[dict[str, Any]],
 ) -> list[GateResult]:
     """Run all non-LLM gate checks defined in the rubric.
 
@@ -789,6 +919,8 @@ def run_gate_checks(
             results.append(run_keyword_gate(gate, full_text))
         elif method == "length":
             results.append(run_length_gate(gate, full_text, language))
+        elif method == "image_count":
+            results.append(run_image_count_gate(gate, image_entries))
         elif method == "structure":
             results.append(run_structure_gate(gate, sections, source_files))
         elif method == "custom":
@@ -818,6 +950,9 @@ def build_text_ir(
     student_id: str,
     source_files: list[str],
     full_text: str,
+    assignment_text: str,
+    student_answer: str,
+    evidence_quality: str,
     sections: list[Section],
     image_entries: list[dict[str, Any]],
     metadata: TextMetadata,
@@ -840,6 +975,9 @@ def build_text_ir(
         },
         "content": {
             "full_text": full_text,
+            "assignment_text": assignment_text,
+            "student_answer": student_answer,
+            "evidence_quality": evidence_quality,
             "sections": [
                 {"heading": s.heading, "level": s.level, "text": s.text}
                 for s in sections
@@ -969,7 +1107,20 @@ def process_text_file(
             ctx.add_log("embedded_image_extraction", "warning", message=f"Image extraction failed: {exc}")
             logger.warning("Failed to extract embedded images from %s: %s", file_path.name, exc)
 
-    metadata, dur = _timed(extract_text_metadata, full_text, sections)
+    segmentation, dur = _timed(split_assignment_and_answer, full_text)
+    ctx.add_log(
+        "answer_segmentation",
+        "success" if segmentation.evidence_quality == "complete" else "warning",
+        duration_ms=dur,
+        message=(
+            f"method={segmentation.split_method}, evidence_quality={segmentation.evidence_quality}, "
+            f"assignment_chars={len(segmentation.assignment_text)}, "
+            f"answer_chars={len(segmentation.student_answer)}"
+        ),
+    )
+
+    scoring_text = segmentation.student_answer or full_text
+    metadata, dur = _timed(extract_text_metadata, scoring_text, sections)
     ctx.add_log("metadata_extraction", "success", duration_ms=dur)
 
     if metadata.word_count < EMPTY_THRESHOLD and not image_entries:
@@ -989,10 +1140,11 @@ def process_text_file(
         gate_results, dur = _timed(
             run_gate_checks,
             rubric,
-            full_text,
+            scoring_text,
             sections,
             metadata.language,
             source_files,
+            image_entries,
         )
         ctx.add_log("gate_checks", "success", duration_ms=dur, message=f"{len(gate_results)} gates evaluated")
     else:
@@ -1001,7 +1153,10 @@ def process_text_file(
     return build_text_ir(
         student_id=student_id,
         source_files=source_files,
-        full_text=full_text,
+        full_text=scoring_text,
+        assignment_text=segmentation.assignment_text,
+        student_answer=scoring_text,
+        evidence_quality=segmentation.evidence_quality,
         sections=sections,
         image_entries=image_entries,
         metadata=metadata,
@@ -1112,6 +1267,9 @@ def _build_error_ir(
         },
         "content": {
             "full_text": "",
+            "assignment_text": "",
+            "student_answer": "",
+            "evidence_quality": "partial",
             "sections": [],
             "images": [],
         },

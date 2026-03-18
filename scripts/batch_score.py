@@ -75,6 +75,11 @@ MAX_RETRIES = 3
 INITIAL_BACKOFF_S = 2.0
 MAX_ATTACHED_IMAGES = 3
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_SCORING_ATTEMPTS = 2
+SECOND_PASS_CONFIDENCE_THRESHOLD = 0.8
+SECOND_PASS_MARGIN_THRESHOLD = 0.3
+SECOND_PASS_TOTAL_DIFF_THRESHOLD = 0.5
+SECOND_PASS_DIM_DIFF_THRESHOLD = 1
 
 # Pricing per million tokens (rough estimate for the default model).
 INPUT_PRICE_PER_MTOK = 0.25
@@ -144,7 +149,7 @@ class FailedItem:
 
 @dataclass
 class Progress:
-    """Batch progress checkpoint — single source of truth for state."""
+    """Batch progress checkpoint - single source of truth for state."""
 
     batch_id: str
     rubric_id: str
@@ -171,6 +176,10 @@ class ScoringResult:
     input_tokens: int = 0
     output_tokens: int = 0
     duration_ms: int = 0
+
+
+class InvalidScoringResponseError(RuntimeError):
+    """Raised when a scoring response stays invalid after repair."""
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +274,7 @@ def load_rubric(path: Path) -> Rubric:
     )
 
     logger.info(
-        "Rubric loaded: %s (v%.1f) — %d criteria",
+        "Rubric loaded: %s (v%.1f) - %d criteria",
         rubric_id,
         rubric_version,
         len(criteria),
@@ -293,23 +302,23 @@ Rubric defines.
 
 ### Anti-Bias Directives
 
-1. **Length ≠ Quality** — Do NOT award higher scores because a submission is \
+1. **Length != Quality** - Do NOT award higher scores because a submission is \
 long. A concise, well-argued answer is equal to or better than a verbose one. \
 Irrelevant padding should lower the score, not raise it.
 
-2. **Tone ≠ Accuracy** — Do NOT assume confident or academic-sounding language \
+2. **Tone != Accuracy** - Do NOT assume confident or academic-sounding language \
 is correct. Evaluate claims against evidence. A hedged statement backed by \
 data is worth more than an assertive claim without support.
 
-3. **Relevance filter** — For each dimension, ONLY content directly relevant \
+3. **Relevance filter** - For each dimension, ONLY content directly relevant \
 to that dimension's criteria contributes to the score. Off-topic elaboration \
 earns ZERO credit.
 
-4. **Evidence before score** — For every dimension, you MUST first quote or \
+4. **Evidence before score** - For every dimension, you MUST first quote or \
 describe evidence from the submission, THEN reason about which anchor it \
 matches, THEN assign the score. Reversing this order is forbidden.
 
-5. **Independent dimensions** — Score each dimension on its own merits. A high \
+5. **Independent dimensions** - Score each dimension on its own merits. A high \
 score on one dimension must not inflate another."""
 
 COMMENT_SYSTEM_PROMPT_TEMPLATE = """\
@@ -320,13 +329,13 @@ actionable. You write in {language}.
 ### Rules
 
 1. **Three required sections**: strengths, weaknesses, suggestions.
-2. **No vague praise** — Every positive remark must cite a concrete element \
+2. **No vague praise** - Every positive remark must cite a concrete element \
 from the work.
-3. **No vague criticism** — Every critique must name the exact problem and \
+3. **No vague criticism** - Every critique must name the exact problem and \
 where it occurs.
-4. **Actionable suggestions** — Each suggestion must be something the student \
+4. **Actionable suggestions** - Each suggestion must be something the student \
 can concretely do in their next assignment.
-5. **Length**: {min_length}–{max_length} characters.
+5. **Length**: {min_length}-{max_length} characters.
 6. **Tone**: {tone}
 7. **Prohibited patterns**: {prohibited}"""
 
@@ -355,6 +364,8 @@ def build_scoring_user_prompt(
         )
         dimensions_text += f"""
 #### {c.name} (weight: {c.weight})
+
+**Criterion ID**: {c.criterion_id}
 
 **Description**: {c.description}
 **Scoring Guidance**: {c.scoring_guidance}
@@ -424,6 +435,8 @@ After scoring all dimensions:
 ## Output Format
 
 Respond with **only** the following JSON (no markdown fences, no commentary):
+
+Use the exact criterion IDs from the Rubric for every item in dimension_scores.
 
 {{
   "student_id": "{student_id}",
@@ -540,6 +553,35 @@ def extract_json_from_response(text: str) -> dict[str, Any]:
     return json.loads(cleaned)
 
 
+def _coerce_score(raw_score: Any) -> Any:
+    if isinstance(raw_score, int):
+        return raw_score
+    if isinstance(raw_score, float) and raw_score.is_integer():
+        return int(raw_score)
+    if isinstance(raw_score, str):
+        text = raw_score.strip()
+        if text.isdigit():
+            return int(text)
+        try:
+            float_value = float(text)
+        except ValueError:
+            return raw_score
+        if float_value.is_integer():
+            return int(float_value)
+    return raw_score
+
+
+def _coerce_confidence(raw_confidence: Any) -> Any:
+    if isinstance(raw_confidence, (int, float)):
+        return float(raw_confidence)
+    if isinstance(raw_confidence, str):
+        try:
+            return float(raw_confidence.strip())
+        except ValueError:
+            return raw_confidence
+    return raw_confidence
+
+
 def validate_scoring_response(
     data: dict[str, Any],
     rubric: Rubric,
@@ -556,53 +598,73 @@ def validate_scoring_response(
         return errors
 
     rubric_criteria = list(rubric.criteria)
+    rubric_by_id = {criterion.criterion_id: criterion for criterion in rubric_criteria}
 
     if len(dims) != len(rubric_criteria):
         errors.append(
             f"dimension_scores length mismatch: expected {len(rubric_criteria)}, got {len(dims)}"
         )
 
+    seen_dims: dict[str, dict[str, Any]] = {}
     for i, dim in enumerate(dims):
-        if i >= len(rubric_criteria):
-            break
+        if not isinstance(dim, dict):
+            errors.append(f"dimension_scores[{i}] must be an object")
+            continue
 
-        rc = rubric_criteria[i]
+        criterion_id = str(dim.get("criterion_id", "")).strip()
+        if not criterion_id:
+            errors.append(f"dimension_scores[{i}] missing criterion_id")
+            continue
+        if criterion_id not in rubric_by_id:
+            errors.append(f"Unknown criterion_id '{criterion_id}'")
+            continue
+        if criterion_id in seen_dims:
+            errors.append(f"Duplicate criterion_id '{criterion_id}'")
+            continue
 
-        raw_score = dim.get("score")
-        if isinstance(raw_score, str) and raw_score.strip().isdigit():
-            dim["score"] = int(raw_score.strip())
-
-        raw_confidence = dim.get("confidence")
-        if isinstance(raw_confidence, str):
-            try:
-                dim["confidence"] = float(raw_confidence.strip())
-            except ValueError:
-                pass
-
+        rc = rubric_by_id[criterion_id]
         dim["criterion_id"] = rc.criterion_id
         dim["criterion_name"] = rc.name
         dim["weight"] = rc.weight
-
-        cid = rc.criterion_id
+        dim["score"] = _coerce_score(dim.get("score"))
+        dim["confidence"] = _coerce_confidence(dim.get("confidence"))
 
         score = dim.get("score")
         if not isinstance(score, int) or score < 1 or score > 5:
-            errors.append(f"Criterion '{cid}': score must be integer 1-5 (got {score})")
+            errors.append(
+                f"Criterion '{criterion_id}': score must be integer 1-5 (got {score})"
+            )
 
         confidence = dim.get("confidence")
         if confidence is not None and (
             not isinstance(confidence, (int, float)) or confidence < 0 or confidence > 1
         ):
             errors.append(
-                f"Criterion '{cid}': confidence must be 0.0-1.0 (got {confidence})"
+                f"Criterion '{criterion_id}': confidence must be 0.0-1.0 (got {confidence})"
             )
 
-    expected_wt = 0.0
-    for i, dim in enumerate(dims):
-        if i >= len(rubric_criteria):
-            break
+        seen_dims[criterion_id] = dim
 
-        rc = rubric_criteria[i]
+    missing_criteria = [
+        criterion.criterion_id
+        for criterion in rubric_criteria
+        if criterion.criterion_id not in seen_dims
+    ]
+    if missing_criteria:
+        errors.append(f"Missing criteria in response: {missing_criteria}")
+
+    ordered_dims = [
+        seen_dims[criterion.criterion_id]
+        for criterion in rubric_criteria
+        if criterion.criterion_id in seen_dims
+    ]
+    data["dimension_scores"] = ordered_dims
+
+    expected_wt = 0.0
+    for rc in rubric_criteria:
+        dim = seen_dims.get(rc.criterion_id)
+        if dim is None:
+            continue
         score = dim.get("score", 0)
         try:
             expected_wt += rc.weight * float(score)
@@ -611,7 +673,11 @@ def validate_scoring_response(
 
     expected_wt = round(expected_wt, 2)
     wt = data.get("weighted_total")
-    if wt is None or abs(float(wt) - expected_wt) > 0.1:
+    try:
+        wt_value = float(wt)
+    except (TypeError, ValueError):
+        wt_value = None
+    if wt_value is None or abs(wt_value - expected_wt) > 0.1:
         errors.append(
             f"weighted_total mismatch: response={wt}, computed={expected_wt}"
         )
@@ -619,7 +685,7 @@ def validate_scoring_response(
 
     confidence_values = [
         float(dim["confidence"])
-        for dim in dims
+        for dim in ordered_dims
         if isinstance(dim.get("confidence"), (int, float))
     ]
     expected_confidence = (
@@ -628,6 +694,9 @@ def validate_scoring_response(
         else 0.0
     )
     overall_confidence = data.get("overall_confidence")
+    if overall_confidence is not None:
+        overall_confidence = _coerce_confidence(overall_confidence)
+        data["overall_confidence"] = overall_confidence
     if (
         overall_confidence is None
         or not isinstance(overall_confidence, (int, float))
@@ -652,6 +721,206 @@ def validate_comment_response(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def _has_gate_warning(gate_status: dict[str, Any]) -> bool:
+    for gate in gate_status.get("details", []):
+        if not gate.get("passed", True) and gate.get("on_fail") in {"flag", "warn"}:
+            return True
+    return False
+
+
+def _append_text_instruction(
+    user_content: list[dict[str, Any]],
+    instruction: str,
+) -> list[dict[str, Any]]:
+    updated = list(user_content)
+    updated.append({"type": "text", "text": instruction})
+    return updated
+
+
+def _truncate_for_prompt(text: str, max_chars: int = 1800) -> str:
+    text = text.strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
+
+
+def _build_scoring_repair_instruction(
+    rubric: Rubric,
+    issues: list[str],
+    previous_response: str,
+) -> str:
+    criterion_ids = ", ".join(criterion.criterion_id for criterion in rubric.criteria)
+    issue_text = "\n".join(f"- {issue}" for issue in issues)
+    return (
+        "Your previous scoring response was invalid.\n"
+        f"Exact criterion IDs allowed: {criterion_ids}\n"
+        "Re-score the submission from scratch and return valid JSON only.\n"
+        "Do not omit, rename, or duplicate any criterion_id.\n"
+        "Validation issues:\n"
+        f"{issue_text}\n"
+        "Previous invalid response:\n"
+        f"{_truncate_for_prompt(previous_response)}"
+    )
+
+
+async def _score_submission_json(
+    model: str,
+    rubric: Rubric,
+    semaphore: asyncio.Semaphore,
+    user_content: list[dict[str, Any]],
+    context: str,
+) -> dict[str, Any]:
+    total_input_tokens = 0
+    total_output_tokens = 0
+    repaired = False
+    attempt_issues: list[str] = []
+    current_user_content = list(user_content)
+
+    for attempt in range(1, MAX_SCORING_ATTEMPTS + 1):
+        async with semaphore:
+            response_data = await asyncio.to_thread(
+                _call_with_retry,
+                model=model,
+                system_prompt=SCORING_SYSTEM_PROMPT,
+                user_content=current_user_content,
+                context=f"{context} attempt {attempt}",
+            )
+        total_input_tokens += response_data["_input_tokens"]
+        total_output_tokens += response_data["_output_tokens"]
+
+        try:
+            score_json = extract_json_from_response(response_data["_text"])
+            issues = validate_scoring_response(score_json, rubric)
+        except json.JSONDecodeError as exc:
+            score_json = None
+            issues = [f"json_parse_error: {exc}"]
+
+        if not issues and score_json is not None:
+            return {
+                "score_json": score_json,
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+                "repaired": repaired,
+                "validation_errors": attempt_issues,
+            }
+
+        attempt_issues.extend(issues)
+        if attempt >= MAX_SCORING_ATTEMPTS:
+            raise InvalidScoringResponseError("; ".join(attempt_issues))
+
+        repaired = True
+        current_user_content = _append_text_instruction(
+            user_content,
+            _build_scoring_repair_instruction(rubric, issues, response_data["_text"]),
+        )
+
+    raise InvalidScoringResponseError("Scoring response validation exhausted")
+
+
+def _should_run_second_pass(
+    score_json: dict[str, Any],
+    rubric: Rubric,
+    gate_status: dict[str, Any],
+    evidence_quality: str,
+    repaired: bool,
+) -> list[str]:
+    reasons: list[str] = []
+    weighted_total = float(score_json.get("weighted_total", 0.0) or 0.0)
+    overall_confidence = float(score_json.get("overall_confidence", 0.0) or 0.0)
+
+    if overall_confidence < SECOND_PASS_CONFIDENCE_THRESHOLD:
+        reasons.append("low_confidence")
+    if _has_gate_warning(gate_status):
+        reasons.append("gate_warning")
+    if repaired:
+        reasons.append("repaired_output")
+    if evidence_quality != "complete":
+        reasons.append("partial_evidence")
+    if abs(weighted_total - rubric.thresholds.accept) <= SECOND_PASS_MARGIN_THRESHOLD:
+        reasons.append("near_accept_threshold")
+    if abs(weighted_total - rubric.thresholds.reject) <= SECOND_PASS_MARGIN_THRESHOLD:
+        reasons.append("near_reject_threshold")
+    return reasons
+
+
+def _merge_scoring_results(
+    primary: dict[str, Any],
+    secondary: dict[str, Any],
+    rubric: Rubric,
+) -> tuple[dict[str, Any], bool, dict[str, Any]]:
+    primary_dims = {
+        dim["criterion_id"]: dim for dim in primary.get("dimension_scores", [])
+    }
+    secondary_dims = {
+        dim["criterion_id"]: dim for dim in secondary.get("dimension_scores", [])
+    }
+
+    merged_dims: list[dict[str, Any]] = []
+    max_dim_diff = 0
+    for criterion in rubric.criteria:
+        first = primary_dims[criterion.criterion_id]
+        second = secondary_dims[criterion.criterion_id]
+        first_score = int(first.get("score", 0))
+        second_score = int(second.get("score", 0))
+        max_dim_diff = max(max_dim_diff, abs(first_score - second_score))
+
+        exemplar = first
+        if float(second.get("confidence", 0.0) or 0.0) > float(first.get("confidence", 0.0) or 0.0):
+            exemplar = second
+
+        avg_score = int(round((first_score + second_score) / 2))
+        avg_score = max(1, min(5, avg_score))
+        avg_confidence = round(
+            (
+                float(first.get("confidence", 0.0) or 0.0)
+                + float(second.get("confidence", 0.0) or 0.0)
+            ) / 2,
+            2,
+        )
+
+        merged_dims.append(
+            {
+                "criterion_id": criterion.criterion_id,
+                "criterion_name": criterion.name,
+                "weight": criterion.weight,
+                "score": avg_score,
+                "evidence": exemplar.get("evidence", ""),
+                "reasoning": exemplar.get("reasoning", ""),
+                "improvement": exemplar.get("improvement", ""),
+                "confidence": avg_confidence,
+            }
+        )
+
+    merged_total = round(
+        sum(dim["weight"] * dim["score"] for dim in merged_dims),
+        2,
+    )
+    merged_confidence = round(
+        sum(float(dim["confidence"]) for dim in merged_dims) / len(merged_dims),
+        2,
+    )
+    total_diff = abs(
+        float(primary.get("weighted_total", 0.0) or 0.0)
+        - float(secondary.get("weighted_total", 0.0) or 0.0)
+    )
+    disagreement = (
+        total_diff > SECOND_PASS_TOTAL_DIFF_THRESHOLD
+        or max_dim_diff > SECOND_PASS_DIM_DIFF_THRESHOLD
+    )
+    merged = {
+        "student_id": primary.get("student_id", secondary.get("student_id", "")),
+        "rubric_id": primary.get("rubric_id", secondary.get("rubric_id", "")),
+        "dimension_scores": merged_dims,
+        "weighted_total": merged_total,
+        "overall_confidence": merged_confidence,
+    }
+    details = {
+        "weighted_total_diff": round(total_diff, 2),
+        "max_dimension_diff": max_dim_diff,
+    }
+    return merged, disagreement, details
+
+
 # ---------------------------------------------------------------------------
 # IR file loading
 # ---------------------------------------------------------------------------
@@ -667,15 +936,27 @@ def get_submission_content(ir: dict[str, Any]) -> str:
     """Extract submission content from an IR record for the scoring prompt."""
     content = ir.get("content", {})
     submission_type = ir.get("submission_type", "text")
+    evidence_quality = content.get("evidence_quality", "complete")
 
     blocks: list[str] = [
         "## Submission Evidence Summary",
         f"- Submission type: {submission_type}",
+        f"- Evidence quality: {evidence_quality}",
     ]
 
     text_sections: list[str] = []
 
-    full_text = content.get("full_text", "")
+    assignment_text = content.get("assignment_text", "")
+    student_answer = content.get("student_answer", "")
+    full_text = student_answer or content.get("full_text", "")
+    if assignment_text:
+        blocks.append(
+            "- Assignment prompt detected and removed from the main scoring text."
+        )
+    if evidence_quality != "complete":
+        blocks.append(
+            "- Evidence may be partial. Score conservatively and lower confidence where appropriate."
+        )
     if full_text:
         text_sections.append("## Full Text\n\n" + full_text.strip())
 
@@ -1029,17 +1310,18 @@ def compute_percentile(weighted_total: float) -> int:
 def determine_review_flag(
     overall_confidence: float,
     gate_status: dict[str, Any],
+    evidence_quality: str = "complete",
+    forced_flag: str = "",
 ) -> str:
     """Determine the review flag for a scored submission."""
+    if forced_flag:
+        return forced_flag
+    if evidence_quality != "complete":
+        return "low_confidence"
     if overall_confidence < 0.6:
         return "low_confidence"
-    if not gate_status.get("all_passed", True):
-        has_flag = any(
-            not g.get("passed", True) and g.get("on_fail") == "flag"
-            for g in gate_status.get("details", [])
-        )
-        if has_flag:
-            return "gate_warning"
+    if _has_gate_warning(gate_status):
+        return "gate_warning"
     return "none"
 
 
@@ -1218,25 +1500,85 @@ async def score_one_submission(
         rubric=rubric,
         ir=ir,
     )
+    evidence_quality = ir.get("content", {}).get("evidence_quality", "complete")
+    gate_status = {
+        "all_passed": all(
+            g.get("passed", True) for g in ir.get("gate_results", [])
+        ),
+        "details": ir.get("gate_results", []),
+    }
 
-    async with semaphore:
-        score_data = await asyncio.to_thread(
-            _call_with_retry,
-            model=model,
-            system_prompt=SCORING_SYSTEM_PROMPT,
-            user_content=scoring_user_content,
-            context=f"scoring {student_id}",
-        )
-    total_input_tokens += score_data["_input_tokens"]
-    total_output_tokens += score_data["_output_tokens"]
+    primary_scoring = await _score_submission_json(
+        model=model,
+        rubric=rubric,
+        semaphore=semaphore,
+        user_content=scoring_user_content,
+        context=f"scoring {student_id}",
+    )
+    total_input_tokens += primary_scoring["input_tokens"]
+    total_output_tokens += primary_scoring["output_tokens"]
 
-    # Parse and validate scoring response
-    score_json = extract_json_from_response(score_data["_text"])
-    validation_errors = validate_scoring_response(score_json, rubric)
+    score_json = primary_scoring["score_json"]
+    validation_errors = list(primary_scoring["validation_errors"])
     if validation_errors:
         logger.warning(
-            "Validation issues for %s: %s", student_id, "; ".join(validation_errors)
+            "Validation issues repaired for %s: %s",
+            student_id,
+            "; ".join(validation_errors),
         )
+
+    forced_review_flag = ""
+    second_pass_reasons = _should_run_second_pass(
+        score_json=score_json,
+        rubric=rubric,
+        gate_status=gate_status,
+        evidence_quality=evidence_quality,
+        repaired=bool(primary_scoring["repaired"]),
+    )
+    second_pass_details: dict[str, Any] = {}
+    if second_pass_reasons:
+        second_pass_content = _append_text_instruction(
+            scoring_user_content,
+            (
+                "Perform an independent second-pass audit. Score the submission fresh, "
+                "without assuming any prior score is correct. Return JSON only."
+            ),
+        )
+        try:
+            second_scoring = await _score_submission_json(
+                model=model,
+                rubric=rubric,
+                semaphore=semaphore,
+                user_content=second_pass_content,
+                context=f"scoring second pass {student_id}",
+            )
+            total_input_tokens += second_scoring["input_tokens"]
+            total_output_tokens += second_scoring["output_tokens"]
+            validation_errors.extend(second_scoring["validation_errors"])
+
+            merged_score_json, disagreement, diff_details = _merge_scoring_results(
+                score_json,
+                second_scoring["score_json"],
+                rubric,
+            )
+            score_json = merged_score_json
+            second_pass_details = {
+                "triggered": True,
+                "reasons": second_pass_reasons,
+                "diff": diff_details,
+            }
+            if disagreement:
+                forced_review_flag = "score_disagreement"
+        except InvalidScoringResponseError as exc:
+            validation_errors.append(f"second_pass_invalid: {exc}")
+            second_pass_details = {
+                "triggered": True,
+                "reasons": second_pass_reasons,
+                "error": str(exc),
+            }
+            forced_review_flag = "invalid_output"
+    else:
+        second_pass_details = {"triggered": False, "reasons": []}
 
     # --- Step 2: Comment generation call ---
     comment_system = build_comment_system_prompt(rubric)
@@ -1266,13 +1608,6 @@ async def score_one_submission(
     weighted_total = score_json.get("weighted_total", 0.0)
     overall_confidence = score_json.get("overall_confidence", 0.0)
 
-    gate_status = {
-        "all_passed": all(
-            g.get("passed", True) for g in ir.get("gate_results", [])
-        ),
-        "details": ir.get("gate_results", []),
-    }
-
     duration_ms = time.monotonic_ns() // 1_000_000 - start_ms
 
     final_record = {
@@ -1285,7 +1620,12 @@ async def score_one_submission(
         "percentile_score": compute_percentile(weighted_total),
         "grade": classify_grade(weighted_total, rubric.thresholds),
         "overall_confidence": overall_confidence,
-        "review_flag": determine_review_flag(overall_confidence, gate_status),
+        "review_flag": determine_review_flag(
+            overall_confidence,
+            gate_status,
+            evidence_quality=evidence_quality,
+            forced_flag=forced_review_flag,
+        ),
         "comment": {
             "strengths": comment_json.get("strengths", ""),
             "weaknesses": comment_json.get("weaknesses", ""),
@@ -1298,6 +1638,10 @@ async def score_one_submission(
             "output_tokens": total_output_tokens,
             "duration_ms": duration_ms,
             "attached_image_blocks": attached_image_count,
+            "validation_errors": list(dict.fromkeys(validation_errors)),
+            "evidence_quality": evidence_quality,
+            "repaired_response": bool(primary_scoring["repaired"]),
+            "second_pass": second_pass_details,
         },
     }
 
@@ -1476,7 +1820,7 @@ async def run_realtime_mode(
     logger.info("Submissions to process: %d", len(to_process))
 
     if not to_process:
-        logger.info("Nothing to process — batch complete")
+        logger.info("Nothing to process - batch complete")
         _print_summary(progress, batch_mode=False)
         return
 
@@ -1501,7 +1845,7 @@ async def run_realtime_mode(
     for sid in to_process:
         ir_path = id_to_path.get(sid)
         if ir_path is None:
-            logger.warning("IR file not found for %s — skipping", sid)
+            logger.warning("IR file not found for %s - skipping", sid)
             continue
 
         try:
@@ -1515,7 +1859,7 @@ async def run_realtime_mode(
                     break
 
             if gate_failed:
-                logger.info("Skipping %s — gate FAILED (on_fail=fail)", sid)
+                logger.info("Skipping %s - gate FAILED (on_fail=fail)", sid)
                 _record_failure(
                     progress, sid, "Gate check failed (on_fail=fail)", 0
                 )
@@ -1555,7 +1899,7 @@ async def run_realtime_mode(
             save_progress(progress_path, progress)
 
             logger.info(
-                "[%d/%d] Scored %s — weighted_total=%.2f (%dms)",
+                "[%d/%d] Scored %s - weighted_total=%.2f (%dms)",
                 progress.completed,
                 progress.total,
                 sid,
@@ -1626,6 +1970,34 @@ def _record_failure(
 def _print_summary(progress: Progress, batch_mode: bool) -> None:
     """Log a batch completion summary."""
     logger.info("=" * 60)
+    logger.info("BATCH SCORING SUMMARY")
+    logger.info("=" * 60)
+    logger.info("Batch ID:   %s", progress.batch_id)
+    logger.info("Rubric:     %s", progress.rubric_id)
+    logger.info("Mode:       %s", progress.mode)
+    logger.info("Total:      %d", progress.total)
+    logger.info("Completed:  %d", progress.completed)
+    logger.info("Failed:     %d", progress.failed)
+    logger.info("Pending:    %d", progress.pending)
+    if progress.completed > 0:
+        cost = progress.stats.get("total_cost_usd", 0)
+        logger.info("Est. cost:  $%.4f", cost)
+
+    if progress.failed_ids:
+        logger.info("-" * 60)
+        logger.info("FAILED SUBMISSIONS:")
+        for fi in progress.failed_ids:
+            if isinstance(fi, FailedItem):
+                logger.info("  %s - %s (attempts: %d)", fi.id, fi.error, fi.attempts)
+            elif isinstance(fi, dict):
+                logger.info(
+                    "  %s - %s (attempts: %d)",
+                    fi.get("id", "?"),
+                    fi.get("error", "?"),
+                    fi.get("attempts", 0),
+                )
+
+    logger.info("=" * 60)
 
 
 def export_timestamped_excel(workspace: Path) -> Path | None:
@@ -1648,40 +2020,87 @@ def export_timestamped_excel(workspace: Path) -> Path | None:
     output_path = reports_dir / f"grades-{timestamp}.xlsx"
     write_excel(grade_df, stats, detail_df, output_path)
     return output_path
-    logger.info("BATCH SCORING SUMMARY")
-    logger.info("=" * 60)
-    logger.info("Batch ID:   %s", progress.batch_id)
-    logger.info("Rubric:     %s", progress.rubric_id)
-    logger.info("Mode:       %s", progress.mode)
-    logger.info("Total:      %d", progress.total)
-    logger.info("Completed:  %d", progress.completed)
-    logger.info("Failed:     %d", progress.failed)
-    logger.info("Pending:    %d", progress.pending)
 
-    # Average score
-    if progress.completed > 0:
-        scores_dir_guess = None
-        # We cannot easily re-read scores here, so use stats if available
-        cost = progress.stats.get("total_cost_usd", 0)
-        logger.info("Est. cost:  $%.4f", cost)
 
-    if progress.failed_ids:
-        logger.info("-" * 60)
-        logger.info("FAILED SUBMISSIONS:")
-        for fi in progress.failed_ids:
-            if isinstance(fi, FailedItem):
-                logger.info(
-                    "  %s — %s (attempts: %d)", fi.id, fi.error, fi.attempts
-                )
-            elif isinstance(fi, dict):
-                logger.info(
-                    "  %s — %s (attempts: %d)",
-                    fi.get("id", "?"),
-                    fi.get("error", "?"),
-                    fi.get("attempts", 0),
-                )
+def generate_default_stats_report(workspace: Path) -> Path | None:
+    """Generate the default post-batch statistics report."""
+    try:
+        import stats as stats_module
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Skipping statistics report: failed to import stats module (%s)", exc)
+        return None
 
-    logger.info("=" * 60)
+    try:
+        records = stats_module.load_scores(workspace)
+        if not records:
+            logger.warning("Skipping statistics report because no score records were found")
+            return None
+
+        processing_order = stats_module.load_processing_order(workspace)
+        dist = stats_module.analyze_distribution(records)
+
+        dim_totals: dict[str, list[int]] = {}
+        dim_names: dict[str, str] = {}
+        for record in records:
+            for criterion_id, score in record.dimension_scores.items():
+                dim_totals.setdefault(criterion_id, []).append(score)
+
+        for path in sorted((workspace / "scores").glob("*.json")):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                for dim in data.get("dimension_scores", []):
+                    criterion_id = dim.get("criterion_id", "")
+                    if criterion_id:
+                        dim_names[criterion_id] = dim.get("criterion_name", criterion_id)
+                break
+            except Exception:
+                continue
+
+        dim_means = {
+            dim_names.get(criterion_id, criterion_id): round(sum(scores) / len(scores), 2)
+            for criterion_id, scores in dim_totals.items()
+            if scores
+        }
+        confidences = [record.confidence for record in records]
+        total = len(confidences)
+        conf_stats = {
+            "mean": sum(confidences) / total if total else 0,
+            "low_count": sum(1 for value in confidences if value < 0.6),
+            "low_pct": sum(1 for value in confidences if value < 0.6) / total * 100 if total else 0,
+            "med_count": sum(1 for value in confidences if 0.6 <= value < 0.8),
+            "med_pct": sum(1 for value in confidences if 0.6 <= value < 0.8) / total * 100 if total else 0,
+            "high_count": sum(1 for value in confidences if value >= 0.8),
+            "high_pct": sum(1 for value in confidences if value >= 0.8) / total * 100 if total else 0,
+        }
+
+        biases: list[Any] = []
+        length_bias = stats_module.detect_length_bias(records)
+        if length_bias:
+            biases.append(length_bias)
+        position_bias = stats_module.detect_position_bias(records, processing_order)
+        if position_bias:
+            biases.append(position_bias)
+        biases.extend(stats_module.detect_dimension_coupling(records))
+
+        report = stats_module.generate_report(dist, biases, dim_means, conf_stats)
+        output_path = workspace / "reports" / "statistics.md"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(report)
+
+        if dist.concentration_warning:
+            logger.warning("Statistics warning: scores are overly concentrated at a single level")
+        if dist.skewness_warning:
+            logger.warning("Statistics warning: score distribution skewness exceeded threshold")
+        detected_biases = [bias.bias_type for bias in biases if getattr(bias, "detected", False)]
+        if detected_biases:
+            logger.warning("Statistics warning: detected %s", ", ".join(detected_biases))
+
+        return output_path
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Statistics report generation failed: %s", exc)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -1796,7 +2215,7 @@ async def async_main(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     logger.info(
-        "Starting batch scoring — model=%s, workers=%d",
+        "Starting batch scoring - model=%s, workers=%d",
         model,
         workers,
     )
@@ -1814,6 +2233,10 @@ async def async_main(args: argparse.Namespace) -> None:
     if excel_path is not None:
         logger.info("Generated Excel report: %s", excel_path)
 
+    stats_path = generate_default_stats_report(workspace)
+    if stats_path is not None:
+        logger.info("Generated statistics report: %s", stats_path)
+
 
 def main() -> None:
     """CLI entry point."""
@@ -1823,3 +2246,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

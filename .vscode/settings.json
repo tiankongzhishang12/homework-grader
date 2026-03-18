@@ -1,4 +1,13 @@
 {
-  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.defaultProfile.windows": "PowerShell (Workspace Bypass)",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell (Workspace Bypass)": {
+      "source": "PowerShell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass"
+      ]
+    }
+  },
   "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe"
 }

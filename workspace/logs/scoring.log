@@ -1663,3 +1663,206 @@ json.decoder.JSONDecodeError: Unterminated string starting at: line 1 column 320
 2026-03-17 16:02:22,343 [INFO] Loaded 0 student mappings
 2026-03-17 16:02:22,407 [INFO] Excel saved to D:\grade code\homework-grader\workspace\reports\grades-20260317-160222.xlsx
 2026-03-17 16:02:22,408 [INFO] Generated Excel report: D:\grade code\homework-grader\workspace\reports\grades-20260317-160222.xlsx
+2026-03-18 14:58:20,733 [INFO] Rubric loaded: self-select-login-payment-v2 (v2.0) - 3 criteria
+2026-03-18 14:58:20,733 [INFO] Starting batch scoring - model=gpt-5.4, workers=5
+2026-03-18 14:58:20,734 [INFO] Found 3 IR files in D:\grade code\homework-grader\workspace\ir
+2026-03-18 14:58:20,734 [INFO] Submissions to process: 3
+2026-03-18 14:58:22,487 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:22,488 [INFO] Retrying request to /responses in 0.452385 seconds
+2026-03-18 14:58:22,965 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:22,966 [INFO] Retrying request to /responses in 0.936958 seconds
+2026-03-18 14:58:23,922 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:23,922 [WARNING] [scoring anon-003 attempt 1] OpenAI API status 502 (attempt 1/3). Retrying in 2.0s...
+2026-03-18 14:58:25,946 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:25,947 [INFO] Retrying request to /responses in 0.423870 seconds
+2026-03-18 14:58:26,375 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:26,375 [INFO] Retrying request to /responses in 0.799918 seconds
+2026-03-18 14:58:27,179 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:27,180 [WARNING] [scoring anon-003 attempt 1] OpenAI API status 502 (attempt 2/3). Retrying in 4.0s...
+2026-03-18 14:58:31,185 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:31,186 [INFO] Retrying request to /responses in 0.440280 seconds
+2026-03-18 14:58:31,630 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:31,631 [INFO] Retrying request to /responses in 0.764339 seconds
+2026-03-18 14:58:32,400 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:32,401 [WARNING] [scoring anon-003 attempt 1] OpenAI API status 502 (attempt 3/3). Retrying in 8.0s...
+2026-03-18 14:58:40,402 [ERROR] Failed to score anon-003: [scoring anon-003 attempt 1] All 3 retries exhausted. Last error: Error code: 502
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1869, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1511, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 781, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1747, in _call_with_retry
+    raise RuntimeError(
+        f"[{context}] All {max_retries} retries exhausted. Last error: {last_error}"
+    )
+RuntimeError: [scoring anon-003 attempt 1] All 3 retries exhausted. Last error: Error code: 502
+2026-03-18 14:58:40,702 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:40,703 [INFO] Retrying request to /responses in 0.433641 seconds
+2026-03-18 14:58:41,152 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:41,152 [INFO] Retrying request to /responses in 0.948613 seconds
+2026-03-18 14:58:42,106 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:42,106 [WARNING] [scoring anon-002 attempt 1] OpenAI API status 502 (attempt 1/3). Retrying in 2.0s...
+2026-03-18 14:58:44,137 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:44,137 [INFO] Retrying request to /responses in 0.381808 seconds
+2026-03-18 14:58:44,544 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:44,545 [INFO] Retrying request to /responses in 0.937725 seconds
+2026-03-18 14:58:45,487 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:45,488 [WARNING] [scoring anon-002 attempt 1] OpenAI API status 502 (attempt 2/3). Retrying in 4.0s...
+2026-03-18 14:58:49,515 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:49,515 [INFO] Retrying request to /responses in 0.475311 seconds
+2026-03-18 14:58:50,017 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:50,018 [INFO] Retrying request to /responses in 0.871815 seconds
+2026-03-18 14:58:50,895 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:50,895 [WARNING] [scoring anon-002 attempt 1] OpenAI API status 502 (attempt 3/3). Retrying in 8.0s...
+2026-03-18 14:58:58,897 [ERROR] Failed to score anon-002: [scoring anon-002 attempt 1] All 3 retries exhausted. Last error: Error code: 502
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1869, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1511, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 781, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1747, in _call_with_retry
+    raise RuntimeError(
+        f"[{context}] All {max_retries} retries exhausted. Last error: {last_error}"
+    )
+RuntimeError: [scoring anon-002 attempt 1] All 3 retries exhausted. Last error: Error code: 502
+2026-03-18 14:58:58,935 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:58,936 [INFO] Retrying request to /responses in 0.499969 seconds
+2026-03-18 14:58:59,440 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:58:59,440 [INFO] Retrying request to /responses in 0.795026 seconds
+2026-03-18 14:59:00,239 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:59:00,240 [WARNING] [scoring anon-001 attempt 1] OpenAI API status 502 (attempt 1/3). Retrying in 2.0s...
+2026-03-18 14:59:02,265 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:59:02,266 [INFO] Retrying request to /responses in 0.382626 seconds
+2026-03-18 14:59:02,672 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:59:02,672 [INFO] Retrying request to /responses in 0.793525 seconds
+2026-03-18 14:59:03,469 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:59:03,470 [WARNING] [scoring anon-001 attempt 1] OpenAI API status 502 (attempt 2/3). Retrying in 4.0s...
+2026-03-18 14:59:07,489 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:59:07,490 [INFO] Retrying request to /responses in 0.485778 seconds
+2026-03-18 14:59:07,989 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:59:07,990 [INFO] Retrying request to /responses in 0.842104 seconds
+2026-03-18 14:59:08,835 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 502 Bad Gateway"
+2026-03-18 14:59:08,836 [WARNING] [scoring anon-001 attempt 1] OpenAI API status 502 (attempt 3/3). Retrying in 8.0s...
+2026-03-18 14:59:16,837 [ERROR] Failed to score anon-001: [scoring anon-001 attempt 1] All 3 retries exhausted. Last error: Error code: 502
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1869, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1511, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 781, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1747, in _call_with_retry
+    raise RuntimeError(
+        f"[{context}] All {max_retries} retries exhausted. Last error: {last_error}"
+    )
+RuntimeError: [scoring anon-001 attempt 1] All 3 retries exhausted. Last error: Error code: 502
+2026-03-18 14:59:16,842 [INFO] ============================================================
+2026-03-18 14:59:16,842 [INFO] BATCH SCORING SUMMARY
+2026-03-18 14:59:16,843 [INFO] ============================================================
+2026-03-18 14:59:16,843 [INFO] Batch ID:   workspace
+2026-03-18 14:59:16,843 [INFO] Rubric:     self-select-login-payment-v2
+2026-03-18 14:59:16,843 [INFO] Mode:       real-time
+2026-03-18 14:59:16,843 [INFO] Total:      3
+2026-03-18 14:59:16,843 [INFO] Completed:  0
+2026-03-18 14:59:16,844 [INFO] Failed:     3
+2026-03-18 14:59:16,844 [INFO] Pending:    0
+2026-03-18 14:59:16,844 [INFO] ------------------------------------------------------------
+2026-03-18 14:59:16,844 [INFO] FAILED SUBMISSIONS:
+2026-03-18 14:59:16,844 [INFO]   anon-003 - [scoring anon-003 attempt 1] All 3 retries exhausted. Last error: Error code: 502 (attempts: 1)
+2026-03-18 14:59:16,844 [INFO]   anon-002 - [scoring anon-002 attempt 1] All 3 retries exhausted. Last error: Error code: 502 (attempts: 1)
+2026-03-18 14:59:16,844 [INFO]   anon-001 - [scoring anon-001 attempt 1] All 3 retries exhausted. Last error: Error code: 502 (attempts: 1)
+2026-03-18 14:59:16,845 [INFO] ============================================================
+2026-03-18 14:59:16,846 [INFO] Loaded 3 score records
+2026-03-18 14:59:16,850 [INFO] Loaded 0 student mappings
+2026-03-18 14:59:16,924 [INFO] Excel saved to D:\grade code\homework-grader\workspace\reports\grades-20260318-145916.xlsx
+2026-03-18 14:59:16,925 [INFO] Generated Excel report: D:\grade code\homework-grader\workspace\reports\grades-20260318-145916.xlsx
+2026-03-18 14:59:18,501 [INFO] Loaded 3 score records
+2026-03-18 14:59:18,505 [WARNING] Statistics warning: scores are overly concentrated at a single level
+2026-03-18 14:59:18,505 [INFO] Generated statistics report: D:\grade code\homework-grader\workspace\reports\statistics.md
+2026-03-18 15:20:59,059 [INFO] Rubric loaded: self-select-login-payment-v2 (v2.0) - 3 criteria
+2026-03-18 15:20:59,060 [INFO] Starting batch scoring - model=gpt-5.4, workers=5
+2026-03-18 15:20:59,061 [INFO] Found 3 IR files in D:\grade code\homework-grader\workspace\ir
+2026-03-18 15:20:59,061 [INFO] Submissions to process: 3
+2026-03-18 15:21:58,715 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-03-18 15:22:27,134 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-03-18 15:22:39,264 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-03-18 15:22:39,267 [INFO] [1/3] Scored anon-003 - weighted_total=3.35 (100204ms)
+2026-03-18 15:23:09,769 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-03-18 15:23:20,001 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-03-18 15:23:20,004 [INFO] [2/3] Scored anon-001 - weighted_total=5.00 (40735ms)
+2026-03-18 15:23:49,646 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-03-18 15:23:58,407 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-03-18 15:23:58,410 [INFO] [3/3] Scored anon-002 - weighted_total=4.00 (38403ms)
+2026-03-18 15:23:58,411 [INFO] ============================================================
+2026-03-18 15:23:58,411 [INFO] BATCH SCORING SUMMARY
+2026-03-18 15:23:58,411 [INFO] ============================================================
+2026-03-18 15:23:58,411 [INFO] Batch ID:   workspace
+2026-03-18 15:23:58,411 [INFO] Rubric:     self-select-login-payment-v2
+2026-03-18 15:23:58,412 [INFO] Mode:       real-time
+2026-03-18 15:23:58,412 [INFO] Total:      3
+2026-03-18 15:23:58,412 [INFO] Completed:  3
+2026-03-18 15:23:58,412 [INFO] Failed:     0
+2026-03-18 15:23:58,412 [INFO] Pending:    0
+2026-03-18 15:23:58,412 [INFO] Est. cost:  $0.0212
+2026-03-18 15:23:58,412 [INFO] ============================================================
+2026-03-18 15:23:58,414 [INFO] Loaded 3 score records
+2026-03-18 15:23:58,415 [INFO] Loaded 0 student mappings
+2026-03-18 15:23:58,470 [INFO] Excel saved to D:\grade code\homework-grader\workspace\reports\grades-20260318-152358.xlsx
+2026-03-18 15:23:58,470 [INFO] Generated Excel report: D:\grade code\homework-grader\workspace\reports\grades-20260318-152358.xlsx
+2026-03-18 15:23:59,201 [INFO] Loaded 3 score records
+2026-03-18 15:23:59,203 [INFO] Generated statistics report: D:\grade code\homework-grader\workspace\reports\statistics.md
