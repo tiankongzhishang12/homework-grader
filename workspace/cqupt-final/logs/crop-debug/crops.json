@@ -1,0 +1,119 @@
+{
+  "pdf": "workspace\\cqupt-final\\raw\\text3.pdf",
+  "preset": "cqupt_page1_v1",
+  "description": "CQUPT final-exam page-1 object-question blocks. Each crop keeps one question stem and the answer boxes directly below it.",
+  "page_index": 0,
+  "page_rect": {
+    "x0": 0.0,
+    "y0": 0.0,
+    "x1": 1190.6400146484375,
+    "y1": 841.9199829101562,
+    "width": 1190.6400146484375,
+    "height": 841.9199829101562
+  },
+  "full_page_image": "workspace\\cqupt-final\\logs\\crop-debug\\page1-full.png",
+  "crops": {
+    "q1": {
+      "file": "workspace\\cqupt-final\\logs\\crop-debug\\q1.png",
+      "relative_rect": {
+        "x0": 0.04,
+        "y0": 0.18,
+        "x1": 0.51,
+        "y1": 0.49
+      },
+      "absolute_rect": {
+        "x0": 47.6256005859375,
+        "y0": 151.54559692382813,
+        "x1": 607.2264074707032,
+        "y1": 412.54079162597657,
+        "width": 559.6008068847657,
+        "height": 260.9951947021484
+      }
+    },
+    "q2": {
+      "file": "workspace\\cqupt-final\\logs\\crop-debug\\q2.png",
+      "relative_rect": {
+        "x0": 0.04,
+        "y0": 0.47,
+        "x1": 0.51,
+        "y1": 0.7
+      },
+      "absolute_rect": {
+        "x0": 47.6256005859375,
+        "y0": 395.7023919677734,
+        "x1": 607.2264074707032,
+        "y1": 589.3439880371093,
+        "width": 559.6008068847657,
+        "height": 193.6415960693359
+      }
+    },
+    "q3": {
+      "file": "workspace\\cqupt-final\\logs\\crop-debug\\q3.png",
+      "relative_rect": {
+        "x0": 0.04,
+        "y0": 0.69,
+        "x1": 0.51,
+        "y1": 0.95
+      },
+      "absolute_rect": {
+        "x0": 47.6256005859375,
+        "y0": 580.9247882080077,
+        "x1": 607.2264074707032,
+        "y1": 799.8239837646483,
+        "width": 559.6008068847657,
+        "height": 218.89919555664062
+      }
+    },
+    "q4": {
+      "file": "workspace\\cqupt-final\\logs\\crop-debug\\q4.png",
+      "relative_rect": {
+        "x0": 0.51,
+        "y0": 0.03,
+        "x1": 0.96,
+        "y1": 0.31
+      },
+      "absolute_rect": {
+        "x0": 607.2264074707032,
+        "y0": 25.257599487304688,
+        "x1": 1143.0144140625,
+        "y1": 260.9951947021484,
+        "width": 535.7880065917968,
+        "height": 235.73759521484374
+      }
+    },
+    "q5": {
+      "file": "workspace\\cqupt-final\\logs\\crop-debug\\q5.png",
+      "relative_rect": {
+        "x0": 0.51,
+        "y0": 0.31,
+        "x1": 0.96,
+        "y1": 0.43
+      },
+      "absolute_rect": {
+        "x0": 607.2264074707032,
+        "y0": 260.9951947021484,
+        "x1": 1143.0144140625,
+        "y1": 362.02559265136716,
+        "width": 535.7880065917968,
+        "height": 101.03039794921875
+      }
+    },
+    "q6": {
+      "file": "workspace\\cqupt-final\\logs\\crop-debug\\q6.png",
+      "relative_rect": {
+        "x0": 0.51,
+        "y0": 0.43,
+        "x1": 0.96,
+        "y1": 0.51
+      },
+      "absolute_rect": {
+        "x0": 607.2264074707032,
+        "y0": 362.02559265136716,
+        "x1": 1143.0144140625,
+        "y1": 429.3791912841797,
+        "width": 535.7880065917968,
+        "height": 67.35359863281252
+      }
+    }
+  }
+}

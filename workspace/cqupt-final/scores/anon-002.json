@@ -1,0 +1,356 @@
+{
+  "student_id": "anon-002",
+  "rubric_id": "cqupt-final-exam-raw-v3",
+  "scored_at": "2026-03-24T11:14:55+00:00",
+  "gate_status": {
+    "all_passed": true,
+    "details": [
+      {
+        "gate_id": "G-001",
+        "gate_name": "文本抽取完整性",
+        "passed": true,
+        "details": "Word count: 1075 (required: 30-inf)",
+        "on_fail": "flag"
+      },
+      {
+        "gate_id": "G-002",
+        "gate_name": "题型结构提示",
+        "passed": true,
+        "details": "Found 13 of required 1 keywords: ['选择题', '判断题', '填空题', '简答题', '综合题', '编程', '算法', '白盒测试', '一、', '二、', '三、', '四、', '五、']",
+        "on_fail": "flag"
+      },
+      {
+        "gate_id": "G-003",
+        "gate_name": "灰色方块提示",
+        "passed": true,
+        "details": "Found 6 of required 1 keywords: ['选择', '判断', 'A', 'B', 'C', 'D']",
+        "on_fail": "flag"
+      }
+    ]
+  },
+  "dimension_scores": [
+    {
+      "criterion_id": "single_choice_01",
+      "criterion_name": "第1题 单项选择题",
+      "weight": 1.0,
+      "max_score": 5,
+      "score": 0,
+      "evidence": "Recognized answer: B; expected: D; vision_confidence=0.99.",
+      "reasoning": "The recognized option does not match the fixed answer key or could not be read reliably.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Recheck the fixed answer key and verify every selected option before submitting.",
+      "confidence": 0.99
+    },
+    {
+      "criterion_id": "multiple_choice_02",
+      "criterion_name": "第2题 多项选择题",
+      "weight": 1.0,
+      "max_score": 5,
+      "score": 0,
+      "evidence": "Recognized answers: ['B', 'C', 'D']; expected: ['B', 'C']; vision_confidence=0.98.",
+      "reasoning": "At least one wrong option was selected, so the item scores 0 under the fixed-answer rule.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Recheck the fixed answer key and verify every selected option before submitting.",
+      "confidence": 0.98
+    },
+    {
+      "criterion_id": "single_choice_03",
+      "criterion_name": "第3题 单项选择题",
+      "weight": 1.0,
+      "max_score": 5,
+      "score": 5,
+      "evidence": "Recognized answer: B; expected: B; vision_confidence=0.99.",
+      "reasoning": "The recognized option matches the fixed answer key.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Keep this objective item accurate and maintain the same level of care.",
+      "confidence": 0.99
+    },
+    {
+      "criterion_id": "multiple_choice_04",
+      "criterion_name": "第4题 多项选择题",
+      "weight": 1.0,
+      "max_score": 5,
+      "score": 5,
+      "evidence": "Recognized answers: ['A', 'C', 'D']; expected: ['A', 'C', 'D']; vision_confidence=0.98.",
+      "reasoning": "All correct options were selected and no wrong options were selected.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Keep this objective item accurate and maintain the same level of care.",
+      "confidence": 0.98
+    },
+    {
+      "criterion_id": "judgment_05",
+      "criterion_name": "第5题 判断题",
+      "weight": 1.0,
+      "max_score": 5,
+      "score": 0,
+      "evidence": "Recognized judgment mark: √; expected: ×; vision_confidence=0.99.",
+      "reasoning": "The recognized judgment mark does not match the fixed answer key or could not be read reliably.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Recheck the statement against the fixed judgment key before selecting the mark.",
+      "confidence": 0.99
+    },
+    {
+      "criterion_id": "judgment_06",
+      "criterion_name": "第6题 判断题",
+      "weight": 1.0,
+      "max_score": 5,
+      "score": 5,
+      "evidence": "Recognized judgment mark: √; expected: √; vision_confidence=0.99.",
+      "reasoning": "The recognized judgment mark matches the fixed answer key.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Keep this objective item accurate and maintain the same level of care.",
+      "confidence": 0.99
+    },
+    {
+      "criterion_id": "fill_blank_07_1",
+      "criterion_name": "第7题 第1空 填空题",
+      "weight": 1.0,
+      "max_score": 2,
+      "score": 0,
+      "evidence": "Extracted fill-blank answer: 管理级; expected: 初始级.",
+      "reasoning": "The extracted fill-blank answer does not match the fixed answer key exactly or could not be found.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Recheck the exact fixed-answer term and keep the wording consistent with the required answer key.",
+      "confidence": 0.98
+    },
+    {
+      "criterion_id": "fill_blank_07_2",
+      "criterion_name": "第7题 第2空 填空题",
+      "weight": 1.0,
+      "max_score": 2,
+      "score": 0,
+      "evidence": "Extracted fill-blank answer: 开始级; expected: 已管理级.",
+      "reasoning": "The extracted fill-blank answer does not match the fixed answer key exactly or could not be found.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Recheck the exact fixed-answer term and keep the wording consistent with the required answer key.",
+      "confidence": 0.98
+    },
+    {
+      "criterion_id": "fill_blank_07_3",
+      "criterion_name": "第7题 第3空 填空题",
+      "weight": 1.0,
+      "max_score": 2,
+      "score": 0,
+      "evidence": "Extracted fill-blank answer: 已管理级; expected: 已定义级.",
+      "reasoning": "The extracted fill-blank answer does not match the fixed answer key exactly or could not be found.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Recheck the exact fixed-answer term and keep the wording consistent with the required answer key.",
+      "confidence": 0.98
+    },
+    {
+      "criterion_id": "fill_blank_07_4",
+      "criterion_name": "第7题 第4空 填空题",
+      "weight": 1.0,
+      "max_score": 2,
+      "score": 2,
+      "evidence": "Extracted fill-blank answer: 已量化级; expected: 已量化级.",
+      "reasoning": "The extracted fill-blank answer matches the fixed answer key exactly.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Keep this objective item accurate and maintain the same level of care.",
+      "confidence": 0.98
+    },
+    {
+      "criterion_id": "fill_blank_07_5",
+      "criterion_name": "第7题 第5空 填空题",
+      "weight": 1.0,
+      "max_score": 2,
+      "score": 2,
+      "evidence": "Extracted fill-blank answer: 持续优化级; expected: 持续优化级.",
+      "reasoning": "The extracted fill-blank answer matches the fixed answer key exactly.",
+      "matched_core_points": [],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "Keep this objective item accurate and maintain the same level of care.",
+      "confidence": 0.98
+    },
+    {
+      "criterion_id": "short_answer_08",
+      "criterion_name": "第8题 简答题",
+      "weight": 1.0,
+      "score": 5,
+      "evidence": "学生作答：\"金字塔型：先问细节再问整体方向。能缓解受访者紧张，慢慢带入状态。\"；\"漏斗型：先放大业务流程再扣具体细节。能快速理清系统的主线需求\"；\"菱型开形：先细后粗再细。虽然过程复杂，耗时较长，但有效防止需求遗漏，是最稳妥的组织方式\"。",
+      "reasoning": "答案明确写出了金字塔、漏斗、菱形三种结构。金字塔对应“先细节再整体方向”，符合由具体到一般；漏斗对应“先放大业务流程再扣具体细节”，符合由宽到窄；菱形对应“先细后粗再细”，符合组合式组织逻辑。并且每种结构都给出了特点或作用场景。整体没有关键性混淆，符合满分条件。",
+      "matched_core_points": [
+        "答出了金字塔结构",
+        "答出了漏斗结构",
+        "答出了菱形结构",
+        "金字塔结构方向正确：由细到粗/由具体到一般",
+        "漏斗结构方向正确：由宽到窄",
+        "菱形结构方向正确：先细后宽再收束",
+        "说明了每种结构的特点或适用效果"
+      ],
+      "accepted_alternative_reasoning": "学生未照搬标准答案，而是用“先问细节再问整体方向”“先放大业务流程再扣具体细节”“先细后粗再细”等等价表述说明组织逻辑，符合可接受替代表达。",
+      "missing_points": [],
+      "logic_issues": [],
+      "improvement": "可再补一句三种结构各自更适合什么访谈场景，使答案更完整。",
+      "confidence": 0.93,
+      "max_score": 5
+    },
+    {
+      "criterion_id": "short_answer_09",
+      "criterion_name": "第9题 简答题",
+      "weight": 1.0,
+      "score": 3,
+      "evidence": "学生作答：\"UML主要有展现类与接口关系的类图，展现用户功能活动的用例图，展现对象间消息传递顺序的序列图，以及类似流程图的活动图\"。",
+      "reasoning": "答案列举了类图、用例图、序列图、活动图，均属于常见 UML 图，说明学生知道部分代表图。但题目核心要求是区分 UML 的两大类：结构图与行为图。学生没有明确给出“结构图/行为图”分类，也没有进一步说明交互图等分类层次，因此只能按“能列出多个常见 UML 图，但缺少明确分类”给中等偏上分。",
+      "matched_core_points": [
+        "列出了类图",
+        "列出了用例图",
+        "列出了序列图",
+        "列出了活动图"
+      ],
+      "accepted_alternative_reasoning": "虽然没有完整穷举 UML 图种类，但列出的图均为有效 UML 图，按代表图覆盖度可获得部分分数。",
+      "missing_points": [
+        "未明确指出 UML 分为结构图和行为图两大类",
+        "未说明结构图代表图的分类归属",
+        "未说明行为图代表图的分类归属",
+        "未涉及交互图进一步包括序列图、通信图等层次"
+      ],
+      "logic_issues": [],
+      "improvement": "先写“UML图分为结构图和行为图两大类”，再分别列举代表图，可显著提高得分。",
+      "confidence": 0.9,
+      "max_score": 5
+    },
+    {
+      "criterion_id": "programming_01",
+      "criterion_name": "五、综合题 第1问 编程题",
+      "weight": 1.0,
+      "score": 10,
+      "evidence": "学生代码：\"public class Book{ private Sering title; private String author; private int price; public Book (String title, String author, int price) { title = title; author = author; price = price; } } }\"。",
+      "reasoning": "答案定义了 Book 类，包含三个私有属性 title、author、price，也写了构造方法，覆盖了题目的主要结构要求，因此可得较多基础分。但存在明显缺失与错误：一是没有 displayInfo() 或任何等价输出方法；二是构造方法中的赋值写成了 \"title = title\" 等，未将参数赋给成员变量，应为 this.title = title 等，导致初始化逻辑不成立；三是 title 类型写成 \"Sering\"，存在语法问题；四是括号结构也不自洽。依据 rubric，应因构造初始化错误、输出方法缺失、整体结构问题扣分，因此给中档分。",
+      "matched_core_points": [
+        "定义了 Book 类",
+        "包含私有属性 title、author、price",
+        "写出了构造方法的基本形式"
+      ],
+      "accepted_alternative_reasoning": "虽然代码不与标准答案一致，但只要类、属性、构造方法等核心结构存在，就应给予相应过程分。",
+      "missing_points": [
+        "缺少 displayInfo() 或等价输出方法",
+        "构造方法未正确初始化成员变量",
+        "整体语法结构不够自洽"
+      ],
+      "logic_issues": [
+        "title = title、author = author、price = price 只是参数自赋值，没有给对象属性赋值",
+        "title 类型写成 Sering，存在语法错误",
+        "花括号数量异常，代码结构不完整"
+      ],
+      "improvement": "把构造方法改为 this.title = title; this.author = author; this.price = price;，并补充一个输出书名、作者、价格的方法。",
+      "confidence": 0.95,
+      "max_score": 20
+    },
+    {
+      "criterion_id": "algorithm_01",
+      "criterion_name": "五、综合题 第2问 算法题",
+      "weight": 1.0,
+      "score": 9,
+      "evidence": "学生作答：\"int binarySearch (int[] nums, int target) { int low=0; int high=nums.length; while (low<high) { int mid=(low+high) if (nums[mid]==target) { return mid; } else if (nums[mid]<target) { low=mid; } else { high=mid; } } return -1 } 复杂度 O(log n)\"。",
+      "reasoning": "答案体现了二分查找的核心思想：设置 low、high、mid，比较 nums[mid] 与 target，并逐步缩小区间；同时正确写出了复杂度 O(log n)，这部分应单独给分。但算法实现存在关键边界与更新错误：high 设为 nums.length 而非最后下标；mid 计算式不完整；当 nums[mid] < target 时写成 low=mid，而不是通常的 low=mid+1，另一侧也类似，容易死循环；并且未结合题目数组写出查找 66 的具体轮次过程。根据 rubric，通用思路和复杂度正确应给较多分，但因边界更新错误应明显扣分。",
+      "matched_core_points": [
+        "体现了二分查找通过 low、high、mid 缩小区间的核心思想",
+        "写出了比较 nums[mid] 与 target 的过程",
+        "写出了时间复杂度 O(log n)"
+      ],
+      "accepted_alternative_reasoning": "虽然未按标准答案逐轮演示查找 66，但给出了通用二分查找框架和正确复杂度，因此可获得主要过程分的一部分。",
+      "missing_points": [
+        "未结合本题数组写出查找 66 的具体轮次过程",
+        "边界更新逻辑不正确",
+        "mid 计算表达不完整"
+      ],
+      "logic_issues": [
+        "high=nums.length 与 while(low<high) 的写法需要更严谨处理，否则存在越界/边界问题",
+        "low=mid、high=mid 可能导致区间不收缩并陷入死循环",
+        "mid=(low+high) 缺少除以 2"
+      ],
+      "improvement": "把边界改严谨，如 high = nums.length - 1、mid = (low + high) / 2，并在更新时使用 low = mid + 1 或 high = mid - 1。",
+      "confidence": 0.94,
+      "max_score": 20
+    },
+    {
+      "criterion_id": "white_box_testing_01",
+      "criterion_name": "五、综合题 第3问 白盒测试与路径覆盖",
+      "weight": 1.0,
+      "score": 2,
+      "evidence": "学生作答：\"节点数N=5 边数E=7 计算：V(G)=7-5+2=4\"。",
+      "reasoning": "按本题机械规则评分：标准答案要求 N=6、E=7、V(G)=E-N+2=3。学生写出 E=7，边数正确，可得对应 2 分。N=5 错误，因此节点数 2 分不给。V(G) 的计算建立在错误的 N 上，且最终结果为 4，不符合“计算过程正确且最终结果正确”这一前提，因此 V(G) 的 5 分不给。总分为 2 分。",
+      "matched_core_points": [
+        "正确识别边数 E=7"
+      ],
+      "accepted_alternative_reasoning": "",
+      "missing_points": [
+        "节点数 N=6 未答对",
+        "V(G)=E-N+2 的正确代入与结果未完成",
+        "最终结果 3 未答对"
+      ],
+      "logic_issues": [
+        "节点数识别错误导致后续环路复杂度计算错误",
+        "最终 V(G)=4 与标准结果不符"
+      ],
+      "improvement": "重新核对流程图中的节点数量，再用正确的 N 和 E 代入 V(G)=E-N+2。",
+      "confidence": 0.98,
+      "max_score": 10
+    }
+  ],
+  "weighted_total": 2.92,
+  "percentile_score": 48,
+  "grade": "review",
+  "overall_confidence": 0.97,
+  "review_flag": "none",
+  "comment": {
+    "strengths": "【优点】第8题简答最突出：你准确写出“金字塔、漏斗、菱形”三种访谈结构，并分别说明“先细后总、先宽后窄、先细后粗再细”的组织逻辑及作用，说明概念理解到位。第4题多选A/C/D全对，审题与排除干扰项较稳。",
+    "weaknesses": "【不足】第7题前3空把成熟度等级顺序写乱：你填“管理级、开始级、已管理级”，而标准是“初始级、已管理级、已定义级”，反映基础术语记忆不牢。综合题中二分查找边界错误最影响得分：high设为nums.length、low=mid会导致死循环，且未写查找66的具体过程。",
+    "suggestions": "【建议】1. 优先整理高频固定答案清单，尤其成熟度等级、判断题易混点，考前按顺序默写1遍。2. 编程题提交前做“语法+边界”自检：this赋值、类型拼写、括号、mid与low/high更新。3. 简答题先写总分类再举例，如UML先写“结构图、行为图”再列类图、用例图。",
+    "full_text": "【优点】第8题简答最突出：你准确写出“金字塔、漏斗、菱形”三种访谈结构，并分别说明“先细后总、先宽后窄、先细后粗再细”的组织逻辑及作用，说明概念理解到位。第4题多选A/C/D全对，审题与排除干扰项较稳。【不足】第7题前3空把成熟度等级顺序写乱：你填“管理级、开始级、已管理级”，而标准是“初始级、已管理级、已定义级”，反映基础术语记忆不牢。综合题中二分查找边界错误最影响得分：high设为nums.length、low=mid会导致死循环，且未写查找66的具体过程。【建议】1. 优先整理高频固定答案清单，尤其成熟度等级、判断题易混点，考前按顺序默写1遍。2. 编程题提交前做“语法+边界”自检：this赋值、类型拼写、括号、mid与low/high更新。3. 简答题先写总分类再举例，如UML先写“结构图、行为图”再列类图、用例图。"
+  },
+  "metadata": {
+    "score_mode": "raw",
+    "model": "gpt-5.4",
+    "input_tokens": 7680,
+    "output_tokens": 2994,
+    "duration_ms": 77019,
+    "attached_image_blocks": 0,
+    "validation_errors": [],
+    "evidence_quality": "complete",
+    "repaired_response": false,
+    "second_pass": {
+      "triggered": false,
+      "reasons": []
+    },
+    "objective_review_reasons": [],
+    "objective_answers_status": "success",
+    "subjective_review_reasons": [],
+    "subjective_answers_status": "success"
+  },
+  "raw_total_score": 48.0,
+  "max_total_score": 100.0
+}

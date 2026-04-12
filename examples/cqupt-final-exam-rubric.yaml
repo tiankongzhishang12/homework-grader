@@ -1,0 +1,561 @@
+rubric:
+  id: cqupt-final-exam-raw-v3
+  name: "重庆邮电大学期末试卷评分标准（真实题号版）"
+  version: 3.0
+  score_mode: raw
+  max_total_score: 100
+  description: |
+    这是重庆邮电大学期末试卷的原始分评分标准，和之前的“登录支付作业”评分完全分离。
+    本评分标准已经按真实题号展开为逐题条目，覆盖：
+    1. 不定项选择题
+    2. 判断题
+    3. 填空题
+    4. 简答题
+    5. 综合题（编程、算法、白盒测试）
+    客观题按固定规则机械计分；简答题和综合题按“标准答案参考 + 等价给分”评分。
+  instruction: |
+    评分总则：
+    1. 选择题、判断题、填空题属于客观题，按固定分值规则计分，不得因表述好坏加减分。
+    2. 选择题答案优先看灰色方块。如果 PDF 预处理无法稳定识别灰色方块，不得猜测，必须降低置信度并标记人工复核。
+    3. 填空题当前采用严格字面匹配；但本卷第7题标准答案页同时出现了带英文注释和中文简写两种写法，按中文核心术语判分。
+    4. 简答题和综合题中，标准答案只是参考基线，不是唯一正确写法。
+    5. 对简答题和综合题，应优先看：
+       - 是否回答到了题目真正考察的点
+       - 是否覆盖核心知识点或关键步骤
+       - 推理过程是否成立
+       - 结论是否正确或基本正确
+    6. 学生答案只要专业上成立、结论正确、关键点充分，即使与标准答案表述不同，也应给相应分数。
+    7. 主观题部分得分依据是“关键点覆盖 + 逻辑质量”，不是逐字比对标准答案。
+  gates:
+    - id: G-001
+      name: 文本抽取完整性
+      description: 文本过少或题号结构缺失时，先标记为需要人工复核。
+      check_method: length
+      parameters:
+        min_words: 30
+      on_fail: flag
+
+    - id: G-002
+      name: 题型结构提示
+      description: 试卷中至少应出现一种题型或题号提示。
+      check_method: keyword
+      parameters:
+        keywords: ["选择题", "判断题", "填空题", "简答题", "综合题", "编程", "算法", "白盒测试", "一、", "二、", "三、", "四、", "五、"]
+        min_count: 1
+      on_fail: flag
+
+    - id: G-003
+      name: 灰色方块提示
+      description: 客观题答案依赖灰色方块时，如无法稳定识别，则后续应人工复核。
+      check_method: keyword
+      parameters:
+        keywords: ["灰色方块", "选择", "判断", "A", "B", "C", "D"]
+        min_count: 1
+      on_fail: flag
+
+  thresholds:
+    accept: 60
+    reject: 40
+    review: [40, 60]
+
+  comment_guidelines:
+    tone: "constructive, precise, exam-oriented"
+    language: "zh-CN"
+    length_range: [120, 260]
+    required_sections:
+      - strengths
+      - weaknesses
+      - suggestions
+    prohibited_patterns:
+      - "作为 AI"
+      - "整体不错"
+      - "无法判断"
+
+  criteria:
+    single_choice_01:
+      name: "第1题 单项选择题"
+      question_type: "single_choice"
+      question_range: "一-1"
+      max_score: 5
+      description: "UML 动态行为与消息交换顺序图示。"
+      scoring_guidance: |
+        只根据第1题的勾选结果判分，不参考篇幅、文字说明或猜测。
+        如果灰色方块无法识别，不能臆断答案，应降低 confidence 并标记复核。
+      scoring_rule: "选对 5 分；选错或不作答 0 分。"
+      evidence_type: observation
+      evidence_source: visual_gray_blocks
+      answer_key:
+        question_id: "1"
+        correct_option: "D"
+      full_score_conditions:
+        - "学生唯一勾选 D。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "勾选 A、B、C 中任意一个。"
+        - "未作答。"
+        - "同时勾选多个选项。"
+        - "灰色方块证据缺失且无法可靠判断。"
+      deduction_rules:
+        - "单选题只有满分或零分。"
+
+    multiple_choice_02:
+      name: "第2题 多项选择题"
+      question_type: "multiple_choice"
+      question_range: "一-2"
+      max_score: 5
+      description: "需求工程面谈结构组织方式。"
+      scoring_guidance: |
+        必须先判断是否存在错选。只要错选任一非正确选项，本题直接记 0 分。
+        在没有错选的前提下，再根据命中的正确选项数量决定 1 分、3 分或 5 分。
+      scoring_rule: "错选任一项 0 分；只选对 1 个正确项 1 分；选对 2 个及以上但未全对 3 分；全对 5 分。"
+      evidence_type: observation
+      evidence_source: visual_gray_blocks
+      answer_key:
+        question_id: "2"
+        correct_options: ["B", "C"]
+      full_score_conditions:
+        - "勾选 B 和 C，且未勾选 A、D。"
+      partial_credit_conditions:
+        - "只勾选 B 或只勾选 C，且无错选，记 1 分。"
+      zero_score_conditions:
+        - "勾选 A 或 D 中任意一个。"
+        - "未作答。"
+        - "灰色方块证据缺失且无法可靠判断。"
+      deduction_rules:
+        - "本题只有两个正确项，因此不存在“选对 2 个以上但未全对”的 3 分场景。"
+        - "错选优先级最高，一旦错选即 0 分。"
+
+    single_choice_03:
+      name: "第3题 单项选择题"
+      question_type: "single_choice"
+      question_range: "一-3"
+      max_score: 5
+      description: "需求获取面谈结构判断。"
+      scoring_guidance: "只根据第3题勾选结果判分，不做语义猜测。"
+      scoring_rule: "选对 5 分；选错或不作答 0 分。"
+      evidence_type: observation
+      evidence_source: visual_gray_blocks
+      answer_key:
+        question_id: "3"
+        correct_option: "B"
+      full_score_conditions:
+        - "学生唯一勾选 B。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "勾选 A、C、D 中任意一个。"
+        - "未作答。"
+        - "同时勾选多个选项。"
+        - "灰色方块证据缺失且无法可靠判断。"
+      deduction_rules:
+        - "单选题只有满分或零分。"
+
+    multiple_choice_04:
+      name: "第4题 多项选择题"
+      question_type: "multiple_choice"
+      question_range: "一-4"
+      max_score: 5
+      description: "UML 动态建模中的行为图。"
+      scoring_guidance: |
+        先判断是否出现错选。只要错选 B，本题直接 0 分。
+        在无错选前提下：只选对 1 个正确项记 1 分；选对 2 个正确项记 3 分；A、C、D 全对记 5 分。
+      scoring_rule: "错选任一项 0 分；只选对 1 个正确项 1 分；选对 2 个正确项 3 分；全对 5 分。"
+      evidence_type: observation
+      evidence_source: visual_gray_blocks
+      answer_key:
+        question_id: "4"
+        correct_options: ["A", "C", "D"]
+      full_score_conditions:
+        - "勾选 A、C、D，且未勾选 B。"
+      partial_credit_conditions:
+        - "无错选且只选对 A、C、D 中 1 个，记 1 分。"
+        - "无错选且只选对 A、C、D 中 2 个，记 3 分。"
+      zero_score_conditions:
+        - "勾选 B。"
+        - "未作答。"
+        - "灰色方块证据缺失且无法可靠判断。"
+      deduction_rules:
+        - "错选优先级最高，一旦错选即 0 分。"
+
+    judgment_05:
+      name: "第5题 判断题"
+      question_type: "judgment"
+      question_range: "二-5"
+      max_score: 5
+      description: "漏斗结构定义判断。"
+      scoring_guidance: "仅根据判断标记结果判分，不做语义猜测。"
+      scoring_rule: "判对 5 分；判错或未作答 0 分。"
+      evidence_type: observation
+      evidence_source: visual_gray_blocks
+      answer_key:
+        question_id: "5"
+        correct_value: "×"
+      full_score_conditions:
+        - "学生判断为 ×。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "学生判断为 √。"
+        - "未作答。"
+        - "标记无法可靠识别。"
+      deduction_rules:
+        - "判断题只有满分或零分。"
+
+    judgment_06:
+      name: "第6题 判断题"
+      question_type: "judgment"
+      question_range: "二-6"
+      max_score: 5
+      description: "状态机图定义判断。"
+      scoring_guidance: "仅根据判断标记结果判分，不做语义猜测。"
+      scoring_rule: "判对 5 分；判错或未作答 0 分。"
+      evidence_type: observation
+      evidence_source: visual_gray_blocks
+      answer_key:
+        question_id: "6"
+        correct_value: "√"
+      full_score_conditions:
+        - "学生判断为 √。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "学生判断为 ×。"
+        - "未作答。"
+        - "标记无法可靠识别。"
+      deduction_rules:
+        - "判断题只有满分或零分。"
+
+    fill_blank_07_1:
+      name: "第7题 第1空 填空题"
+      question_type: "fill_blank"
+      question_range: "三-7-1"
+      max_score: 2
+      description: "CMMI 第1级。"
+      scoring_guidance: "按中文核心术语严格匹配。括号中的英文注释不是本空作答必需部分。"
+      scoring_rule: "每空 2 分；与标准答案一致得 2 分，否则 0 分。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "7"
+        blank_id: "1"
+        literal_answer: "初始级"
+      full_score_conditions:
+        - "学生填写“初始级”。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "填写其他等级。"
+        - "未作答。"
+      deduction_rules:
+        - "本空采用严格字面匹配。"
+
+    fill_blank_07_2:
+      name: "第7题 第2空 填空题"
+      question_type: "fill_blank"
+      question_range: "三-7-2"
+      max_score: 2
+      description: "CMMI 第2级。"
+      scoring_guidance: "按中文核心术语严格匹配。"
+      scoring_rule: "每空 2 分；与标准答案一致得 2 分，否则 0 分。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "7"
+        blank_id: "2"
+        literal_answer: "已管理级"
+      full_score_conditions:
+        - "学生填写“已管理级”。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "填写其他等级。"
+        - "未作答。"
+      deduction_rules:
+        - "本空采用严格字面匹配。"
+
+    fill_blank_07_3:
+      name: "第7题 第3空 填空题"
+      question_type: "fill_blank"
+      question_range: "三-7-3"
+      max_score: 2
+      description: "CMMI 第3级。"
+      scoring_guidance: "按中文核心术语严格匹配。"
+      scoring_rule: "每空 2 分；与标准答案一致得 2 分，否则 0 分。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "7"
+        blank_id: "3"
+        literal_answer: "已定义级"
+      full_score_conditions:
+        - "学生填写“已定义级”。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "填写其他等级。"
+        - "未作答。"
+      deduction_rules:
+        - "本空采用严格字面匹配。"
+
+    fill_blank_07_4:
+      name: "第7题 第4空 填空题"
+      question_type: "fill_blank"
+      question_range: "三-7-4"
+      max_score: 2
+      description: "CMMI 第4级。"
+      scoring_guidance: "按中文核心术语严格匹配。本卷参考答案页的“已量化管理级”与答题页“已量化级”视为同一核心概念，学生答题按卷面中文主答案“已量化级”判分。"
+      scoring_rule: "每空 2 分；与标准答案一致得 2 分，否则 0 分。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "7"
+        blank_id: "4"
+        literal_answer: "已量化级"
+      full_score_conditions:
+        - "学生填写“已量化级”。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "填写其他等级。"
+        - "未作答。"
+      deduction_rules:
+        - "本空按卷面主答案严格匹配。"
+
+    fill_blank_07_5:
+      name: "第7题 第5空 填空题"
+      question_type: "fill_blank"
+      question_range: "三-7-5"
+      max_score: 2
+      description: "CMMI 第5级。"
+      scoring_guidance: "按中文核心术语严格匹配。"
+      scoring_rule: "每空 2 分；与标准答案一致得 2 分，否则 0 分。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "7"
+        blank_id: "5"
+        literal_answer: "持续优化级"
+      full_score_conditions:
+        - "学生填写“持续优化级”。"
+      partial_credit_conditions:
+        - "不适用。"
+      zero_score_conditions:
+        - "填写其他等级。"
+        - "未作答。"
+      deduction_rules:
+        - "本空采用严格字面匹配。"
+
+    short_answer_08:
+      name: "第8题 简答题"
+      question_type: "short_answer"
+      question_range: "四-8"
+      max_score: 5
+      description: "简述需求面谈的三种结构。"
+      scoring_guidance: |
+        标准答案是参考基线，不要求逐字复述。
+        只要学生能正确区分金字塔结构、漏斗结构、菱形结构，并说明其组织特点或适用场景，就应给相应分数。
+      scoring_rule: "满分 5 分；按关键点覆盖 + 逻辑质量评分，允许等价正确表述。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "8"
+        reference_basis: "标准答案强调三种面谈结构的定义、特点和适用场景。"
+      core_points:
+        - "金字塔结构：从具体问题逐步过渡到一般或宏观问题。"
+        - "漏斗结构：从宽泛开放的问题逐步收窄到具体细节。"
+        - "菱形结构：兼具两者特点，通常经历具体-开放-总结的组合过程。"
+        - "至少说明每种结构的一个特点、适用场景或组织方式差异。"
+      acceptable_alternatives:
+        - "允许学生用“由细到粗”“由宽到窄”“先细后宽再收束”等等价表述。"
+        - "允许只写核心特点，不强制逐一写完整英文名。"
+      full_score_conditions:
+        - "三种结构都答到。"
+        - "每种结构的方向或组织逻辑基本正确。"
+        - "整体表达清晰，无关键性混淆。"
+      partial_credit_conditions:
+        - "答出了其中两种结构且解释基本正确。"
+        - "三种结构都提到，但有一处细节或场景表述不完整。"
+        - "概念方向基本正确，但缺少适用场景或特点展开。"
+      zero_score_conditions:
+        - "大面积偏题。"
+        - "将三种结构的方向关系整体答反，且无有效支撑。"
+        - "几乎未覆盖核心知识点。"
+      deduction_rules:
+        - "优先依据关键点覆盖和逻辑质量扣分，不按标准答案原句匹配。"
+        - "篇幅长但概念混淆严重，不能给高分。"
+
+    short_answer_09:
+      name: "第9题 简答题"
+      question_type: "short_answer"
+      question_range: "四-9"
+      max_score: 5
+      description: "UML 建模有些什么图。"
+      scoring_guidance: |
+        本题核心不是要求学生逐字列出标准答案，而是看其是否知道 UML 图的大类及代表性图示。
+        只要学生能正确区分结构图与行为图，并列出主要代表图，即可给较高分。
+      scoring_rule: "满分 5 分；按 UML 图分类与代表图覆盖度评分，允许等价正确表述。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "9"
+        reference_basis: "标准答案将 UML 图分为结构图和行为图，并列举了若干典型图。"
+      core_points:
+        - "指出 UML 图可分为结构图和行为图两大类。"
+        - "结构图代表：类图、对象图、组件图、部署图、包图等。"
+        - "行为图代表：用例图、活动图、状态机图、交互图等。"
+        - "交互图可进一步包括序列图、通信图、交互概览图、定时图。"
+      acceptable_alternatives:
+        - "允许学生不穷尽所有子图，只要分类正确且覆盖主要代表图。"
+        - "允许将“时序图”写作“序列图”，将“通信图”写作“协作图”类近义课堂称呼。"
+      full_score_conditions:
+        - "两大类划分正确。"
+        - "每一大类都能列出多个代表图。"
+        - "没有把典型结构图和行为图混为一类。"
+      partial_credit_conditions:
+        - "知道 UML 图的大类，但列举不完整。"
+        - "能列出多个常见 UML 图，但缺少明确分类。"
+        - "分类基本正确，但代表图覆盖度一般。"
+      zero_score_conditions:
+        - "基本不知道 UML 图分类。"
+        - "列举内容与 UML 无关或大量错误。"
+      deduction_rules:
+        - "不要求把标准答案列出的所有图全部写全。"
+        - "若分类正确且主要代表图正确，应给中高分。"
+
+    programming_01:
+      name: "五、综合题 第1问 编程题"
+      question_type: "programming"
+      question_range: "五-1"
+      max_score: 20
+      description: "定义 Book 类，包含属性、构造方法和 displayInfo 方法。"
+      scoring_guidance: |
+        重点看类定义是否满足题目要求，而不是是否与标准答案代码逐行一致。
+        只要采用 Java 或等价伪代码正确表达 private 属性、构造初始化和打印方法，就应给相应分数。
+        displayInfo() 不是唯一可接受的方法名；只要存在等价输出方法，并且能输出图书关键信息，也应认可。
+      scoring_rule: "满分 20 分；按关键功能点覆盖 + 实现逻辑正确性 + 表达完整性给分。"
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "五-1"
+        reference_basis: "标准答案给出 Book 类、3 个私有属性、构造方法和 displayInfo() 输出方法。"
+      core_points:
+        - "定义 Book 类。"
+        - "包含私有属性 title、author、price。"
+        - "构造方法能够初始化这三个属性。"
+        - "存在 displayInfo() 或等价输出方法，能输出图书关键信息。"
+        - "整体语法或伪代码结构基本自洽。"
+      acceptable_alternatives:
+        - "允许使用伪代码或与 Java 极其接近的面向对象表达。"
+        - "允许输出格式与标准答案不同，只要能打印书名、作者、价格。"
+        - "允许使用 toString()、printInfo()、showInfo() 等等价方法名承担信息输出功能。"
+      full_score_conditions:
+        - "类、属性、构造方法、显示方法四类要求全部满足。"
+        - "关键字段名称和职责基本正确。"
+        - "结构完整，逻辑自洽。"
+      partial_credit_conditions:
+        - "大部分结构正确，但缺少一个要素，例如方法体不完整或少一个属性。"
+        - "核心思路正确，但语法、可读性或初始化细节不完整。"
+        - "写出了类、属性、构造方法，并存在等价输出思路，但输出字段不完整或方法实现不完整。"
+        - "写出了类和属性，但构造或输出方法明显缺失。"
+      zero_score_conditions:
+        - "未按类的方式作答。"
+        - "核心要求大面积缺失，无法体现题目意图。"
+      deduction_rules:
+        - "不因实现写法与标准答案不同而扣分。"
+        - "不要因为方法名不是 displayInfo() 就直接重扣；应重点看是否真的完成了信息输出。"
+        - "应因缺失私有属性、构造初始化、输出内容不完整、或整体结构错误而扣分。"
+
+    algorithm_01:
+      name: "五、综合题 第2问 算法题"
+      question_type: "algorithm"
+      question_range: "五-2"
+      max_score: 20
+      description: "二分查找 66 的具体步骤与时间复杂度。"
+      scoring_guidance: |
+        本题核心在于二分查找的过程是否正确，以及是否知道时间复杂度。
+        不要求学生必须照标准答案排版；只要 low、high、mid 推导正确，且能说明 O(log n)，就应给相应分数。
+        不应把“必须逐轮写出 66 的查找过程”作为唯一高分路径；正确的通用二分查找实现与正确复杂度也应得到较多分数。
+      scoring_rule: |
+        满分 20 分；按以下思路评分：
+        1. 正确体现二分查找核心思想、边界和 mid 比较逻辑，可获得主要过程分。
+        2. 正确写出时间复杂度 O(log n)，应单独给较明显分值。
+        3. 若能进一步结合题目数组，写出查找 66 的逐轮 low/high/mid 过程，可拿满分或接近满分。
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "五-2"
+        reference_basis: "标准答案给出二分查找伪代码，并说明时间复杂度为 O(log n)。"
+      core_points:
+        - "正确体现二分查找的核心思想：通过 low、high、mid 逐步缩小查找区间。"
+        - "边界更新逻辑基本正确。"
+        - "说明二分查找时间复杂度为 O(log n)。"
+        - "若能结合本题数组，写出查找 66 的具体轮次过程，可获得更高分。"
+      acceptable_alternatives:
+        - "允许不写完整代码，只写清楚每轮 low、high、mid 和判断过程。"
+        - "允许用“对数级”“log 级别”说明复杂度，只要含义正确。"
+        - "允许使用通用伪代码或通用函数形式表达二分查找，只要算法思想和复杂度正确。"
+      full_score_conditions:
+        - "正确写出二分查找思想和边界更新。"
+        - "复杂度说明正确。"
+        - "并且能结合本题数组，写出查找 66 的关键轮次过程。"
+      partial_credit_conditions:
+        - "通用二分查找伪代码基本正确，复杂度也正确，但未结合题目写出 66 的具体轮次。"
+        - "算法思路正确，但某轮索引或文字表述略有瑕疵。"
+        - "步骤基本正确，但复杂度遗漏。"
+        - "复杂度正确，但步骤不够完整。"
+      zero_score_conditions:
+        - "算法方向根本错误。"
+        - "无法体现二分查找的关键比较与边界更新。"
+      deduction_rules:
+        - "不按标准答案原格式机械扣分。"
+        - "不要因为没有逐轮写出 66 的查找过程就把分数压得过低；若通用二分查找和复杂度正确，应给较多分。"
+        - "应重点因 mid 计算、区间更新、复杂度判断错误而扣分。"
+
+    white_box_testing_01:
+      name: "五、综合题 第3问 白盒测试与路径覆盖"
+      question_type: "white_box_testing"
+      question_range: "五-3"
+      max_score: 10
+      description: "计算环路复杂度。"
+      scoring_guidance: |
+        本题按拆点计分，不以“最后结果碰巧等于 3”作为高分依据。
+        必须同时关注节点数 N、边数 E、以及 V(G) 的计算过程。
+        如果最终写出 3，但代入过程错误或公式推导错误，则最后 5 分不能给。
+      scoring_rule: |
+        满分 10 分，按以下规则给分：
+        1. N 的取值正确，给 2 分。
+        2. E 的取值正确，给 2 分。
+        3. N 和 E 都正确时，可合计得到 5 分。
+        4. V(G) 计算过程正确且最终结果正确，给 5 分。
+        5. 如果 V(G) 计算过程不对，或者最终结果不对，则这 5 分不给。
+      evidence_type: quote
+      evidence_source: text
+      answer_key:
+        question_id: "五-3"
+        reference_basis: "标准答案给出 N=6，E=7，V(G)=E-N+2=3。"
+      core_points:
+        - "正确识别节点数 N=6。"
+        - "正确识别边数 E=7。"
+        - "正确使用环路复杂度公式 V(G)=E-N+2。"
+        - "代入过程正确。"
+        - "最终计算结果为 3。"
+      acceptable_alternatives:
+        - "允许学生不逐条画图，只要 N、E 的识别和 V(G) 推导过程清楚正确。"
+        - "允许使用等价正确的复杂度推导表达，但必须能对应到正确的 N、E 和 V(G) 结果。"
+      full_score_conditions:
+        - "N=6 正确。"
+        - "E=7 正确。"
+        - "V(G)=E-N+2 的代入过程正确。"
+        - "最终结果为 3。"
+      partial_credit_conditions:
+        - "只答对 N 或只答对 E，可得对应的 2 分。"
+        - "N 和 E 都答对，但未写出正确的 V(G) 计算过程，客观数据部分给分，计算部分不给分。"
+        - "写出了公式，但代入或运算错误，不能拿 V(G) 计算的 5 分。"
+      zero_score_conditions:
+        - "N、E 都未识别正确，且 V(G) 计算过程也错误。"
+        - "完全偏离白盒测试/环路复杂度主题。"
+      deduction_rules:
+        - "不要因为最终结果恰好写成 3 就直接给高分。"
+        - "V(G) 的 5 分必须建立在计算过程正确且结果正确的前提上。"
+        - "N 和 E 应分别判断；只答对一个时给对应分数。"

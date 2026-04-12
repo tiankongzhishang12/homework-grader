@@ -15,6 +15,7 @@ Requires Python 3.10+.
 from __future__ import annotations
 
 import argparse
+import base64
 import io
 import json
 import logging
@@ -22,6 +23,7 @@ import re
 import time
 import unicodedata
 import zipfile
+from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,9 +31,12 @@ from typing import Any, NamedTuple
 from xml.etree import ElementTree as ET
 
 import fitz  # PyMuPDF
+from openai import OpenAI
 import yaml
 from docx import Document as DocxDocument
 from PIL import Image, ImageOps
+
+from debug_exam_crops import PRESETS, export_crop, export_full_page
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -98,6 +103,29 @@ DOCX_NS = {
 }
 
 logger = logging.getLogger("preprocess")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "grader-config.yaml"
+_PROJECT_CONFIG: dict[str, Any] | None = None
+_OPENAI_CLIENT: OpenAI | None = None
+OBJECTIVE_VISION_TYPES = {"single_choice", "multiple_choice", "judgment"}
+OBJECTIVE_VISION_PRESET = "cqupt_page1_v1"
+OBJECTIVE_VISION_RUNS = 3
+OBJECTIVE_VISION_RETRIES = 3
+SUBJECTIVE_TRANSCRIPTION_TYPES = {"short_answer", "programming", "algorithm", "white_box_testing"}
+SUBJECTIVE_VISION_RUNS = 2
+SUBJECTIVE_VISION_RETRIES = 3
+SUBJECTIVE_LAYOUT_BY_STEM = {
+    "text1": "cqupt_subjective_text1_v1",
+    "text2": "cqupt_subjective_text1_v1",
+    "text3": "cqupt_subjective_v1",
+}
+JUDGMENT_MARK_MAPPING = {
+    "left": "√",
+    "right": "×",
+    "both": "both",
+    "none": "none",
+    "unknown": "unknown",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +194,68 @@ class ProcessingContext:
             step=step, status=status,
             duration_ms=duration_ms, message=message,
         ))
+
+
+def _load_project_config() -> dict[str, Any]:
+    global _PROJECT_CONFIG
+    if _PROJECT_CONFIG is not None:
+        return _PROJECT_CONFIG
+
+    config_path = DEFAULT_CONFIG_PATH
+    override = (Path.cwd() / "grader-config.yaml").resolve()
+    configured_str = ""
+    try:
+        import os
+
+        configured_str = os.environ.get("GRADER_CONFIG_PATH", "").strip()
+    except Exception:  # noqa: BLE001
+        configured_str = ""
+
+    if configured_str:
+        candidate = Path(configured_str)
+        config_path = candidate if candidate.is_absolute() else (PROJECT_ROOT / candidate)
+    elif override.exists():
+        config_path = override
+
+    if not config_path.exists():
+        _PROJECT_CONFIG = {}
+        return _PROJECT_CONFIG
+
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        _PROJECT_CONFIG = data if isinstance(data, dict) else {}
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to load config %s: %s", config_path, exc)
+        _PROJECT_CONFIG = {}
+    return _PROJECT_CONFIG
+
+
+def _config_value(*keys: str) -> str:
+    current: Any = _load_project_config()
+    for key in keys:
+        if not isinstance(current, dict):
+            return ""
+        current = current.get(key)
+    if current is None:
+        return ""
+    return str(current).strip()
+
+
+def _get_openai_client() -> OpenAI:
+    global _OPENAI_CLIENT
+    if _OPENAI_CLIENT is None:
+        import os
+
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip() or _config_value("openai", "api_key")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY not set. Configure it in the environment or grader-config.yaml")
+        base_url = os.environ.get("OPENAI_BASE_URL", "").strip() or _config_value("openai", "base_url")
+        kwargs: dict[str, Any] = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        _OPENAI_CLIENT = OpenAI(**kwargs)
+    return _OPENAI_CLIENT
 
 
 @dataclass(frozen=True)
@@ -300,6 +390,558 @@ def split_assignment_and_answer(full_text: str) -> TextSegmentation:
     ) >= 2
     quality = "partial" if has_assignment_cues else "complete"
     return TextSegmentation("", text, quality, "fallback")
+
+
+def _strip_json_fences(text: str) -> str:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        first_newline = cleaned.find("\n")
+        last_fence = cleaned.rfind("```")
+        if first_newline != -1 and last_fence > first_newline:
+            cleaned = cleaned[first_newline + 1:last_fence].strip()
+    return cleaned
+
+
+def _build_objective_prompt(question_type: str, question_id: str) -> str:
+    if question_type == "single_choice":
+        return (
+            f'This image contains exactly one Chinese objective question, question {question_id}. '
+            'Read the selected option from the visible gray-filled answer box. '
+            'Return strict JSON: {"answer":"A|B|C|D|unknown","confidence":0-1,"notes":"short"}.'
+        )
+    if question_type == "multiple_choice":
+        return (
+            f'This image contains exactly one Chinese objective question, question {question_id}. '
+            'Read all selected options from the visible gray-filled answer boxes. '
+            'Return strict JSON: {"answer":["A","B"] or ["unknown"],"confidence":0-1,"notes":"short"}.'
+        )
+    return (
+        f'This image contains exactly one Chinese judgment question, question {question_id}. '
+        'Do not infer correctness. Only read which mark position is visibly selected. '
+        'Return strict JSON: {"answer":"left|right|both|none|unknown","confidence":0-1,"notes":"short"}.'
+    )
+
+
+def _objective_response_key(question_type: str) -> str:
+    return "answer"
+
+
+def _normalize_objective_answer(question_type: str, answer: Any) -> Any:
+    if question_type == "multiple_choice":
+        if not isinstance(answer, list):
+            return ["unknown"]
+        normalized = [
+            str(item).strip().upper()
+            for item in answer
+            if str(item).strip()
+        ]
+        if not normalized:
+            return ["unknown"]
+        if any(item.lower() == "unknown" for item in normalized):
+            return ["unknown"]
+        return sorted(dict.fromkeys(normalized))
+
+    answer_text = str(answer).strip()
+    if not answer_text:
+        return "unknown"
+
+    if question_type == "judgment":
+        return JUDGMENT_MARK_MAPPING.get(answer_text.lower(), "unknown")
+
+    answer_text = answer_text.upper()
+    if answer_text in {"A", "B", "C", "D"}:
+        return answer_text
+    return "unknown"
+
+
+def _serialize_objective_answer(answer: Any) -> str:
+    if isinstance(answer, list):
+        return json.dumps(answer, ensure_ascii=False)
+    return str(answer)
+
+
+def _call_objective_model(prompt_text: str, image_path: Path, retries: int) -> dict[str, Any]:
+    image_b64 = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    last_error = ""
+    for attempt in range(retries):
+        try:
+            response = _get_openai_client().responses.create(
+                model=_config_value("openai", "model") or "gpt-5.4",
+                input=[
+                    {
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": (
+                                    "You are testing whether a vision model can read gray-filled "
+                                    "answer boxes on a Chinese exam paper. Return strict JSON only."
+                                ),
+                            }
+                        ],
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": prompt_text},
+                            {
+                                "type": "input_image",
+                                "image_url": "data:image/png;base64," + image_b64,
+                            },
+                        ],
+                    },
+                ],
+                max_output_tokens=200,
+            )
+            return {"ok": True, "text": getattr(response, "output_text", "").strip()}
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)
+            time.sleep(2 + attempt * 2)
+    return {"ok": False, "error": last_error}
+
+
+def _collect_visual_objective_criteria(rubric: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not rubric:
+        return []
+    criteria = rubric.get("criteria", {})
+    if not isinstance(criteria, dict):
+        return []
+
+    collected: list[dict[str, Any]] = []
+    for criterion_id, cdata in criteria.items():
+        if not isinstance(cdata, dict):
+            continue
+        question_type = str(cdata.get("question_type", "")).strip()
+        if question_type not in OBJECTIVE_VISION_TYPES:
+            continue
+        if str(cdata.get("evidence_source", "")).strip() != "visual_gray_blocks":
+            continue
+        answer_key = cdata.get("answer_key", {})
+        if not isinstance(answer_key, dict):
+            continue
+        question_id = str(answer_key.get("question_id", "")).strip()
+        if not question_id:
+            continue
+        collected.append(
+            {
+                "criterion_id": criterion_id,
+                "question_id": question_id,
+                "question_type": question_type,
+            }
+        )
+    collected.sort(key=lambda item: int(item["question_id"]))
+    return collected
+
+
+def _recognize_visual_objective_answers(
+    file_path: Path,
+    student_id: str,
+    workspace_root: Path,
+    rubric: dict[str, Any] | None,
+) -> tuple[dict[str, Any], list[ProcessingLogEntry]]:
+    criteria = _collect_visual_objective_criteria(rubric)
+    if not criteria:
+        return {"status": "skipped", "answers": {}, "reason": "no_visual_objective_criteria"}, []
+
+    preset = PRESETS.get(OBJECTIVE_VISION_PRESET)
+    if preset is None:
+        return {"status": "error", "answers": {}, "reason": f"missing_preset:{OBJECTIVE_VISION_PRESET}"}, []
+
+    crop_dir = workspace_root / "logs" / "objective-crops" / student_id
+    crop_dir.mkdir(parents=True, exist_ok=True)
+
+    ctx = ProcessingContext()
+    try:
+        doc = fitz.open(str(file_path))
+        page_index = int(preset["page_index"])
+        page = doc.load_page(page_index)
+        full_page_path = crop_dir / f"page{page_index + 1}-full.png"
+        export_full_page(page, full_page_path, float(preset["full_page_zoom"]))
+    except Exception as exc:  # noqa: BLE001
+        ctx.add_log("objective_answer_recognition", "warning", message=f"page_render_failed: {exc}")
+        return {"status": "error", "answers": {}, "reason": str(exc)}, ctx.log
+
+    answers: dict[str, Any] = {}
+    overall_status = "success"
+
+    for item in criteria:
+        qid = item["question_id"]
+        crop_key = f"q{qid}"
+        rel_box = preset["questions"].get(crop_key)
+        if rel_box is None:
+            answers[qid] = {
+                "question_id": qid,
+                "question_type": item["question_type"],
+                "status": "missing_crop_preset",
+                "needs_review": True,
+            }
+            overall_status = "partial"
+            continue
+
+        crop_path = crop_dir / f"{crop_key}.png"
+        export_crop(page, rel_box, crop_path, float(preset["crop_zoom"]))
+        prompt_text = _build_objective_prompt(item["question_type"], qid)
+
+        runs: list[dict[str, Any]] = []
+        normalized_answers: list[Any] = []
+        confidences: list[float] = []
+        for _ in range(OBJECTIVE_VISION_RUNS):
+            run = _call_objective_model(prompt_text, crop_path, OBJECTIVE_VISION_RETRIES)
+            parsed_answer = "unknown"
+            parsed_confidence = 0.0
+            if run.get("ok"):
+                try:
+                    payload = json.loads(_strip_json_fences(str(run.get("text", ""))))
+                    parsed_answer = payload.get(_objective_response_key(item["question_type"]), "unknown")
+                    parsed_confidence = float(payload.get("confidence", 0.0) or 0.0)
+                    normalized = _normalize_objective_answer(item["question_type"], parsed_answer)
+                    run["parsed"] = payload
+                    run["normalized_answer"] = normalized
+                    normalized_answers.append(normalized)
+                    confidences.append(parsed_confidence)
+                except Exception as exc:  # noqa: BLE001
+                    run["ok"] = False
+                    run["error"] = f"json_parse_failed: {exc}"
+            runs.append(run)
+
+        successful_count = len(normalized_answers)
+        consensus = "unknown"
+        stable = False
+        needs_review = True
+        if successful_count:
+            tally: dict[str, int] = {}
+            for answer in normalized_answers:
+                key = _serialize_objective_answer(answer)
+                tally[key] = tally.get(key, 0) + 1
+            consensus_key = max(tally.items(), key=lambda item: item[1])[0]
+            consensus = json.loads(consensus_key) if consensus_key.startswith("[") else consensus_key
+            stable = len(tally) == 1 and successful_count == OBJECTIVE_VISION_RUNS
+            consensus_is_unknown = (
+                consensus == ["unknown"]
+                if isinstance(consensus, list)
+                else consensus in {"unknown", "both", "none"}
+            )
+            needs_review = not stable or consensus_is_unknown
+            if not stable:
+                overall_status = "partial"
+        else:
+            overall_status = "partial"
+
+        answers[qid] = {
+            "question_id": qid,
+            "criterion_id": item["criterion_id"],
+            "question_type": item["question_type"],
+            "status": "success" if successful_count else "error",
+            "recognized_answer": consensus,
+            "confidence": round(sum(confidences) / len(confidences), 2) if confidences else 0.0,
+            "successful_runs": successful_count,
+            "stable": stable,
+            "needs_review": needs_review,
+            "crop_file": str(crop_path.relative_to(workspace_root)).replace("\\", "/"),
+            "runs": runs,
+        }
+
+    ctx.add_log(
+        "objective_answer_recognition",
+        "success" if overall_status == "success" else "warning",
+        message=f"status={overall_status}, recognized={len(answers)} question(s)",
+    )
+    return {
+        "status": overall_status,
+        "mode": "fixed_answer",
+        "preset": OBJECTIVE_VISION_PRESET,
+        "model": _config_value("openai", "model") or "gpt-5.4",
+        "judgment_mapping": JUDGMENT_MARK_MAPPING,
+        "full_page_image": str(full_page_path.relative_to(workspace_root)).replace("\\", "/"),
+        "answers": answers,
+    }, ctx.log
+
+
+# ---------------------------------------------------------------------------
+# Subjective-answer transcription from cropped question blocks
+# ---------------------------------------------------------------------------
+
+def _collect_subjective_criteria(rubric: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not rubric:
+        return []
+    criteria = rubric.get("criteria", {})
+    if not isinstance(criteria, dict):
+        return []
+
+    collected: list[dict[str, Any]] = []
+    for criterion_id, cdata in criteria.items():
+        if not isinstance(cdata, dict):
+            continue
+        question_type = str(cdata.get("question_type", "")).strip()
+        if question_type not in SUBJECTIVE_TRANSCRIPTION_TYPES:
+            continue
+        answer_key = cdata.get("answer_key", {})
+        question_id = ""
+        if isinstance(answer_key, dict):
+            question_id = str(answer_key.get("question_id", "")).strip()
+        collected.append(
+            {
+                "criterion_id": criterion_id,
+                "question_type": question_type,
+                "question_id": question_id,
+                "name": str(cdata.get("name", criterion_id)),
+            }
+        )
+    return collected
+
+
+def _subjective_crop_key(item: dict[str, Any]) -> str:
+    criterion_id = str(item.get("criterion_id", "")).strip()
+    question_id = str(item.get("question_id", "")).strip()
+    if criterion_id.startswith("short_answer_") and question_id.isdigit():
+        return f"q{question_id}"
+    return criterion_id
+
+
+def _select_subjective_layout_preset(file_path: Path) -> str:
+    stem = file_path.stem.lower()
+    return SUBJECTIVE_LAYOUT_BY_STEM.get(stem, "cqupt_subjective_v1")
+
+
+def _normalize_text_for_similarity(text: str) -> str:
+    lowered = text.lower().strip()
+    lowered = re.sub(r"\s+", "", lowered)
+    return lowered
+
+
+def _subjective_answers_stable(values: list[str]) -> bool:
+    if len(values) <= 1:
+        return True
+    normalized = [_normalize_text_for_similarity(value) for value in values if value.strip()]
+    if len(normalized) <= 1:
+        return True
+    pairs: list[float] = []
+    for idx, left in enumerate(normalized):
+        for right in normalized[idx + 1:]:
+            pairs.append(SequenceMatcher(None, left, right).ratio())
+    return bool(pairs) and min(pairs) >= 0.85
+
+
+def _build_subjective_prompt(question_name: str, question_type: str, image_count: int) -> str:
+    image_hint = (
+        "This answer spans multiple images. Read them in order and merge them into one answer."
+        if image_count > 1
+        else "This answer is shown in a single image."
+    )
+    code_hint = ""
+    if question_type == "programming":
+        code_hint = (
+            " Preserve code-like line breaks, indentation, braces, method names, and variable names where visible."
+        )
+    elif question_type == "algorithm":
+        code_hint = (
+            " Preserve step order, indexes, formulas, and complexity expressions where visible."
+        )
+    elif question_type == "white_box_testing":
+        code_hint = (
+            " Preserve formulas, path descriptions, and any short structured bullet points where visible."
+        )
+    return (
+        f"You are transcribing a cropped student answer for {question_name} on a Chinese university exam. "
+        f"{image_hint} Focus on the student's handwritten or typed answer content. "
+        "Do not grade. Do not infer missing content. Avoid repeating the question stem unless it is mixed into the answer and cannot be separated. "
+        "If a word is unclear, use [unclear]. Preserve line breaks when they help readability."
+        f"{code_hint} "
+        'Return strict JSON: {"transcribed_answer":"...","confidence":0-1,"notes":"short"}.'
+    )
+
+
+def _call_subjective_model(prompt_text: str, image_paths: list[Path], retries: int) -> dict[str, Any]:
+    content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt_text}]
+    for image_path in image_paths:
+        image_b64 = base64.b64encode(image_path.read_bytes()).decode("ascii")
+        content.append(
+            {
+                "type": "input_image",
+                "image_url": "data:image/png;base64," + image_b64,
+            }
+        )
+
+    last_error = ""
+    for attempt in range(retries):
+        try:
+            response = _get_openai_client().responses.create(
+                model=_config_value("openai", "model") or "gpt-5.4",
+                input=[
+                    {
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": (
+                                    "You transcribe handwritten Chinese exam answers from cropped images. "
+                                    "Return strict JSON only."
+                                ),
+                            }
+                        ],
+                    },
+                    {
+                        "role": "user",
+                        "content": content,
+                    },
+                ],
+                max_output_tokens=900,
+            )
+            return {"ok": True, "text": getattr(response, "output_text", "").strip()}
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)
+            time.sleep(2 + attempt * 2)
+    return {"ok": False, "error": last_error}
+
+
+def _recognize_subjective_answers(
+    file_path: Path,
+    student_id: str,
+    workspace_root: Path,
+    rubric: dict[str, Any] | None,
+) -> tuple[dict[str, Any], list[ProcessingLogEntry]]:
+    criteria = _collect_subjective_criteria(rubric)
+    if not criteria:
+        return {"status": "skipped", "answers": {}, "reason": "no_subjective_criteria"}, []
+
+    preset_name = _select_subjective_layout_preset(file_path)
+    preset = PRESETS.get(preset_name)
+    if preset is None:
+        return {"status": "error", "answers": {}, "reason": f"missing_preset:{preset_name}"}, []
+
+    blocks = preset.get("blocks", {})
+    if not isinstance(blocks, dict) or not blocks:
+        return {"status": "error", "answers": {}, "reason": f"invalid_subjective_blocks:{preset_name}"}, []
+
+    crop_dir = workspace_root / "logs" / "subjective-crops" / student_id
+    crop_dir.mkdir(parents=True, exist_ok=True)
+
+    ctx = ProcessingContext()
+    try:
+        doc = fitz.open(str(file_path))
+    except Exception as exc:  # noqa: BLE001
+        ctx.add_log("subjective_answer_transcription", "warning", message=f"pdf_open_failed: {exc}")
+        return {"status": "error", "answers": {}, "reason": str(exc)}, ctx.log
+
+    pages: dict[int, fitz.Page] = {}
+    full_page_images: dict[str, str] = {}
+    referenced_pages = sorted(
+        {
+            int(part.get("page_index", -1))
+            for parts in blocks.values()
+            if isinstance(parts, list)
+            for part in parts
+            if isinstance(part, dict)
+        }
+    )
+    try:
+        for page_index in referenced_pages:
+            if page_index < 0 or page_index >= doc.page_count:
+                raise ValueError(f"preset page_index out of range: {page_index}")
+            page = doc.load_page(page_index)
+            pages[page_index] = page
+            full_page_path = crop_dir / f"page{page_index + 1}-full.png"
+            export_full_page(page, full_page_path, float(preset.get("full_page_zoom", 3.0)))
+            full_page_images[str(page_index)] = str(full_page_path.relative_to(workspace_root)).replace("\\", "/")
+    except Exception as exc:  # noqa: BLE001
+        ctx.add_log("subjective_answer_transcription", "warning", message=f"page_render_failed: {exc}")
+        return {"status": "error", "answers": {}, "reason": str(exc)}, ctx.log
+
+    answers: dict[str, Any] = {}
+    overall_status = "success"
+
+    for item in criteria:
+        crop_key = _subjective_crop_key(item)
+        crop_parts = blocks.get(crop_key)
+        if not isinstance(crop_parts, list) or not crop_parts:
+            answers[crop_key] = {
+                "criterion_id": item["criterion_id"],
+                "criterion_name": item["name"],
+                "question_id": item["question_id"],
+                "question_type": item["question_type"],
+                "status": "missing_crop_preset",
+                "needs_review": True,
+            }
+            overall_status = "partial"
+            continue
+
+        crop_paths: list[Path] = []
+        for idx, part in enumerate(crop_parts, start=1):
+            page_index = int(part["page_index"])
+            rel_box = tuple(part["rect"])
+            page = pages[page_index]
+            suffix = f"-p{page_index + 1}"
+            if len(crop_parts) > 1:
+                suffix += f"-part{idx}"
+            crop_path = crop_dir / f"{crop_key}{suffix}.png"
+            export_crop(page, rel_box, crop_path, float(preset.get("crop_zoom", 3.5)))
+            crop_paths.append(crop_path)
+
+        prompt_text = _build_subjective_prompt(item["name"], item["question_type"], len(crop_paths))
+        runs: list[dict[str, Any]] = []
+        transcriptions: list[str] = []
+        confidences: list[float] = []
+        for _ in range(SUBJECTIVE_VISION_RUNS):
+            run = _call_subjective_model(prompt_text, crop_paths, SUBJECTIVE_VISION_RETRIES)
+            if run.get("ok"):
+                try:
+                    payload = json.loads(_strip_json_fences(str(run.get("text", ""))))
+                    transcription = str(payload.get("transcribed_answer", "") or "").strip()
+                    confidence = float(payload.get("confidence", 0.0) or 0.0)
+                    run["parsed"] = payload
+                    run["normalized_text"] = _normalize_text_for_similarity(transcription)
+                    if transcription:
+                        transcriptions.append(transcription)
+                        confidences.append(confidence)
+                except Exception as exc:  # noqa: BLE001
+                    run["ok"] = False
+                    run["error"] = f"json_parse_failed: {exc}"
+            runs.append(run)
+
+        successful_runs = len(transcriptions)
+        stable = _subjective_answers_stable(transcriptions)
+        best_index = 0
+        if confidences:
+            best_index = max(range(len(confidences)), key=lambda idx: confidences[idx])
+        chosen = transcriptions[best_index] if transcriptions else ""
+        avg_confidence = round(sum(confidences) / len(confidences), 2) if confidences else 0.0
+        too_short = len(_normalize_text_for_similarity(chosen)) < 6
+        unclear_heavy = chosen.count("[unclear]") >= 2
+        needs_review = (not chosen) or (not stable) or avg_confidence < 0.6 or too_short or unclear_heavy
+        if needs_review:
+            overall_status = "partial"
+
+        answers[crop_key] = {
+            "criterion_id": item["criterion_id"],
+            "criterion_name": item["name"],
+            "question_id": item["question_id"],
+            "question_type": item["question_type"],
+            "status": "success" if successful_runs else "error",
+            "transcribed_answer": chosen,
+            "confidence": avg_confidence,
+            "successful_runs": successful_runs,
+            "stable": stable,
+            "needs_review": needs_review,
+            "crop_files": [
+                str(path.relative_to(workspace_root)).replace("\\", "/")
+                for path in crop_paths
+            ],
+            "runs": runs,
+        }
+
+    ctx.add_log(
+        "subjective_answer_transcription",
+        "success" if overall_status == "success" else "warning",
+        message=f"status={overall_status}, transcribed={len(answers)} question block(s)",
+    )
+    return {
+        "status": overall_status,
+        "mode": "vision_transcription",
+        "preset": preset_name,
+        "model": _config_value("openai", "model") or "gpt-5.4",
+        "full_page_images": full_page_images,
+        "answers": answers,
+    }, ctx.log
 
 
 # ---------------------------------------------------------------------------
@@ -955,6 +1597,8 @@ def build_text_ir(
     evidence_quality: str,
     sections: list[Section],
     image_entries: list[dict[str, Any]],
+    objective_answers: dict[str, Any],
+    subjective_answers: dict[str, Any],
     metadata: TextMetadata,
     gate_results: list[GateResult],
     processing_log: list[ProcessingLogEntry],
@@ -983,6 +1627,8 @@ def build_text_ir(
                 for s in sections
             ],
             "images": image_entries,
+            "objective_answers": objective_answers,
+            "subjective_answers": subjective_answers,
         },
         "gate_results": [
             {
@@ -1067,6 +1713,7 @@ def process_text_file(
     file_path: Path,
     student_id: str,
     rubric: dict[str, Any] | None,
+    workspace_root: Path,
 ) -> dict[str, Any] | None:
     """Process a single .docx or .pdf file into an IR dict."""
     ctx = ProcessingContext()
@@ -1095,6 +1742,8 @@ def process_text_file(
         return _build_error_ir(student_id, source_files, "corrupted_file", str(exc), ctx.log)
 
     image_entries: list[dict[str, Any]] = []
+    objective_answers: dict[str, Any] = {"status": "skipped", "answers": {}}
+    subjective_answers: dict[str, Any] = {"status": "skipped", "answers": {}}
     if ext == ".docx":
         try:
             image_entries, dur = _timed(extract_docx_images, file_path)
@@ -1106,6 +1755,33 @@ def process_text_file(
         except Exception as exc:
             ctx.add_log("embedded_image_extraction", "warning", message=f"Image extraction failed: {exc}")
             logger.warning("Failed to extract embedded images from %s: %s", file_path.name, exc)
+    elif ext == ".pdf":
+        try:
+            objective_answers, objective_logs = _recognize_visual_objective_answers(
+                file_path=file_path,
+                student_id=student_id,
+                workspace_root=workspace_root,
+                rubric=rubric,
+            )
+            for entry in objective_logs:
+                ctx.log.append(entry)
+        except Exception as exc:  # noqa: BLE001
+            objective_answers = {"status": "error", "answers": {}, "reason": str(exc)}
+            ctx.add_log("objective_answer_recognition", "warning", message=f"Recognition failed: {exc}")
+            logger.warning("Objective answer recognition failed for %s: %s", file_path.name, exc)
+        try:
+            subjective_answers, subjective_logs = _recognize_subjective_answers(
+                file_path=file_path,
+                student_id=student_id,
+                workspace_root=workspace_root,
+                rubric=rubric,
+            )
+            for entry in subjective_logs:
+                ctx.log.append(entry)
+        except Exception as exc:  # noqa: BLE001
+            subjective_answers = {"status": "error", "answers": {}, "reason": str(exc)}
+            ctx.add_log("subjective_answer_transcription", "warning", message=f"Transcription failed: {exc}")
+            logger.warning("Subjective answer transcription failed for %s: %s", file_path.name, exc)
 
     segmentation, dur = _timed(split_assignment_and_answer, full_text)
     ctx.add_log(
@@ -1159,6 +1835,8 @@ def process_text_file(
         evidence_quality=segmentation.evidence_quality,
         sections=sections,
         image_entries=image_entries,
+        objective_answers=objective_answers,
+        subjective_answers=subjective_answers,
         metadata=metadata,
         gate_results=gate_results,
         processing_log=ctx.log,
@@ -1272,6 +1950,7 @@ def _build_error_ir(
             "evidence_quality": "partial",
             "sections": [],
             "images": [],
+            "objective_answers": {"status": "skipped", "answers": {}},
         },
         "gate_results": [],
         "processing_log": [
@@ -1355,7 +2034,7 @@ def run_batch(
         ir: dict[str, Any] | None = None
 
         if ext in SUPPORTED_TEXT_EXTENSIONS:
-            ir = process_text_file(file_path, student_id, rubric)
+            ir = process_text_file(file_path, student_id, rubric, output_dir.parent)
         elif ext in SUPPORTED_IMAGE_EXTENSIONS:
             ir = process_image_file(file_path, student_id)
 

@@ -29,11 +29,12 @@ import json
 import logging
 import os
 import random
+import re
 import sys
 import tempfile
 import time
 import zipfile
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,7 @@ SECOND_PASS_CONFIDENCE_THRESHOLD = 0.8
 SECOND_PASS_MARGIN_THRESHOLD = 0.3
 SECOND_PASS_TOTAL_DIFF_THRESHOLD = 0.5
 SECOND_PASS_DIM_DIFF_THRESHOLD = 1
+OBJECTIVE_QUESTION_TYPES = {"single_choice", "multiple_choice", "judgment", "fill_blank"}
 
 # Pricing per million tokens (rough estimate for the default model).
 INPUT_PRICE_PER_MTOK = 0.25
@@ -89,6 +91,7 @@ _OPENAI_CLIENT: OpenAI | None = None
 _PROJECT_CONFIG: dict[str, Any] | None = None
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "grader-config.yaml"
+_CONFIG_PATH_OVERRIDE: Path | None = None
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -107,6 +110,18 @@ class RubricCriterion:
     scoring_guidance: str
     anchors: dict[int, str]
     evidence_type: str
+    question_type: str = ""
+    question_range: str = ""
+    max_score: int = 5
+    scoring_rule: str = ""
+    evidence_source: str = "text"
+    answer_key: Any = None
+    core_points: list[str] = field(default_factory=list)
+    acceptable_alternatives: list[str] = field(default_factory=list)
+    deduction_rules: list[str] = field(default_factory=list)
+    full_score_conditions: list[str] = field(default_factory=list)
+    partial_credit_conditions: list[str] = field(default_factory=list)
+    zero_score_conditions: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -134,6 +149,8 @@ class Rubric:
     version: float
     description: str
     instruction: str
+    score_mode: str
+    max_total_score: float
     criteria: list[RubricCriterion]
     thresholds: RubricThresholds
     comment_guidelines: CommentGuidelines
@@ -187,6 +204,29 @@ class InvalidScoringResponseError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 
+def _criterion_max_score(criterion: RubricCriterion) -> int:
+    if criterion.max_score:
+        return int(criterion.max_score)
+    if criterion.scale:
+        return int(max(criterion.scale))
+    return 5
+
+
+def _criterion_min_score(criterion: RubricCriterion, score_mode: str) -> int:
+    if score_mode == "raw":
+        return 0
+    if criterion.scale:
+        return int(min(criterion.scale))
+    return 1
+
+
+def _normalize_total_score(raw_total_score: float, max_total_score: float) -> float:
+    if max_total_score <= 0:
+        return 1.0
+    normalized = 1.0 + 4.0 * (raw_total_score / max_total_score)
+    return round(max(1.0, min(5.0, normalized)), 2)
+
+
 def load_rubric(path: Path) -> Rubric:
     """Load and validate a Rubric YAML file.
 
@@ -209,6 +249,9 @@ def load_rubric(path: Path) -> Rubric:
     rubric_version = rubric_data.get("version", 1.0)
     rubric_description = rubric_data.get("description", "")
     rubric_instruction = rubric_data.get("instruction", "")
+    score_mode = str(rubric_data.get("score_mode", "scaled") or "scaled").strip().lower()
+    if score_mode not in {"scaled", "raw"}:
+        raise ValueError("Rubric score_mode must be 'scaled' or 'raw'")
     if not rubric_id:
         raise ValueError("Rubric must have a non-empty 'id'")
 
@@ -220,17 +263,20 @@ def load_rubric(path: Path) -> Rubric:
     criteria: list[RubricCriterion] = []
     weight_sum = 0.0
     for cid, cdata in criteria_raw.items():
-        weight = cdata.get("weight", 0.0)
+        weight = float(cdata.get("weight", 1.0 if score_mode == "raw" else 0.0))
         weight_sum += weight
-        scale = cdata.get("scale", [1, 2, 3, 4, 5])
+        max_score = int(cdata.get("max_score", max(cdata.get("scale", [5]))))
+        scale = [int(s) for s in cdata.get("scale", ([1, 2, 3, 4, 5] if score_mode == "scaled" else list(range(0, max_score + 1))))]
         anchors = {int(k): str(v) for k, v in cdata.get("anchors", {}).items()}
 
-        # Validate anchors cover all scale values
-        missing_anchors = [s for s in scale if s not in anchors]
-        if missing_anchors:
-            raise ValueError(
-                f"Criterion '{cid}': missing anchors for scale values {missing_anchors}"
-            )
+        if score_mode == "scaled":
+            missing_anchors = [s for s in scale if s not in anchors]
+            if missing_anchors:
+                raise ValueError(
+                    f"Criterion '{cid}': missing anchors for scale values {missing_anchors}"
+                )
+        elif max_score <= 0:
+            raise ValueError(f"Criterion '{cid}': max_score must be > 0 in raw mode")
 
         criteria.append(
             RubricCriterion(
@@ -242,14 +288,31 @@ def load_rubric(path: Path) -> Rubric:
                 scoring_guidance=cdata.get("scoring_guidance", ""),
                 anchors=anchors,
                 evidence_type=cdata.get("evidence_type", "observation"),
+                question_type=str(cdata.get("question_type", "")),
+                question_range=str(cdata.get("question_range", "")),
+                max_score=max_score,
+                scoring_rule=str(cdata.get("scoring_rule", "")),
+                evidence_source=str(cdata.get("evidence_source", "text")),
+                answer_key=cdata.get("answer_key"),
+                core_points=[str(v) for v in cdata.get("core_points", [])],
+                acceptable_alternatives=[str(v) for v in cdata.get("acceptable_alternatives", [])],
+                deduction_rules=[str(v) for v in cdata.get("deduction_rules", [])],
+                full_score_conditions=[str(v) for v in cdata.get("full_score_conditions", [])],
+                partial_credit_conditions=[str(v) for v in cdata.get("partial_credit_conditions", [])],
+                zero_score_conditions=[str(v) for v in cdata.get("zero_score_conditions", [])],
             )
         )
 
     # Validate weights sum
-    if abs(weight_sum - 1.0) > 0.001:
+    if score_mode == "scaled" and abs(weight_sum - 1.0) > 0.001:
         raise ValueError(
             f"Criteria weights must sum to 1.0 (got {weight_sum:.4f})"
         )
+    max_total_score = float(rubric_data.get("max_total_score", 0.0) or 0.0)
+    if score_mode == "raw":
+        inferred_total = float(sum(_criterion_max_score(c) for c in criteria))
+        if max_total_score <= 0:
+            max_total_score = inferred_total
 
     # Thresholds
     thresholds_raw = rubric_data.get("thresholds", {})
@@ -285,6 +348,8 @@ def load_rubric(path: Path) -> Rubric:
         version=rubric_version,
         description=rubric_description,
         instruction=rubric_instruction,
+        score_mode=score_mode,
+        max_total_score=max_total_score,
         criteria=criteria,
         thresholds=thresholds,
         comment_guidelines=comment_guidelines,
@@ -357,12 +422,65 @@ def build_scoring_user_prompt(
     rubric_metadata_text = "\n\n".join(rubric_metadata)
 
     dimensions_text = ""
-    for c in rubric.criteria:
-        anchor_rows = "\n".join(
-            f"| {score} | {c.anchors[score]} |"
-            for score in sorted(c.anchors, reverse=True)
+    if rubric.score_mode == "raw":
+        for c in rubric.criteria:
+            answer_key_text = json.dumps(c.answer_key, ensure_ascii=False, indent=2) if c.answer_key is not None else '"<fill from standard answer>"'
+            sections: list[str] = [
+                f"#### {c.name} (max score: {c.max_score})",
+                f"**Criterion ID**: {c.criterion_id}",
+            ]
+            if c.question_type:
+                sections.append(f"**Question Type**: {c.question_type}")
+            if c.question_range:
+                sections.append(f"**Question Range**: {c.question_range}")
+            sections.extend(
+                [
+                    f"**Description**: {c.description}",
+                    f"**Scoring Guidance**: {c.scoring_guidance}",
+                    f"**Scoring Rule**: {c.scoring_rule or 'Use the criterion-specific rules below.'}",
+                    f"**Evidence type**: {c.evidence_type}",
+                    f"**Evidence source**: {c.evidence_source}",
+                    f"**Answer Key / Reference Basis**:\n```json\n{answer_key_text}\n```",
+                ]
+            )
+            if c.core_points:
+                sections.append("**Core Points**:\n" + "\n".join(f"- {item}" for item in c.core_points))
+            if c.acceptable_alternatives:
+                sections.append("**Acceptable Alternatives**:\n" + "\n".join(f"- {item}" for item in c.acceptable_alternatives))
+            if c.full_score_conditions:
+                sections.append("**Full Score Conditions**:\n" + "\n".join(f"- {item}" for item in c.full_score_conditions))
+            if c.partial_credit_conditions:
+                sections.append("**Partial Credit Conditions**:\n" + "\n".join(f"- {item}" for item in c.partial_credit_conditions))
+            if c.zero_score_conditions:
+                sections.append("**Zero Score Conditions**:\n" + "\n".join(f"- {item}" for item in c.zero_score_conditions))
+            if c.deduction_rules:
+                sections.append("**Deduction Rules**:\n" + "\n".join(f"- {item}" for item in c.deduction_rules))
+            dimensions_text += "\n\n" + "\n\n".join(sections) + "\n"
+        dim_json_example = json.dumps(
+            {
+                "criterion_id": "<criterion key>",
+                "criterion_name": "<criterion name>",
+                "weight": 1.0,
+                "score": 3,
+                "evidence": "<quoted text or observation>",
+                "reasoning": "<how the answer was scored against the criterion-specific rules>",
+                "matched_core_points": ["<matched point 1>"],
+                "accepted_alternative_reasoning": "<why a non-standard but correct approach still receives credit>",
+                "missing_points": ["<missing point 1>"],
+                "logic_issues": ["<logic issue or empty list>"],
+                "improvement": "<specific suggestion>",
+                "confidence": 0.82,
+            },
+            ensure_ascii=False,
+            indent=6,
         )
-        dimensions_text += f"""
+    else:
+        for c in rubric.criteria:
+            anchor_rows = "\n".join(
+                f"| {score} | {c.anchors[score]} |"
+                for score in sorted(c.anchors, reverse=True)
+            )
+            dimensions_text += f"""
 #### {c.name} (weight: {c.weight})
 
 **Criterion ID**: {c.criterion_id}
@@ -376,21 +494,97 @@ def build_scoring_user_prompt(
 
 **Evidence type**: {c.evidence_type}
 """
+        dim_json_example = json.dumps(
+            {
+                "criterion_id": "<criterion key>",
+                "criterion_name": "<criterion name>",
+                "weight": 0.0,
+                "score": 4,
+                "evidence": "<quoted text or observation>",
+                "reasoning": "<concise rubric-based rationale>",
+                "improvement": "<specific suggestion>",
+                "confidence": 0.82,
+            },
+            ensure_ascii=False,
+            indent=6,
+        )
 
-    dim_json_example = json.dumps(
-        {
-            "criterion_id": "<criterion key>",
-            "criterion_name": "<criterion name>",
-            "weight": 0.0,
-            "score": 4,
-            "evidence": "<quoted text or observation>",
-            "reasoning": "<concise rubric-based rationale>",
-            "improvement": "<specific suggestion>",
-            "confidence": 0.82,
-        },
-        ensure_ascii=False,
-        indent=6,
-    )
+    scoring_instructions = """Use every relevant evidence block in the submission. If there is an
+Images / Diagrams section, you must inspect it for diagram-related criteria.
+Do not give credit for required artifacts that are absent or not supported by
+the available evidence.
+
+For **each** dimension listed above, produce the following in strict order:
+
+1. **Evidence** - Quote the student's own words (if evidence_type = quote) or describe your observation (if evidence_type = observation / metric). If no relevant content exists, state "No relevant evidence found."
+2. **Reasoning** - Compare the evidence against anchor descriptions. Explain which anchor level it matches and why. Note any borderline considerations.
+3. **Score** - An integer from 1 to 5.
+4. **Improvement** - One specific, actionable suggestion the student could follow next time.
+5. **Confidence** - A float from 0.0 to 1.0 indicating how confident you are in this score.
+
+After scoring all dimensions:
+
+6. **Weighted Total** - Calculate: sum(weight * score) rounded to 2 decimal places.
+7. **Overall Confidence** - The mean of per-dimension confidence values, rounded to 2 decimal places."""
+
+    output_format = f"""{{
+  "student_id": "{student_id}",
+  "rubric_id": "{rubric.id}",
+  "dimension_scores": [
+    {dim_json_example}
+  ],
+  "weighted_total": <float>,
+  "overall_confidence": <float>
+}}"""
+
+    if rubric.score_mode == "raw":
+        scoring_instructions = f"""Use every relevant evidence block in the submission. If there is an
+Images / Diagrams section, you must inspect it for criterion-specific evidence.
+Do not give credit for required artifacts that are absent or not supported by
+the available evidence.
+
+This rubric is in **raw exam-score mode**. The standard answer is a reference
+baseline, not the only acceptable wording. For short-answer and comprehensive
+questions, you must allow professionally valid equivalent reasoning, equivalent
+steps, and equivalent conclusions when they satisfy the question.
+
+For objective questions:
+- Follow the stated scoring rule mechanically.
+- If the answer depends on gray blocks or other visual marks and the evidence is
+  not reliably visible, do not guess. Score conservatively and lower confidence.
+
+For short-answer and comprehensive questions:
+- Reward correct equivalent answers even when they do not mirror the reference answer's wording.
+- Base partial credit on key-point coverage plus logic quality, not on length.
+- Do not mechanically deduct points just because the student's phrasing differs from the reference answer.
+
+For **each** dimension listed above, produce the following in strict order:
+
+1. **Evidence** - Quote or describe the specific evidence used for scoring.
+2. **Reasoning** - Explain how the evidence satisfies or misses the criterion-specific rule.
+3. **Score** - An integer from 0 to the criterion's max score.
+4. **matched_core_points** - A JSON array of the key points the student covered.
+5. **accepted_alternative_reasoning** - A short explanation of any valid alternative reasoning or state an empty string.
+6. **missing_points** - A JSON array of missing key points.
+7. **logic_issues** - A JSON array of logic/process problems, or an empty array.
+8. **Improvement** - One specific, actionable suggestion.
+9. **Confidence** - A float from 0.0 to 1.0.
+
+After scoring all dimensions:
+
+10. **raw_total_score** - Calculate the sum of all raw item scores.
+11. **max_total_score** - Use {int(rubric.max_total_score)}.
+12. **Overall Confidence** - The mean of per-dimension confidence values, rounded to 2 decimal places."""
+        output_format = f"""{{
+  "student_id": "{student_id}",
+  "rubric_id": "{rubric.id}",
+  "dimension_scores": [
+    {dim_json_example}
+  ],
+  "raw_total_score": <float>,
+  "max_total_score": {int(rubric.max_total_score)},
+  "overall_confidence": <float>
+}}"""
 
     return f"""## Rubric
 
@@ -414,23 +608,7 @@ def build_scoring_user_prompt(
 
 ## Scoring Instructions
 
-Use every relevant evidence block in the submission. If there is an
-Images / Diagrams section, you must inspect it for diagram-related criteria.
-Do not give credit for required artifacts that are absent or not supported by
-the available evidence.
-
-For **each** dimension listed above, produce the following in strict order:
-
-1. **Evidence** - Quote the student's own words (if evidence_type = quote) or describe your observation (if evidence_type = observation / metric). If no relevant content exists, state "No relevant evidence found."
-2. **Reasoning** - Compare the evidence against anchor descriptions. Explain which anchor level it matches and why. Note any borderline considerations.
-3. **Score** - An integer from 1 to 5.
-4. **Improvement** - One specific, actionable suggestion the student could follow next time.
-5. **Confidence** - A float from 0.0 to 1.0 indicating how confident you are in this score.
-
-After scoring all dimensions:
-
-6. **Weighted Total** - Calculate: sum(weight * score) rounded to 2 decimal places.
-7. **Overall Confidence** - The mean of per-dimension confidence values, rounded to 2 decimal places.
+{scoring_instructions}
 
 ## Output Format
 
@@ -438,15 +616,7 @@ Respond with **only** the following JSON (no markdown fences, no commentary):
 
 Use the exact criterion IDs from the Rubric for every item in dimension_scores.
 
-{{
-  "student_id": "{student_id}",
-  "rubric_id": "{rubric.id}",
-  "dimension_scores": [
-    {dim_json_example}
-  ],
-  "weighted_total": <float>,
-  "overall_confidence": <float>
-}}"""
+{output_format}"""
 
 def build_comment_user_prompt(
     rubric: Rubric,
@@ -455,31 +625,53 @@ def build_comment_user_prompt(
     """Build the user prompt for comment generation."""
     student_id = score_data.get("student_id", "")
     weighted_total = score_data.get("weighted_total", 0.0)
+    raw_total_score = score_data.get("raw_total_score")
+    max_total_score = score_data.get("max_total_score", rubric.max_total_score)
 
     # Determine grade
-    if weighted_total >= rubric.thresholds.accept:
-        grade = "accept"
-    elif weighted_total < rubric.thresholds.reject:
-        grade = "reject"
-    else:
-        grade = "review"
+    grade = str(score_data.get("grade", "")).strip()
+    if not grade:
+        if rubric.score_mode == "raw":
+            comparison_value = float(raw_total_score or 0.0)
+        else:
+            comparison_value = float(weighted_total or 0.0)
+        if comparison_value >= rubric.thresholds.accept:
+            grade = "accept"
+        elif comparison_value < rubric.thresholds.reject:
+            grade = "reject"
+        else:
+            grade = "review"
 
     # Per-dimension section
     dim_lines = []
     for dim in score_data.get("dimension_scores", []):
+        score_denominator = 5
+        if rubric.score_mode == "raw":
+            matching = next(
+                (criterion for criterion in rubric.criteria if criterion.criterion_id == dim.get("criterion_id")),
+                None,
+            )
+            score_denominator = _criterion_max_score(matching) if matching is not None else dim.get("max_score", 0)
         dim_lines.append(
             f"- **{dim.get('criterion_name', '?')}** ({dim.get('weight', 0)}): "
-            f"{dim.get('score', 0)}/5\n"
+            f"{dim.get('score', 0)}/{score_denominator}\n"
             f"  - Evidence: {dim.get('evidence', '')}\n"
             f"  - Reasoning: {dim.get('reasoning', '')}\n"
             f"  - Improvement: {dim.get('improvement', '')}"
         )
     dim_text = "\n".join(dim_lines)
 
+    score_header = f"**Weighted Total**: {weighted_total} / 5.0"
+    if rubric.score_mode == "raw":
+        score_header = (
+            f"**Raw Total Score**: {raw_total_score} / {max_total_score}\n"
+            f"**Normalized Total**: {weighted_total} / 5.0"
+        )
+
     return f"""## Scoring Results
 
 **Student ID**: {student_id}
-**Weighted Total**: {weighted_total} / 5.0
+{score_header}
 **Grade**: {grade}
 
 ### Per-Dimension Scores
@@ -626,13 +818,24 @@ def validate_scoring_response(
         dim["criterion_id"] = rc.criterion_id
         dim["criterion_name"] = rc.name
         dim["weight"] = rc.weight
+        dim["max_score"] = _criterion_max_score(rc)
         dim["score"] = _coerce_score(dim.get("score"))
         dim["confidence"] = _coerce_confidence(dim.get("confidence"))
 
         score = dim.get("score")
-        if not isinstance(score, int) or score < 1 or score > 5:
+        if rubric.score_mode == "raw":
+            max_score = _criterion_max_score(rc)
+            if not isinstance(score, int) or score < 0 or score > max_score:
+                errors.append(
+                    f"Criterion '{criterion_id}': score must be integer 0-{max_score} (got {score})"
+                )
+        elif (
+            not isinstance(score, int)
+            or score < _criterion_min_score(rc, rubric.score_mode)
+            or score not in set(rc.scale)
+        ):
             errors.append(
-                f"Criterion '{criterion_id}': score must be integer 1-5 (got {score})"
+                f"Criterion '{criterion_id}': score must be one of {rc.scale} (got {score})"
             )
 
         confidence = dim.get("confidence")
@@ -660,28 +863,48 @@ def validate_scoring_response(
     ]
     data["dimension_scores"] = ordered_dims
 
-    expected_wt = 0.0
+    expected_total = 0.0
     for rc in rubric_criteria:
         dim = seen_dims.get(rc.criterion_id)
         if dim is None:
             continue
         score = dim.get("score", 0)
         try:
-            expected_wt += rc.weight * float(score)
+            if rubric.score_mode == "raw":
+                expected_total += float(score)
+            else:
+                expected_total += rc.weight * float(score)
         except Exception:
             errors.append(f"Invalid score for '{rc.criterion_id}': {score}")
 
-    expected_wt = round(expected_wt, 2)
-    wt = data.get("weighted_total")
+    expected_total = round(expected_total, 2)
+    total_key = "raw_total_score" if rubric.score_mode == "raw" else "weighted_total"
+    total_value = data.get(total_key)
     try:
-        wt_value = float(wt)
+        total_value_float = float(total_value)
     except (TypeError, ValueError):
-        wt_value = None
-    if wt_value is None or abs(wt_value - expected_wt) > 0.1:
+        total_value_float = None
+    if total_value_float is None or abs(total_value_float - expected_total) > 0.1:
         errors.append(
-            f"weighted_total mismatch: response={wt}, computed={expected_wt}"
+            f"{total_key} mismatch: response={total_value}, computed={expected_total}"
         )
-        data["weighted_total"] = expected_wt
+        data[total_key] = expected_total
+
+    if rubric.score_mode == "raw":
+        max_total_score = float(data.get("max_total_score", rubric.max_total_score) or rubric.max_total_score or 0.0)
+        if max_total_score <= 0:
+            max_total_score = float(sum(_criterion_max_score(c) for c in rubric.criteria))
+        data["max_total_score"] = round(max_total_score, 2)
+        expected_normalized = _normalize_total_score(expected_total, max_total_score)
+        weighted_total = data.get("weighted_total")
+        try:
+            weighted_total_float = float(weighted_total)
+        except (TypeError, ValueError):
+            weighted_total_float = None
+        if weighted_total_float is None or abs(weighted_total_float - expected_normalized) > 0.1:
+            data["weighted_total"] = expected_normalized
+    else:
+        data["weighted_total"] = expected_total
 
     confidence_values = [
         float(dim["confidence"])
@@ -825,7 +1048,10 @@ def _should_run_second_pass(
     repaired: bool,
 ) -> list[str]:
     reasons: list[str] = []
-    weighted_total = float(score_json.get("weighted_total", 0.0) or 0.0)
+    threshold_total = float(
+        score_json.get("raw_total_score", 0.0) if rubric.score_mode == "raw"
+        else score_json.get("weighted_total", 0.0) or 0.0
+    )
     overall_confidence = float(score_json.get("overall_confidence", 0.0) or 0.0)
 
     if overall_confidence < SECOND_PASS_CONFIDENCE_THRESHOLD:
@@ -836,9 +1062,9 @@ def _should_run_second_pass(
         reasons.append("repaired_output")
     if evidence_quality != "complete":
         reasons.append("partial_evidence")
-    if abs(weighted_total - rubric.thresholds.accept) <= SECOND_PASS_MARGIN_THRESHOLD:
+    if abs(threshold_total - rubric.thresholds.accept) <= SECOND_PASS_MARGIN_THRESHOLD:
         reasons.append("near_accept_threshold")
-    if abs(weighted_total - rubric.thresholds.reject) <= SECOND_PASS_MARGIN_THRESHOLD:
+    if abs(threshold_total - rubric.thresholds.reject) <= SECOND_PASS_MARGIN_THRESHOLD:
         reasons.append("near_reject_threshold")
     return reasons
 
@@ -869,7 +1095,7 @@ def _merge_scoring_results(
             exemplar = second
 
         avg_score = int(round((first_score + second_score) / 2))
-        avg_score = max(1, min(5, avg_score))
+        avg_score = max(_criterion_min_score(criterion, rubric.score_mode), min(_criterion_max_score(criterion), avg_score))
         avg_confidence = round(
             (
                 float(first.get("confidence", 0.0) or 0.0)
@@ -883,26 +1109,44 @@ def _merge_scoring_results(
                 "criterion_id": criterion.criterion_id,
                 "criterion_name": criterion.name,
                 "weight": criterion.weight,
+                "max_score": _criterion_max_score(criterion),
                 "score": avg_score,
                 "evidence": exemplar.get("evidence", ""),
                 "reasoning": exemplar.get("reasoning", ""),
+                "matched_core_points": exemplar.get("matched_core_points", []),
+                "accepted_alternative_reasoning": exemplar.get("accepted_alternative_reasoning", ""),
+                "missing_points": exemplar.get("missing_points", []),
+                "logic_issues": exemplar.get("logic_issues", []),
                 "improvement": exemplar.get("improvement", ""),
                 "confidence": avg_confidence,
             }
         )
 
-    merged_total = round(
-        sum(dim["weight"] * dim["score"] for dim in merged_dims),
-        2,
-    )
+    if rubric.score_mode == "raw":
+        merged_total = round(sum(dim["score"] for dim in merged_dims), 2)
+        max_total_score = round(float(rubric.max_total_score or sum(_criterion_max_score(c) for c in rubric.criteria)), 2)
+        normalized_total = _normalize_total_score(merged_total, max_total_score)
+    else:
+        merged_total = round(
+            sum(dim["weight"] * dim["score"] for dim in merged_dims),
+            2,
+        )
+        max_total_score = 0.0
+        normalized_total = merged_total
     merged_confidence = round(
         sum(float(dim["confidence"]) for dim in merged_dims) / len(merged_dims),
         2,
     )
-    total_diff = abs(
-        float(primary.get("weighted_total", 0.0) or 0.0)
-        - float(secondary.get("weighted_total", 0.0) or 0.0)
-    )
+    if rubric.score_mode == "raw":
+        total_diff = abs(
+            float(primary.get("raw_total_score", 0.0) or 0.0)
+            - float(secondary.get("raw_total_score", 0.0) or 0.0)
+        )
+    else:
+        total_diff = abs(
+            float(primary.get("weighted_total", 0.0) or 0.0)
+            - float(secondary.get("weighted_total", 0.0) or 0.0)
+        )
     disagreement = (
         total_diff > SECOND_PASS_TOTAL_DIFF_THRESHOLD
         or max_dim_diff > SECOND_PASS_DIM_DIFF_THRESHOLD
@@ -911,11 +1155,14 @@ def _merge_scoring_results(
         "student_id": primary.get("student_id", secondary.get("student_id", "")),
         "rubric_id": primary.get("rubric_id", secondary.get("rubric_id", "")),
         "dimension_scores": merged_dims,
-        "weighted_total": merged_total,
+        "weighted_total": normalized_total,
         "overall_confidence": merged_confidence,
     }
+    if rubric.score_mode == "raw":
+        merged["raw_total_score"] = merged_total
+        merged["max_total_score"] = max_total_score
     details = {
-        "weighted_total_diff": round(total_diff, 2),
+        ("raw_total_score_diff" if rubric.score_mode == "raw" else "weighted_total_diff"): round(total_diff, 2),
         "max_dimension_diff": max_dim_diff,
     }
     return merged, disagreement, details
@@ -945,6 +1192,12 @@ def get_submission_content(ir: dict[str, Any]) -> str:
     ]
 
     text_sections: list[str] = []
+    subjective_payload = content.get("subjective_answers", {})
+    subjective_map = (
+        subjective_payload.get("answers", {})
+        if isinstance(subjective_payload, dict)
+        else {}
+    )
 
     assignment_text = content.get("assignment_text", "")
     student_answer = content.get("student_answer", "")
@@ -957,11 +1210,42 @@ def get_submission_content(ir: dict[str, Any]) -> str:
         blocks.append(
             "- Evidence may be partial. Score conservatively and lower confidence where appropriate."
         )
-    if full_text:
+
+    subjective_sections: list[str] = []
+    if isinstance(subjective_map, dict) and subjective_map:
+        blocks.append(
+            "- Targeted subjective-question transcriptions are available. Use them as the primary evidence for short-answer and comprehensive questions."
+        )
+        for key, entry in subjective_map.items():
+            if not isinstance(entry, dict):
+                continue
+            title = str(entry.get("criterion_name", "")).strip() or str(entry.get("criterion_id", key)).strip() or str(key)
+            question_type = str(entry.get("question_type", "")).strip()
+            transcribed_answer = str(entry.get("transcribed_answer", "")).strip()
+            if not transcribed_answer:
+                continue
+            confidence = entry.get("confidence", 0.0)
+            needs_review = bool(entry.get("needs_review", False))
+            subjective_sections.append(
+                "\n".join(
+                    [
+                        f"### {title}",
+                        f"Question type: {question_type or 'unknown'}",
+                        f"Transcription confidence: {confidence}",
+                        f"Needs review: {needs_review}",
+                        "Student answer:",
+                        transcribed_answer,
+                    ]
+                )
+            )
+
+    if subjective_sections:
+        text_sections.append("## Targeted Subjective Answers\n\n" + "\n\n".join(subjective_sections))
+    elif full_text:
         text_sections.append("## Full Text\n\n" + full_text.strip())
 
     sections = content.get("sections", [])
-    if sections and not full_text:
+    if sections and not full_text and not subjective_sections:
         parts = []
         for section in sections:
             heading = section.get("heading", "")
@@ -1189,6 +1473,280 @@ def build_scoring_message_content(
 
     return user_content, attached_count
 
+
+def _is_objective_criterion(criterion: RubricCriterion) -> bool:
+    return criterion.question_type in OBJECTIVE_QUESTION_TYPES
+
+
+def _objective_answer_map(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    payload = ir.get("content", {}).get("objective_answers", {})
+    answers = payload.get("answers", {}) if isinstance(payload, dict) else {}
+    return answers if isinstance(answers, dict) else {}
+
+
+def _subjective_answer_map(ir: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    payload = ir.get("content", {}).get("subjective_answers", {})
+    answers = payload.get("answers", {}) if isinstance(payload, dict) else {}
+    return answers if isinstance(answers, dict) else {}
+
+
+def _subjective_entry_for_criterion(
+    ir: dict[str, Any],
+    criterion: RubricCriterion,
+) -> dict[str, Any] | None:
+    answer_map = _subjective_answer_map(ir)
+    direct = answer_map.get(criterion.criterion_id)
+    if isinstance(direct, dict):
+        return direct
+
+    question_id = _extract_question_id(criterion)
+    if criterion.question_type == "short_answer" and question_id.isdigit():
+        by_qid = answer_map.get(f"q{question_id}")
+        if isinstance(by_qid, dict):
+            return by_qid
+    return None
+
+
+def _subjective_review_reasons(ir: dict[str, Any], rubric: Rubric) -> list[str]:
+    reasons: list[str] = []
+    for criterion in rubric.criteria:
+        if _is_objective_criterion(criterion):
+            continue
+        entry = _subjective_entry_for_criterion(ir, criterion)
+        if entry is None:
+            continue
+        if bool(entry.get("needs_review", False)):
+            reasons.append(criterion.criterion_id)
+    return reasons
+
+
+def _extract_question_id(criterion: RubricCriterion) -> str:
+    if isinstance(criterion.answer_key, dict):
+        return str(criterion.answer_key.get("question_id", "")).strip()
+    return ""
+
+
+def _extract_fill_blank_line(text: str, question_id: str) -> str:
+    pattern = re.compile(rf"(?m)^\s*{re.escape(question_id)}[、,，.．]\s*(.+)$")
+    matches = pattern.findall(text)
+    if not matches:
+        return ""
+    return matches[-1].strip()
+
+
+def _extract_fill_blank_answer(ir: dict[str, Any], criterion: RubricCriterion) -> str:
+    question_id = _extract_question_id(criterion)
+    blank_id = ""
+    if isinstance(criterion.answer_key, dict):
+        blank_id = str(criterion.answer_key.get("blank_id", "")).strip()
+    if not question_id or not blank_id.isdigit():
+        return ""
+
+    text = str(ir.get("content", {}).get("student_answer", "") or ir.get("content", {}).get("full_text", ""))
+    line = _extract_fill_blank_line(text, question_id)
+    if not line:
+        return ""
+
+    normalized = re.sub(r"[_\s]+", " ", line).strip()
+    parts = [
+        part.strip()
+        for part in re.split(r"[，,、；;]", normalized)
+        if part.strip()
+    ]
+    blank_index = int(blank_id) - 1
+    if blank_index < 0 or blank_index >= len(parts):
+        return ""
+    return parts[blank_index]
+
+
+def _objective_improvement(criterion: RubricCriterion, score: int) -> str:
+    if score >= _criterion_max_score(criterion):
+        return "Keep this objective item accurate and maintain the same level of care."
+    if criterion.question_type == "fill_blank":
+        return "Recheck the exact fixed-answer term and keep the wording consistent with the required answer key."
+    if criterion.question_type == "judgment":
+        return "Recheck the statement against the fixed judgment key before selecting the mark."
+    return "Recheck the fixed answer key and verify every selected option before submitting."
+
+
+def _build_objective_dimension(
+    criterion: RubricCriterion,
+    score: int,
+    evidence: str,
+    reasoning: str,
+    confidence: float,
+) -> dict[str, Any]:
+    return {
+        "criterion_id": criterion.criterion_id,
+        "criterion_name": criterion.name,
+        "weight": criterion.weight,
+        "max_score": _criterion_max_score(criterion),
+        "score": score,
+        "evidence": evidence,
+        "reasoning": reasoning,
+        "matched_core_points": [],
+        "accepted_alternative_reasoning": "",
+        "missing_points": [],
+        "logic_issues": [],
+        "improvement": _objective_improvement(criterion, score),
+        "confidence": round(max(0.0, min(1.0, confidence)), 2),
+    }
+
+
+def _score_single_choice(
+    criterion: RubricCriterion,
+    answer_entry: dict[str, Any] | None,
+) -> tuple[dict[str, Any], bool]:
+    expected = str((criterion.answer_key or {}).get("correct_option", "")).strip().upper()
+    recognized = ""
+    confidence = 0.0
+    needs_review = True
+    if answer_entry:
+        recognized = str(answer_entry.get("recognized_answer", "")).strip().upper()
+        confidence = float(answer_entry.get("confidence", 0.0) or 0.0)
+        needs_review = bool(answer_entry.get("needs_review", False))
+    score = criterion.max_score if recognized == expected and expected else 0
+    evidence = (
+        f"Recognized answer: {recognized or 'unknown'}; expected: {expected or 'unknown'}; "
+        f"vision_confidence={confidence:.2f}."
+    )
+    reasoning = (
+        "The recognized option matches the fixed answer key."
+        if score == criterion.max_score
+        else "The recognized option does not match the fixed answer key or could not be read reliably."
+    )
+    return _build_objective_dimension(criterion, score, evidence, reasoning, confidence), needs_review or not recognized
+
+
+def _score_multiple_choice(
+    criterion: RubricCriterion,
+    answer_entry: dict[str, Any] | None,
+) -> tuple[dict[str, Any], bool]:
+    correct = sorted(str(item).strip().upper() for item in (criterion.answer_key or {}).get("correct_options", []) if str(item).strip())
+    recognized: list[str] = []
+    confidence = 0.0
+    needs_review = True
+    if answer_entry:
+        raw_answer = answer_entry.get("recognized_answer", [])
+        if isinstance(raw_answer, list):
+            recognized = sorted(str(item).strip().upper() for item in raw_answer if str(item).strip())
+        confidence = float(answer_entry.get("confidence", 0.0) or 0.0)
+        needs_review = bool(answer_entry.get("needs_review", False))
+
+    recognized_set = set(recognized)
+    correct_set = set(correct)
+    wrong_selection = bool(recognized_set - correct_set)
+    correct_hit_count = len(recognized_set & correct_set)
+
+    if not recognized or recognized == ["UNKNOWN"] or wrong_selection:
+        score = 0
+    elif correct_hit_count == len(correct_set) and recognized_set == correct_set:
+        score = criterion.max_score
+    elif correct_hit_count == 1:
+        score = 1
+    elif correct_hit_count >= 2:
+        score = 3
+    else:
+        score = 0
+
+    evidence = (
+        f"Recognized answers: {recognized or ['unknown']}; expected: {correct}; "
+        f"vision_confidence={confidence:.2f}."
+    )
+    if wrong_selection:
+        reasoning = "At least one wrong option was selected, so the item scores 0 under the fixed-answer rule."
+    elif score == criterion.max_score:
+        reasoning = "All correct options were selected and no wrong options were selected."
+    elif score == 3:
+        reasoning = "Two or more correct options were selected without wrong selections, but the answer is not fully complete."
+    elif score == 1:
+        reasoning = "Exactly one correct option was selected and there were no wrong selections."
+    else:
+        reasoning = "The recognized answers are missing or insufficient to earn credit under the fixed-answer rule."
+
+    return _build_objective_dimension(criterion, score, evidence, reasoning, confidence), needs_review or not recognized
+
+
+def _score_judgment(
+    criterion: RubricCriterion,
+    answer_entry: dict[str, Any] | None,
+) -> tuple[dict[str, Any], bool]:
+    expected = str((criterion.answer_key or {}).get("correct_value", "")).strip()
+    recognized = ""
+    confidence = 0.0
+    needs_review = True
+    if answer_entry:
+        recognized = str(answer_entry.get("recognized_answer", "")).strip()
+        confidence = float(answer_entry.get("confidence", 0.0) or 0.0)
+        needs_review = bool(answer_entry.get("needs_review", False))
+    score = criterion.max_score if recognized == expected and expected in {"√", "×"} else 0
+    evidence = (
+        f"Recognized judgment mark: {recognized or 'unknown'}; expected: {expected or 'unknown'}; "
+        f"vision_confidence={confidence:.2f}."
+    )
+    reasoning = (
+        "The recognized judgment mark matches the fixed answer key."
+        if score == criterion.max_score
+        else "The recognized judgment mark does not match the fixed answer key or could not be read reliably."
+    )
+    return _build_objective_dimension(criterion, score, evidence, reasoning, confidence), needs_review or recognized not in {"√", "×"}
+
+
+def _score_fill_blank(
+    criterion: RubricCriterion,
+    ir: dict[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    recognized = _extract_fill_blank_answer(ir, criterion)
+    expected = str((criterion.answer_key or {}).get("literal_answer", "")).strip()
+    score = criterion.max_score if recognized == expected and expected else 0
+    confidence = 0.98 if recognized else 0.0
+    evidence = f"Extracted fill-blank answer: {recognized or 'unknown'}; expected: {expected or 'unknown'}."
+    reasoning = (
+        "The extracted fill-blank answer matches the fixed answer key exactly."
+        if score == criterion.max_score
+        else "The extracted fill-blank answer does not match the fixed answer key exactly or could not be found."
+    )
+    return _build_objective_dimension(criterion, score, evidence, reasoning, confidence), not recognized
+
+
+def score_objective_criteria(
+    ir: dict[str, Any],
+    rubric: Rubric,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    answers = _objective_answer_map(ir)
+    dimensions: list[dict[str, Any]] = []
+    review_reasons: list[str] = []
+
+    for criterion in rubric.criteria:
+        if not _is_objective_criterion(criterion):
+            continue
+        question_id = _extract_question_id(criterion)
+        answer_entry = answers.get(question_id)
+
+        if criterion.question_type == "single_choice":
+            dim, needs_review = _score_single_choice(criterion, answer_entry)
+        elif criterion.question_type == "multiple_choice":
+            dim, needs_review = _score_multiple_choice(criterion, answer_entry)
+        elif criterion.question_type == "judgment":
+            dim, needs_review = _score_judgment(criterion, answer_entry)
+        else:
+            dim, needs_review = _score_fill_blank(criterion, ir)
+
+        dimensions.append(dim)
+        if needs_review:
+            review_reasons.append(criterion.criterion_id)
+
+    return dimensions, review_reasons
+
+
+def merge_dimension_scores(
+    rubric: Rubric,
+    objective_dimensions: list[dict[str, Any]],
+    subjective_dimensions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    by_id = {dim["criterion_id"]: dim for dim in objective_dimensions + subjective_dimensions}
+    return [by_id[criterion.criterion_id] for criterion in rubric.criteria if criterion.criterion_id in by_id]
+
 # ---------------------------------------------------------------------------
 # Score file writing (atomic)
 # ---------------------------------------------------------------------------
@@ -1307,6 +1865,14 @@ def compute_percentile(weighted_total: float) -> int:
     return round((weighted_total - 1) / 4 * 60 + 40)
 
 
+def compute_percentile_from_raw(raw_total_score: float, max_total_score: float) -> int:
+    """Map a raw exam score to a 0-100 percentage-like percentile."""
+    if max_total_score <= 0:
+        return 0
+    ratio = max(0.0, min(1.0, raw_total_score / max_total_score))
+    return round(ratio * 100)
+
+
 def determine_review_flag(
     overall_confidence: float,
     gate_status: dict[str, Any],
@@ -1339,37 +1905,64 @@ def estimate_cost(
     return round(cost, 6)
 
 
+def _set_runtime_config_path(path: Path | None) -> None:
+    """Override the runtime config file for this process."""
+    global _CONFIG_PATH_OVERRIDE, _PROJECT_CONFIG
+    if path is None:
+        _CONFIG_PATH_OVERRIDE = None
+    else:
+        _CONFIG_PATH_OVERRIDE = path if path.is_absolute() else PROJECT_ROOT / path
+    _PROJECT_CONFIG = None
+
+
+def _runtime_config_path() -> Path:
+    """Resolve the runtime config path from CLI/env/default precedence."""
+    if _CONFIG_PATH_OVERRIDE is not None:
+        return _CONFIG_PATH_OVERRIDE
+
+    configured = os.environ.get("GRADER_CONFIG_PATH", "").strip()
+    if not configured:
+        return DEFAULT_CONFIG_PATH
+
+    candidate = Path(configured)
+    if candidate.is_absolute():
+        return candidate
+    return PROJECT_ROOT / candidate
+
+
 def _load_project_config() -> dict[str, Any]:
-    """Load runtime configuration from grader-config.yaml if present."""
+    """Load runtime configuration from the resolved config path if present."""
     global _PROJECT_CONFIG
     if _PROJECT_CONFIG is not None:
         return _PROJECT_CONFIG
 
-    if not DEFAULT_CONFIG_PATH.exists():
+    config_path = _runtime_config_path()
+
+    if not config_path.exists():
         _PROJECT_CONFIG = {}
         return _PROJECT_CONFIG
 
     try:
-        with open(DEFAULT_CONFIG_PATH, encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         if not isinstance(data, dict):
             logger.warning(
                 "Ignoring invalid config file %s: top-level value must be a mapping",
-                DEFAULT_CONFIG_PATH,
+                config_path,
             )
             _PROJECT_CONFIG = {}
             return _PROJECT_CONFIG
         _PROJECT_CONFIG = data
-        logger.info("Loaded runtime config from %s", DEFAULT_CONFIG_PATH)
+        logger.info("Loaded runtime config from %s", config_path)
         return _PROJECT_CONFIG
     except Exception as exc:
-        logger.warning("Failed to load config file %s: %s", DEFAULT_CONFIG_PATH, exc)
+        logger.warning("Failed to load config file %s: %s", config_path, exc)
         _PROJECT_CONFIG = {}
         return _PROJECT_CONFIG
 
 
 def _config_value(*keys: str) -> str:
-    """Read a string value from grader-config.yaml."""
+    """Read a string value from the resolved runtime config file."""
     current: Any = _load_project_config()
     for key in keys:
         if not isinstance(current, dict):
@@ -1471,6 +2064,28 @@ def _extract_response_text(response: Any) -> str:
     return "\n".join(chunks).strip()
 
 
+def _serialize_response_for_log(response: Any) -> str:
+    """Best-effort JSON serialization for OpenAI SDK response objects."""
+    payload: Any
+
+    if hasattr(response, "model_dump"):
+        try:
+            payload = response.model_dump(mode="json")
+        except TypeError:
+            payload = response.model_dump()
+    elif hasattr(response, "to_dict"):
+        payload = response.to_dict()
+    elif isinstance(response, dict):
+        payload = response
+    else:
+        payload = {"repr": repr(response)}
+
+    try:
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    except TypeError:
+        return json.dumps({"repr": repr(payload)}, ensure_ascii=False, sort_keys=True)
+
+
 # ---------------------------------------------------------------------------
 # Real-time scoring engine
 # ---------------------------------------------------------------------------
@@ -1494,12 +2109,16 @@ async def score_one_submission(
     total_output_tokens = 0
     start_ms = time.monotonic_ns() // 1_000_000
 
-    # --- Step 1: Scoring call ---
-    scoring_user_content, attached_image_count = build_scoring_message_content(
-        workspace=workspace,
-        rubric=rubric,
-        ir=ir,
+    objective_dimensions, objective_review_reasons = score_objective_criteria(ir, rubric)
+    subjective_review_reasons = _subjective_review_reasons(ir, rubric)
+    subjective_criteria = [criterion for criterion in rubric.criteria if not _is_objective_criterion(criterion)]
+    subjective_rubric = replace(
+        rubric,
+        criteria=subjective_criteria,
+        max_total_score=float(sum(_criterion_max_score(c) for c in subjective_criteria)),
     )
+
+    attached_image_count = 0
     evidence_quality = ir.get("content", {}).get("evidence_quality", "complete")
     gate_status = {
         "all_passed": all(
@@ -1508,77 +2127,120 @@ async def score_one_submission(
         "details": ir.get("gate_results", []),
     }
 
-    primary_scoring = await _score_submission_json(
-        model=model,
-        rubric=rubric,
-        semaphore=semaphore,
-        user_content=scoring_user_content,
-        context=f"scoring {student_id}",
-    )
-    total_input_tokens += primary_scoring["input_tokens"]
-    total_output_tokens += primary_scoring["output_tokens"]
+    validation_errors: list[str] = []
+    forced_review_flag = "objective_needs_review" if objective_review_reasons else ""
+    if subjective_review_reasons:
+        forced_review_flag = forced_review_flag or "subjective_transcription_review"
+    second_pass_details: dict[str, Any] = {"triggered": False, "reasons": []}
+    score_json: dict[str, Any]
+    primary_repaired = False
 
-    score_json = primary_scoring["score_json"]
-    validation_errors = list(primary_scoring["validation_errors"])
-    if validation_errors:
-        logger.warning(
-            "Validation issues repaired for %s: %s",
-            student_id,
-            "; ".join(validation_errors),
+    if subjective_criteria:
+        scoring_user_content, attached_image_count = build_scoring_message_content(
+            workspace=workspace,
+            rubric=subjective_rubric,
+            ir=ir,
         )
 
-    forced_review_flag = ""
-    second_pass_reasons = _should_run_second_pass(
-        score_json=score_json,
-        rubric=rubric,
-        gate_status=gate_status,
-        evidence_quality=evidence_quality,
-        repaired=bool(primary_scoring["repaired"]),
-    )
-    second_pass_details: dict[str, Any] = {}
-    if second_pass_reasons:
-        second_pass_content = _append_text_instruction(
-            scoring_user_content,
-            (
-                "Perform an independent second-pass audit. Score the submission fresh, "
-                "without assuming any prior score is correct. Return JSON only."
-            ),
+        primary_scoring = await _score_submission_json(
+            model=model,
+            rubric=subjective_rubric,
+            semaphore=semaphore,
+            user_content=scoring_user_content,
+            context=f"scoring {student_id}",
         )
-        try:
-            second_scoring = await _score_submission_json(
-                model=model,
-                rubric=rubric,
-                semaphore=semaphore,
-                user_content=second_pass_content,
-                context=f"scoring second pass {student_id}",
-            )
-            total_input_tokens += second_scoring["input_tokens"]
-            total_output_tokens += second_scoring["output_tokens"]
-            validation_errors.extend(second_scoring["validation_errors"])
+        total_input_tokens += primary_scoring["input_tokens"]
+        total_output_tokens += primary_scoring["output_tokens"]
 
-            merged_score_json, disagreement, diff_details = _merge_scoring_results(
-                score_json,
-                second_scoring["score_json"],
-                rubric,
+        score_json = primary_scoring["score_json"]
+        validation_errors = list(primary_scoring["validation_errors"])
+        primary_repaired = bool(primary_scoring["repaired"])
+        if validation_errors:
+            logger.warning(
+                "Validation issues repaired for %s: %s",
+                student_id,
+                "; ".join(validation_errors),
             )
-            score_json = merged_score_json
-            second_pass_details = {
-                "triggered": True,
-                "reasons": second_pass_reasons,
-                "diff": diff_details,
-            }
-            if disagreement:
-                forced_review_flag = "score_disagreement"
-        except InvalidScoringResponseError as exc:
-            validation_errors.append(f"second_pass_invalid: {exc}")
-            second_pass_details = {
-                "triggered": True,
-                "reasons": second_pass_reasons,
-                "error": str(exc),
-            }
-            forced_review_flag = "invalid_output"
+
+        second_pass_reasons = _should_run_second_pass(
+            score_json=score_json,
+            rubric=subjective_rubric,
+            gate_status=gate_status,
+            evidence_quality=evidence_quality,
+            repaired=bool(primary_scoring["repaired"]),
+        )
+        if second_pass_reasons:
+            second_pass_content = _append_text_instruction(
+                scoring_user_content,
+                (
+                    "Perform an independent second-pass audit. Score the submission fresh, "
+                    "without assuming any prior score is correct. Return JSON only."
+                ),
+            )
+            try:
+                second_scoring = await _score_submission_json(
+                    model=model,
+                    rubric=subjective_rubric,
+                    semaphore=semaphore,
+                    user_content=second_pass_content,
+                    context=f"scoring second pass {student_id}",
+                )
+                total_input_tokens += second_scoring["input_tokens"]
+                total_output_tokens += second_scoring["output_tokens"]
+                validation_errors.extend(second_scoring["validation_errors"])
+
+                merged_score_json, disagreement, diff_details = _merge_scoring_results(
+                    score_json,
+                    second_scoring["score_json"],
+                    subjective_rubric,
+                )
+                score_json = merged_score_json
+                second_pass_details = {
+                    "triggered": True,
+                    "reasons": second_pass_reasons,
+                    "diff": diff_details,
+                }
+                if disagreement:
+                    forced_review_flag = forced_review_flag or "score_disagreement"
+            except InvalidScoringResponseError as exc:
+                validation_errors.append(f"second_pass_invalid: {exc}")
+                second_pass_details = {
+                    "triggered": True,
+                    "reasons": second_pass_reasons,
+                    "error": str(exc),
+                }
+                forced_review_flag = forced_review_flag or "invalid_output"
     else:
-        second_pass_details = {"triggered": False, "reasons": []}
+        score_json = {
+            "student_id": student_id,
+            "rubric_id": rubric.id,
+            "dimension_scores": [],
+            "raw_total_score": 0.0,
+            "weighted_total": 1.0,
+            "overall_confidence": 0.0,
+            "max_total_score": 0.0,
+        }
+
+    subjective_dimensions = list(score_json.get("dimension_scores", []))
+    merged_dimensions = merge_dimension_scores(rubric, objective_dimensions, subjective_dimensions)
+    raw_total_score = round(sum(float(dim.get("score", 0) or 0) for dim in merged_dimensions), 2)
+    max_total_score = round(float(rubric.max_total_score or sum(_criterion_max_score(c) for c in rubric.criteria)), 2)
+    weighted_total = _normalize_total_score(raw_total_score, max_total_score)
+    confidence_values = [
+        float(dim.get("confidence", 0.0) or 0.0)
+        for dim in merged_dimensions
+        if isinstance(dim.get("confidence", 0.0), (int, float))
+    ]
+    overall_confidence = round(sum(confidence_values) / len(confidence_values), 2) if confidence_values else 0.0
+    score_json = {
+        "student_id": student_id,
+        "rubric_id": rubric.id,
+        "dimension_scores": merged_dimensions,
+        "raw_total_score": raw_total_score,
+        "max_total_score": max_total_score,
+        "weighted_total": weighted_total,
+        "overall_confidence": overall_confidence,
+    }
 
     # --- Step 2: Comment generation call ---
     comment_system = build_comment_system_prompt(rubric)
@@ -1606,9 +2268,22 @@ async def score_one_submission(
 
     # --- Step 3: Assemble final score record ---
     weighted_total = score_json.get("weighted_total", 0.0)
+    raw_total_score = score_json.get("raw_total_score")
+    max_total_score = score_json.get("max_total_score", rubric.max_total_score)
     overall_confidence = score_json.get("overall_confidence", 0.0)
 
     duration_ms = time.monotonic_ns() // 1_000_000 - start_ms
+
+    percentile_score = (
+        compute_percentile_from_raw(float(raw_total_score or 0.0), float(max_total_score or 0.0))
+        if rubric.score_mode == "raw"
+        else compute_percentile(weighted_total)
+    )
+    grade_value = (
+        classify_grade(float(raw_total_score or 0.0), rubric.thresholds)
+        if rubric.score_mode == "raw"
+        else classify_grade(weighted_total, rubric.thresholds)
+    )
 
     final_record = {
         "student_id": student_id,
@@ -1617,8 +2292,8 @@ async def score_one_submission(
         "gate_status": gate_status,
         "dimension_scores": score_json.get("dimension_scores", []),
         "weighted_total": weighted_total,
-        "percentile_score": compute_percentile(weighted_total),
-        "grade": classify_grade(weighted_total, rubric.thresholds),
+        "percentile_score": percentile_score,
+        "grade": grade_value,
         "overall_confidence": overall_confidence,
         "review_flag": determine_review_flag(
             overall_confidence,
@@ -1633,6 +2308,7 @@ async def score_one_submission(
             "full_text": comment_json.get("full_text", ""),
         },
         "metadata": {
+            "score_mode": rubric.score_mode,
             "model": model,
             "input_tokens": total_input_tokens,
             "output_tokens": total_output_tokens,
@@ -1640,10 +2316,17 @@ async def score_one_submission(
             "attached_image_blocks": attached_image_count,
             "validation_errors": list(dict.fromkeys(validation_errors)),
             "evidence_quality": evidence_quality,
-            "repaired_response": bool(primary_scoring["repaired"]),
+            "repaired_response": primary_repaired,
             "second_pass": second_pass_details,
+            "objective_review_reasons": objective_review_reasons,
+            "objective_answers_status": ir.get("content", {}).get("objective_answers", {}).get("status", "skipped"),
+            "subjective_review_reasons": subjective_review_reasons,
+            "subjective_answers_status": ir.get("content", {}).get("subjective_answers", {}).get("status", "skipped"),
         },
     }
+    if rubric.score_mode == "raw":
+        final_record["raw_total_score"] = raw_total_score
+        final_record["max_total_score"] = max_total_score
 
     return ScoringResult(
         student_id=student_id,
@@ -1681,6 +2364,11 @@ def _call_with_retry(
             output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
             text_content = _extract_response_text(response)
             if not text_content:
+                logger.error(
+                    "[%s] OpenAI response did not contain text output. Raw response: %s",
+                    context,
+                    _serialize_response_for_log(response),
+                )
                 raise RuntimeError("OpenAI response did not contain text output")
 
             return {
@@ -2120,6 +2808,9 @@ examples:
 
   # Resume an interrupted run
   python batch_score.py workspace/batch-001 --rubric my-rubric.yaml --resume
+
+  # Use a dedicated runtime config for an isolated batch
+  python batch_score.py --config grader-config.cqupt-final.yaml
 """,
     )
     parser.add_argument(
@@ -2151,11 +2842,20 @@ examples:
         help="Override the scoring model (default: env SCORING_MODEL or "
         f"{DEFAULT_MODEL})",
     )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Optional runtime config YAML. Defaults to env GRADER_CONFIG_PATH "
+        "or grader-config.yaml in the project root.",
+    )
     return parser.parse_args(argv)
 
 
 async def async_main(args: argparse.Namespace) -> None:
     """Async entry point."""
+    _set_runtime_config_path(args.config)
+
     configured_workspace = _resolve_configured_path(
         _config_value("grading", "workspace_path")
     )
@@ -2178,14 +2878,14 @@ async def async_main(args: argparse.Namespace) -> None:
     if workspace is None:
         logger.error(
             "Workspace not set. Pass it on the command line or configure grading.workspace_path "
-            "in grader-config.yaml"
+            "in the resolved runtime config file"
         )
         sys.exit(1)
 
     if rubric_path is None:
         logger.error(
             "Rubric path not set. Pass --rubric or configure grading.rubric_path in "
-            "grader-config.yaml"
+            "the resolved runtime config file"
         )
         sys.exit(1)
 

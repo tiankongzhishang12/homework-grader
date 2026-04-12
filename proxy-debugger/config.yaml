@@ -1,0 +1,8 @@
+base_url: "http://localhost:8317/v1"
+api_key: "XDKS-147852369"
+model: "gpt-5.4"
+timeout_seconds: 120
+temperature: 1.0
+max_output_tokens: 256
+save_outputs: true
+output_dir: "outputs"

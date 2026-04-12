@@ -1,0 +1,10 @@
+openai:
+  api_key: "XDKS-147852369"
+  base_url: "http://localhost:8317/v1"
+  model: "gpt-5.4"
+
+grading:
+  workspace_path: "workspace/practicum-batch"
+  rubric_path: "rubrics/software-project-traceability-rubric.yaml"
+  workers: 3
+

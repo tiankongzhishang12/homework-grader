@@ -1866,3 +1866,342 @@ RuntimeError: [scoring anon-001 attempt 1] All 3 retries exhausted. Last error: 
 2026-03-18 15:23:58,470 [INFO] Generated Excel report: D:\grade code\homework-grader\workspace\reports\grades-20260318-152358.xlsx
 2026-03-18 15:23:59,201 [INFO] Loaded 3 score records
 2026-03-18 15:23:59,203 [INFO] Generated statistics report: D:\grade code\homework-grader\workspace\reports\statistics.md
+2026-04-08 09:27:19,364 [INFO] Rubric loaded: self-select-login-payment-v2 (v2.0) - 3 criteria
+2026-04-08 09:27:19,365 [INFO] Starting batch scoring - model=gpt-5.4, workers=5
+2026-04-08 09:27:19,365 [INFO] Found 3 IR files in D:\grade code\homework-grader\workspace\ir
+2026-04-08 09:27:19,366 [INFO] Submissions to process: 3
+2026-04-08 09:27:51,839 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:27:51,909 [ERROR] Failed to score anon-002: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:28:22,476 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:28:22,478 [ERROR] Failed to score anon-003: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:28:53,174 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:28:53,175 [ERROR] Failed to score anon-001: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:28:53,180 [INFO] ============================================================
+2026-04-08 09:28:53,180 [INFO] BATCH SCORING SUMMARY
+2026-04-08 09:28:53,180 [INFO] ============================================================
+2026-04-08 09:28:53,180 [INFO] Batch ID:   workspace
+2026-04-08 09:28:53,180 [INFO] Rubric:     self-select-login-payment-v2
+2026-04-08 09:28:53,181 [INFO] Mode:       real-time
+2026-04-08 09:28:53,181 [INFO] Total:      3
+2026-04-08 09:28:53,181 [INFO] Completed:  0
+2026-04-08 09:28:53,181 [INFO] Failed:     3
+2026-04-08 09:28:53,181 [INFO] Pending:    0
+2026-04-08 09:28:53,181 [INFO] ------------------------------------------------------------
+2026-04-08 09:28:53,181 [INFO] FAILED SUBMISSIONS:
+2026-04-08 09:28:53,181 [INFO]   anon-002 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:28:53,182 [INFO]   anon-003 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:28:53,182 [INFO]   anon-001 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:28:53,182 [INFO] ============================================================
+2026-04-08 09:28:53,188 [INFO] Loaded 3 score records
+2026-04-08 09:28:53,211 [INFO] Loaded 0 student mappings
+2026-04-08 09:28:53,280 [INFO] Excel saved to D:\grade code\homework-grader\workspace\reports\grades-20260408-092853.xlsx
+2026-04-08 09:28:53,281 [INFO] Generated Excel report: D:\grade code\homework-grader\workspace\reports\grades-20260408-092853.xlsx
+2026-04-08 09:28:54,662 [INFO] Loaded 3 score records
+2026-04-08 09:28:54,666 [INFO] Generated statistics report: D:\grade code\homework-grader\workspace\reports\statistics.md
+2026-04-08 09:51:48,989 [INFO] Rubric loaded: self-select-login-payment-v2 (v2.0) - 3 criteria
+2026-04-08 09:51:48,989 [INFO] Starting batch scoring - model=gpt-5.4, workers=5
+2026-04-08 09:51:48,990 [INFO] Found 3 IR files in D:\grade code\homework-grader\workspace\ir
+2026-04-08 09:51:48,990 [INFO] Submissions to process: 3
+2026-04-08 09:52:17,047 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:52:17,107 [ERROR] Failed to score anon-002: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:52:43,786 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:52:43,787 [ERROR] Failed to score anon-001: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:53:10,811 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:53:10,812 [ERROR] Failed to score anon-003: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:53:10,817 [INFO] ============================================================
+2026-04-08 09:53:10,817 [INFO] BATCH SCORING SUMMARY
+2026-04-08 09:53:10,817 [INFO] ============================================================
+2026-04-08 09:53:10,817 [INFO] Batch ID:   workspace
+2026-04-08 09:53:10,818 [INFO] Rubric:     self-select-login-payment-v2
+2026-04-08 09:53:10,818 [INFO] Mode:       real-time
+2026-04-08 09:53:10,818 [INFO] Total:      3
+2026-04-08 09:53:10,818 [INFO] Completed:  0
+2026-04-08 09:53:10,818 [INFO] Failed:     3
+2026-04-08 09:53:10,818 [INFO] Pending:    0
+2026-04-08 09:53:10,818 [INFO] ------------------------------------------------------------
+2026-04-08 09:53:10,819 [INFO] FAILED SUBMISSIONS:
+2026-04-08 09:53:10,819 [INFO]   anon-002 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:53:10,819 [INFO]   anon-001 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:53:10,819 [INFO]   anon-003 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:53:10,819 [INFO] ============================================================
+2026-04-08 09:53:10,820 [INFO] Loaded 3 score records
+2026-04-08 09:53:10,822 [INFO] Loaded 0 student mappings
+2026-04-08 09:53:10,874 [INFO] Excel saved to D:\grade code\homework-grader\workspace\reports\grades-20260408-095310.xlsx
+2026-04-08 09:53:10,874 [INFO] Generated Excel report: D:\grade code\homework-grader\workspace\reports\grades-20260408-095310.xlsx
+2026-04-08 09:53:11,704 [INFO] Loaded 3 score records
+2026-04-08 09:53:11,707 [INFO] Generated statistics report: D:\grade code\homework-grader\workspace\reports\statistics.md
+2026-04-08 09:55:12,049 [INFO] Rubric loaded: self-select-login-payment-v2 (v2.0) - 3 criteria
+2026-04-08 09:55:12,050 [INFO] Starting batch scoring - model=gpt-5.4, workers=5
+2026-04-08 09:55:12,050 [INFO] Found 3 IR files in D:\grade code\homework-grader\workspace\ir
+2026-04-08 09:55:12,051 [INFO] Submissions to process: 3
+2026-04-08 09:55:39,712 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:55:39,772 [ERROR] Failed to score anon-001: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:56:06,974 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:56:06,975 [ERROR] Failed to score anon-003: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:56:33,576 [INFO] HTTP Request: POST http://localhost:8317/v1/responses "HTTP/1.1 200 OK"
+2026-04-08 09:56:33,577 [ERROR] Failed to score anon-002: OpenAI response did not contain text output
+Traceback (most recent call last):
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2530, in run_realtime_mode
+    result = await score_one_submission(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2123, in score_one_submission
+    primary_scoring = await _score_submission_json(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 1004, in _score_submission_json
+    response_data = await asyncio.to_thread(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\grade code\homework-grader\scripts\batch_score.py", line 2345, in _call_with_retry
+    raise RuntimeError("OpenAI response did not contain text output")
+RuntimeError: OpenAI response did not contain text output
+2026-04-08 09:56:33,581 [INFO] ============================================================
+2026-04-08 09:56:33,582 [INFO] BATCH SCORING SUMMARY
+2026-04-08 09:56:33,582 [INFO] ============================================================
+2026-04-08 09:56:33,582 [INFO] Batch ID:   workspace
+2026-04-08 09:56:33,582 [INFO] Rubric:     self-select-login-payment-v2
+2026-04-08 09:56:33,582 [INFO] Mode:       real-time
+2026-04-08 09:56:33,582 [INFO] Total:      3
+2026-04-08 09:56:33,582 [INFO] Completed:  0
+2026-04-08 09:56:33,582 [INFO] Failed:     3
+2026-04-08 09:56:33,583 [INFO] Pending:    0
+2026-04-08 09:56:33,583 [INFO] ------------------------------------------------------------
+2026-04-08 09:56:33,583 [INFO] FAILED SUBMISSIONS:
+2026-04-08 09:56:33,583 [INFO]   anon-001 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:56:33,583 [INFO]   anon-003 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:56:33,583 [INFO]   anon-002 - OpenAI response did not contain text output (attempts: 1)
+2026-04-08 09:56:33,583 [INFO] ============================================================
+2026-04-08 09:56:33,584 [INFO] Loaded 3 score records
+2026-04-08 09:56:33,586 [INFO] Loaded 0 student mappings
+2026-04-08 09:56:33,634 [INFO] Excel saved to D:\grade code\homework-grader\workspace\reports\grades-20260408-095633.xlsx
+2026-04-08 09:56:33,634 [INFO] Generated Excel report: D:\grade code\homework-grader\workspace\reports\grades-20260408-095633.xlsx
+2026-04-08 09:56:34,397 [INFO] Loaded 3 score records
+2026-04-08 09:56:34,399 [INFO] Generated statistics report: D:\grade code\homework-grader\workspace\reports\statistics.md

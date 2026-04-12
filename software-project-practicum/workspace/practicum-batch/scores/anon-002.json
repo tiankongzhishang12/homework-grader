@@ -1,0 +1,584 @@
+{
+  "student_id": "anon-002",
+  "rubric_id": "software-project-traceability-rubric-v1",
+  "scored_at": "2026-04-09T08:00:58.450910+00:00",
+  "gate_status": {
+    "all_passed": true,
+    "details": [
+      {
+        "gate_id": "G-001",
+        "gate_name": "需求文档存在性",
+        "passed": true,
+        "details": "requirements present",
+        "on_fail": "flag"
+      },
+      {
+        "gate_id": "G-002",
+        "gate_name": "概要设计文档存在性",
+        "passed": true,
+        "details": "hld present",
+        "on_fail": "flag"
+      },
+      {
+        "gate_id": "G-003",
+        "gate_name": "详细设计文档存在性",
+        "passed": true,
+        "details": "lld present",
+        "on_fail": "flag"
+      },
+      {
+        "gate_id": "G-004",
+        "gate_name": "重复角色文档检查",
+        "passed": true,
+        "details": "no duplicate roles",
+        "on_fail": "warn"
+      },
+      {
+        "gate_id": "G-005",
+        "gate_name": "三类文档完整性",
+        "passed": true,
+        "details": "all core roles present",
+        "on_fail": "flag"
+      }
+    ]
+  },
+  "dimension_scores": [
+    {
+      "criterion_id": "req_scope_and_usecases",
+      "criterion_name": "需求范围与核心用例清晰度",
+      "weight": 1.0,
+      "score": 7,
+      "evidence": "需求文档明确写出“系统的主要用户群体为在校大学生”“系统主要包括两类用户：普通学生用户和系统管理员”。目录和正文列出核心用例：“4.2用户登录”“4.3发布失物信息”“4.4发布招领信息”“4.5搜索与查看失物招领信息”“4.6管理我的发布”“4.7信息审核”“4.8用户管理”“4.9内容管理”。业务需求中还写出约束：“所有用户发布的信息需经过管理员审核后方可公开展示”“从进入小程序到完成信息发布的操作时间不超过3分钟”“关键词搜索时，系统应在5秒内返回查询结果”。",
+      "reasoning": "从需求规格说明书中可以稳定抽取系统目标、主要角色、核心功能与若干约束条件，已具备后续追踪的基础，因此不能低分。扣分点在于系统边界“做什么/不做什么”虽有“主要实现核心功能”的说明，但前景章节又加入LBS智能匹配、社交链路信任增强等扩展方案，与核心用例区分不够清楚；同时业务对象虽可推断，但需求中没有系统化清单化定义。",
+      "matched_core_points": [
+        "系统目标明确",
+        "主要角色明确",
+        "核心用例较完整",
+        "存在可追踪的功能与约束条件"
+      ],
+      "accepted_alternative_reasoning": "虽然没有把“需求清单”单独列表化，但正文中角色、用例和约束已经足以抽取，因此可按较高分处理。",
+      "missing_points": [
+        "系统边界与非范围描述不够明确",
+        "主要业务对象未系统化列出",
+        "前景扩展功能与当前版本范围界限不够清楚"
+      ],
+      "logic_issues": [
+        "项目前景中的扩展方案与当前课程设计核心范围混在一起，削弱范围清晰度"
+      ],
+      "improvement": "在需求文档开头增加一张“需求清单/范围边界表”，把当前版本必做功能、可选扩展功能、明确不做内容分开列清楚。",
+      "confidence": 0.89,
+      "max_score": 8
+    },
+    {
+      "criterion_id": "req_usecase_spec_quality",
+      "criterion_name": "用例图、涉众分析与用例规约质量",
+      "weight": 1.0,
+      "score": 5,
+      "evidence": "文档中有“图3.1 系统用例图”“4.1涉众分析”“表4.1 涉众概要表”“表4.2 普通学生涉众简档表”“表4.3 系统管理员涉众简档表”，并按用例列出“表4.4 用户登录用例表”“表4.5 发布失物信息用例表”“表4.6 搜索与查看失物招领信息用例表”“表4.9 信息审核用例表”等。但当前可见文本中没有这些表格的具体内容，也未能直接读取用例图细节。",
+      "reasoning": "有明确的用例图、涉众分析、用例表结构证据，说明学生确实安排了这些需求制品，不能按0分处理。但由于可用证据只剩标题和表号，缺乏表格正文、主要事件流、前置条件、备选流程等具体内容，无法确认规约质量与覆盖完整性，因此只能给中等偏低的部分分。按照规则，模板式标题不能视为已完成的高质量内容。",
+      "matched_core_points": [
+        "出现系统用例图证据",
+        "出现涉众分析章节",
+        "出现主要用例规约表的结构痕迹"
+      ],
+      "accepted_alternative_reasoning": "即使图像OCR不可见，只要文本明确存在具体用例表与涉众表，可以承认其有基本制品，但不能等同于高质量完成。",
+      "missing_points": [
+        "看不到用例图中参与者与用例覆盖是否完整",
+        "看不到涉众分析的具体内容",
+        "看不到主要用例规约的前置条件、事件流、异常流"
+      ],
+      "logic_issues": [
+        "多处仅能看到表名而看不到内容，证据不足"
+      ],
+      "improvement": "把每个关键用例至少补出“参与者、前置条件、基本事件流、备选/异常流、结果”文本内容，避免只剩表名无法评分。",
+      "confidence": 0.68,
+      "max_score": 9
+    },
+    {
+      "criterion_id": "req_process_expression",
+      "criterion_name": "需求流程表达与可设计性",
+      "weight": 1.0,
+      "score": 5,
+      "evidence": "需求中对若干流程有文字化表达，例如“所有用户发布的信息需经过管理员审核后方可公开展示”“当学生遗失物品时，可以通过系统快速发布失物信息；当学生捡到物品时，也可以发布招领信息帮助寻找失主。系统通过关键词搜索、分类筛选、信息审核等功能…”。非功能与其他需求中补充了流程约束，如“在网络较差时，应给出加载提示”“图片上传失败或提交失败时，应提示用户重新上传或重新提交”“联系方式…可以通过点击后查看联系方式的方式，避免在列表页面直接公开用户信息”。但未见可读出的活动图正文或完整基本事件流文本。",
+      "reasoning": "需求文档并非只有功能点罗列，已经能读出发布—审核—展示、搜索查看、联系方式保护等流程和约束，具有一定可设计性，因此高于低分。扣分在于关键流程表达仍较粗，尤其缺少结构化前置条件、主成功场景、异常场景和结果描述；当前可见证据中活动图/系统用例图内容不可读，导致可设计性主要依赖散落文字。",
+      "matched_core_points": [
+        "能读出发布审核展示流程",
+        "能读出搜索与查看流程",
+        "包含若干异常与约束性说明"
+      ],
+      "accepted_alternative_reasoning": "没有流程图并不必然低分，只要文字流程足以支撑设计即可；本作答具备一定文字流程，因此获得部分分。",
+      "missing_points": [
+        "缺少结构化基本事件流",
+        "缺少明确前置条件/后置结果",
+        "缺少可直接追踪的关键流程图正文"
+      ],
+      "logic_issues": [
+        "流程信息分散在业务需求和非功能需求中，集中度不足"
+      ],
+      "improvement": "为“发布失物”“发布招领”“审核”“联系发布者”四个核心流程分别补一段结构化事件流，至少写清前置条件、步骤、异常和结果。",
+      "confidence": 0.75,
+      "max_score": 8
+    },
+    {
+      "criterion_id": "hld_requirement_coverage",
+      "criterion_name": "概要设计对需求的覆盖程度",
+      "weight": 1.0,
+      "score": 7,
+      "evidence": "根据需求清单，核心需求包括登录、发布失物、发布招领、搜索查看、管理我的发布、信息审核、用户管理、内容管理。概要设计分别有“4.1用户登录设计实现”“4.2 发布失物信息设计实现”“4.3 发布招领信息设计实现”“4.4搜索和查看失物招领信息设计实现”“4.5 管理我的发布设计实现”“4.6 信息审核设计实现”“4.7用户管理设计实现”“4.8内容管理设计实现”。并且对审核约束有对应：“保存到数据库中，并将信息状态设置为‘待审核’”“管理员审核通过后，该信息才会出现在系统的信息列表中”。",
+      "reasoning": "概要设计对需求中的主要功能、角色和核心流程覆盖较完整，映射关系清晰，属于较高档部分分。扣分点在于需求前景中提出的LBS智能匹配、模板消息推送、社交链路信任增强、学生证照片核验等内容没有形成相应概要设计模块；另外部分性能/时限要求只是弱承接而非逐项映射。",
+      "matched_core_points": [
+        "八个核心功能基本都在概要设计中有对应章节",
+        "审核后展示等关键约束有承接",
+        "角色也在用例分析中得到承接"
+      ],
+      "accepted_alternative_reasoning": "若将前景中的LBS和信任增强视为远期方案而非本期硬需求，概要覆盖可更高；但由于文本确实写入需求前景，仍需作为一致性扣分依据之一。",
+      "missing_points": [
+        "LBS智能匹配与推送未形成设计覆盖",
+        "社交链路信任增强/核验未形成设计覆盖",
+        "对部分量化需求的映射不够逐项清楚"
+      ],
+      "logic_issues": [
+        "需求章节包含扩展方案，但概要设计未说明为何未纳入当前范围"
+      ],
+      "improvement": "在概要设计前增加一张“需求—模块映射表”，把每个需求标成已覆盖/弱覆盖/未覆盖，并说明扩展功能是否暂不实现。",
+      "confidence": 0.88,
+      "max_score": 8
+    },
+    {
+      "criterion_id": "hld_architecture_fitness",
+      "criterion_name": "系统架构设计对需求的适配性",
+      "weight": 1.0,
+      "score": 4,
+      "evidence": "概要设计写明“本系统采用典型的三层架构设计，包括表现层、业务逻辑层和数据层”，并说明“表现层主要由微信小程序前端页面构成…业务逻辑层主要负责处理…用户登录认证、失物信息发布、信息审核以及信息查询等操作。数据层负责数据存储与管理”。同时3.2给出客户端层、微信小程序网关、云函数服务层、云数据库/云存储、消息推送服务的部署结构。",
+      "reasoning": "有明确的架构与部署设计，且能基本解释登录、发布、审核、查询等主要业务如何被承载，因此不低。扣分主要有两点：一是架构文字较通用，对角色/核心用例与具体模块边界的解释不够细；二是技术栈前后存在不一致，需求强调微信云开发，但具体功能设计又频繁使用MySQL、Axios、Vue页面，削弱了架构适配性与图文一致性。",
+      "matched_core_points": [
+        "有明确的三层架构说明",
+        "有部署/网络拓扑说明",
+        "架构可承接主要业务"
+      ],
+      "accepted_alternative_reasoning": "即便不是BCE/MVC，只要三层架构能解释业务承载即可得到相应分数，本提交符合这一点。",
+      "missing_points": [
+        "缺少架构与需求模块的逐项映射",
+        "缺少更细的模块边界说明",
+        "架构与实现技术栈说明不完全一致"
+      ],
+      "logic_issues": [
+        "微信云开发与MySQL/Axios/Vue并存，技术路线混杂"
+      ],
+      "improvement": "统一说明最终采用的技术栈，并在架构图旁边标注每层对应的需求模块，例如审核模块、发布模块、搜索模块各落在哪一层。",
+      "confidence": 0.8,
+      "max_score": 6
+    },
+    {
+      "criterion_id": "hld_usecase_sequence_alignment",
+      "criterion_name": "关键用例时序/交互设计与需求一致性",
+      "weight": 1.0,
+      "score": 6,
+      "evidence": "概要设计对多个关键用例给出较细交互过程文字，例如登录中写“前端…检测本地存储中是否存在有效的登录状态（token）…发送到后端的 UserController 登录接口…UserService…UserDao…返回 JSON 响应”；发布失物写“PublishLostPage.vue…发送到 LostItemController…LostItemService…LostItemDao…状态设置为‘待审核’”；搜索查看写“HomePage.vue…SearchController…SearchService…SearchDao…点击某一条信息时进入信息详情页面”。图像区还标注了若干 flowchart/sequence_diagram 候选图。",
+      "reasoning": "虽然部分图像OCR不可见，但文字已经体现了多个关键用例的交互对象、顺序与实现思路，且这些用例确实来自需求中的核心用例，因此可给较高部分分。未给高分的原因是：时序/交互设计并非对所有关键用例都以明确时序图落地；部分交互是用文字替代图，且与需求事件流的显式对应关系没有逐项说明；登录方式与后文微信一键登录又出现冲突。",
+      "matched_core_points": [
+        "选择了需求中的关键用例进行交互设计",
+        "交互对象包括前端、Controller、Service、Dao",
+        "部分实现思路有文字说明"
+      ],
+      "accepted_alternative_reasoning": "即使时序图图片无法识别，只要文字能清楚表达参与对象和顺序，也应按有效交互设计给予分数。",
+      "missing_points": [
+        "并非所有关键用例都有清晰时序/交互设计",
+        "缺少对需求事件流逐项对齐说明",
+        "部分交互仅有章节说明无实质细节图证"
+      ],
+      "logic_issues": [
+        "登录交互采用学号+统一认证码，而后续详细设计又出现微信一键登录"
+      ],
+      "improvement": "至少为登录、发布、审核、管理我的发布各补一张可读时序图，并在图下注明其对应的需求用例编号。",
+      "confidence": 0.82,
+      "max_score": 8
+    },
+    {
+      "criterion_id": "lld_ui_alignment",
+      "criterion_name": "界面类详细设计与需求匹配度",
+      "weight": 1.0,
+      "score": 5,
+      "evidence": "详细设计界面部分包含“3.1首页页面设计”“3.2发布页面设计”“3.3 个人中心页面设计”“3.4 物品详情页面设计”。首页描述了“搜索框”“分类标签：全部/寻物启事/失物招领”“筛选栏：排序、地点”“帖子卡片”“底部导航栏”；发布页描述“发布类型选择”“物品名称输入框”“详细描述”“图片上传”“发布按钮”；详情页描述“联系TA”“分享”“地点、时间、联系方式”等，并有相关截图候选图。",
+      "reasoning": "这些页面能够直接支撑需求中的搜索查看、发布失物/招领、查看详情、联系发布者等主要用户任务，匹配度较好，因此为高分段部分分。扣分点在于：缺少管理员端审核/用户管理/内容管理界面的详细设计；“个人中心页面设计”内容明显复用了发布页约束，和个人中心任务不匹配，存在局部错位；界面说明虽较丰富，但与完整业务流程的映射仍不够系统。",
+      "matched_core_points": [
+        "首页支撑搜索与浏览任务",
+        "发布页支撑发布失物/招领任务",
+        "详情页支撑查看与联系发布者",
+        "有页面说明与交互约束"
+      ],
+      "accepted_alternative_reasoning": "详细设计可用文字界面说明代替高保真原型，只要能支撑主要用户任务即可获得相应分数。",
+      "missing_points": [
+        "缺少管理员端关键页面设计",
+        "缺少“我的发布”独立页面详细设计",
+        "页面与完整流程的映射表缺失"
+      ],
+      "logic_issues": [
+        "3.3个人中心页面设计中大量内容实际上是发布页约束，页面说明前后不一致"
+      ],
+      "improvement": "补出“我的发布”“审核管理”“用户管理/内容管理”页面原型与字段说明，并修正个人中心页面的错位内容。",
+      "confidence": 0.86,
+      "max_score": 6
+    },
+    {
+      "criterion_id": "lld_class_alignment",
+      "criterion_name": "核心业务类设计与用例匹配度",
+      "weight": 1.0,
+      "score": 5,
+      "evidence": "详细设计2.1列出核心实体“Users、Items、Messages、Reports、AuditRecords、AdminLogs”；2.2列出Controller/Service/Mapper/Model分层与相关类：UserController、InfoController、PublishController、InfoAuditController、ReportController、FileController、AdminController 等。4章展开了“ItemController 类设计实现”“MessageController类设计实现”“ReportController类设计实现”“AuditController类设计实现”，说明了各类负责的业务，如“publishItem”“queryItemDetail”“sendMessage”“submitReport”“auditItem”等。",
+      "reasoning": "类与职责总体围绕发布、查询、消息、举报、审核等核心用例展开，和概要设计中的模块边界大体能对应，因此有较好的部分分。扣分在于：真正详细展开的只有四个控制器类，Service/Mapper/实体类职责多停留在概述层；“管理我的发布”“用户管理”“内容管理”等需求在类级设计中未得到同等细化；图注“WebSocketHandler类”与ItemController不一致，说明类图说明存在混乱。",
+      "matched_core_points": [
+        "有核心实体与分层类设计",
+        "有若干核心控制类详细设计",
+        "类职责与发布/查询/审核/消息等用例基本对应"
+      ],
+      "accepted_alternative_reasoning": "即使没有完整类图OCR，只要文字能说明主要类和职责，也可认定存在有效类设计。",
+      "missing_points": [
+        "Service/Mapper/实体类方法职责细化不足",
+        "用户管理与内容管理类设计未展开",
+        "管理我的发布对应类设计较弱"
+      ],
+      "logic_issues": [
+        "类命名与图注存在不一致（ItemController对应图却写WebSocketHandler类）"
+      ],
+      "improvement": "把User/Admin/Content/MyPublish相关类也按‘职责+关键方法+关系’补成与ItemController同等粒度，并统一类名与图注。",
+      "confidence": 0.79,
+      "max_score": 8
+    },
+    {
+      "criterion_id": "lld_api_alignment",
+      "criterion_name": "接口设计与用例/模块匹配度",
+      "weight": 1.0,
+      "score": 4,
+      "evidence": "详细设计有“5.1发布失物信息接口设计”“5.2信息查询接口设计”“5.3管理我的发布接口设计”“5.4信息审核接口设计”。文字说明了接口用途，如“发布失物信息接口主要用于普通学生在平台上发布自己遗失物品的相关信息”“信息查询接口…根据关键字、物品类别等条件筛选”“管理我的发布接口…查看自己历史发布的信息及状态”“信息审核接口…提供给管理员使用”。但具体参数内容仅引用“表5.1…表5.8”，表格正文不可见。",
+      "reasoning": "接口选题与核心业务场景基本匹配，覆盖了发布、查询、我的发布、审核四类主要用例，故不能低分。扣分较多是因为接口设计证据主要停留在用途说明和表号，关键的URL、方法、参数、返回结构等详细内容无法验证；同时登录、用户管理、内容管理、消息等接口未在本章形成完整展开，覆盖不全。",
+      "matched_core_points": [
+        "接口设计围绕关键用例展开",
+        "至少覆盖发布、查询、我的发布、审核",
+        "有统一REST风格说明"
+      ],
+      "accepted_alternative_reasoning": "即使参数表未显示，接口用途说明仍可作为存在接口设计的弱证据，因此给予部分分而非0分。",
+      "missing_points": [
+        "具体请求参数/返回参数不可见",
+        "登录接口设计未展开",
+        "用户管理、内容管理、消息接口缺失"
+      ],
+      "logic_issues": [
+        "表名中出现“用户注册接口请求参数表”，与本系统登录场景不完全一致，存在命名残留"
+      ],
+      "improvement": "把每个接口的URL、HTTP方法、鉴权要求、请求示例、返回示例直接写在正文中，不要只留表号。",
+      "confidence": 0.72,
+      "max_score": 7
+    },
+    {
+      "criterion_id": "lld_database_alignment",
+      "criterion_name": "数据库设计与业务对象匹配度",
+      "weight": 1.0,
+      "score": 5,
+      "evidence": "概要设计实体关系分析列出“用户↔帖子”“帖子↔信息(messages)”“帖子↔举报表”“帖子↔审核记录”“管理员操作日志↔其他实体”。详细设计数据库部分给出“6.1用户表设计说明”“6.2 帖子表设计说明”“6.3 消息表设计说明”“6.4 审核记录表设计说明”，并说明字段含义，如用户表含“studentId、openId、手机号、账号状态、头像”；帖子表含“帖子类型、状态、图片JSON列表、物品类别”；消息表包含发送者、接收者、所属帖子；审核记录表包含管理员ID、帖子ID、审核结果、审核原因。",
+      "reasoning": "数据库设计能较好支撑用户、帖子、消息、审核这几个核心业务对象，与概要设计ER思路基本一致，因此给较高部分分。扣分在于：需求/概要中的举报、管理员操作日志、内容管理等对象虽在ER分析中出现，但详细设计未给出对应表结构说明；表格正文不可见，字段约束与主外键细节无法完全验证；同时技术栈前文写微信云数据库，后文又改为MySQL，存在实现一致性问题。",
+      "matched_core_points": [
+        "核心业务对象用户/帖子/消息/审核记录有表设计",
+        "与ER思路基本一致",
+        "字段用途有文字说明"
+      ],
+      "accepted_alternative_reasoning": "即使看不到完整表结构，只要正文能说明主要实体、关系和关键字段，也应承认数据库设计已部分落地。",
+      "missing_points": [
+        "举报表缺少详细表设计说明",
+        "管理员操作日志表缺少详细表设计说明",
+        "主键/外键/字段约束细节不可见"
+      ],
+      "logic_issues": [
+        "微信云数据库与MySQL前后混用"
+      ],
+      "improvement": "补齐reports、admin_logs等表的字段表，并直接写出主键、外键、索引和状态枚举含义。",
+      "confidence": 0.81,
+      "max_score": 7
+    },
+    {
+      "criterion_id": "lld_method_flow_feasibility",
+      "criterion_name": "方法流程/复杂逻辑说明的可实现性",
+      "weight": 1.0,
+      "score": 2,
+      "evidence": "详细设计中多处写“该方法的接口参数如下：”“流程图设计如下：”，如“4.1.2 发布信息方法（publishItem）设计”“4.2.2 sendMessage方法设计”“4.3.2 submitReport方法设计”“4.4.2 auditItem方法设计”。但当前可见正文中大多没有实际参数列表和实现步骤文字，主要停留在占位式提示语。图像区虽标注有若干流程图候选图，但OCR不可读。",
+      "reasoning": "该维度必须看是否达到基本可实现程度。现有证据中，方法章节多为模板提示或空壳说明，缺少具体参数、步骤、伪代码或异常处理，因此不能高分。之所以不判0，是因为在类总体描述中仍可读到少量方法职责与操作方向，如publishItem会校验参数、设置待审核、保存数据库；auditItem会修改帖子状态并写入审核记录，说明有最低限度实现思路。",
+      "matched_core_points": [
+        "少量关键方法职责可读",
+        "可看出发布与审核的大致处理方向"
+      ],
+      "accepted_alternative_reasoning": "若流程图原图可读，分数可能更高；但在当前可见证据下只能按保守部分分处理。",
+      "missing_points": [
+        "缺少实际参数定义",
+        "缺少清晰步骤说明",
+        "缺少异常/边界处理细节",
+        "缺少可直接指导实现的方法级流程"
+      ],
+      "logic_issues": [
+        "多处方法设计保留模板句式，未补成完整内容"
+      ],
+      "improvement": "任选publishItem和auditItem两个关键方法，补出输入参数、校验规则、核心步骤、数据库操作、返回值和异常处理。",
+      "confidence": 0.69,
+      "max_score": 4
+    },
+    {
+      "criterion_id": "design_consistency_traceability",
+      "criterion_name": "需求-概要-详细追踪一致性",
+      "weight": 1.0,
+      "score": 8,
+      "evidence": "需求中的核心用例“用户登录、发布失物信息、发布招领信息、搜索与查看失物招领信息、管理我的发布、信息审核、用户管理、内容管理”在概要设计中基本都有对应章节；详细设计中又落到首页/发布/详情/个人中心界面、ItemController/MessageController/AuditController、发布/查询/审核接口、users/items/messages/auditRecords表。比如需求要求“所有用户发布的信息需经过管理员审核后方可公开展示”，概要设计写“状态设置为‘待审核’…审核通过后展示”，详细设计又写publishItem设置待审核、AuditController修改items状态并写auditRecords。需求中的搜索查看，在概要设计有HomePage.vue+SearchController，详细设计有首页页面、queryItemDetail和信息查询接口。",
+      "reasoning": "整体上可以建立较清楚的需求→概要→详细追踪链，尤其发布、查询、审核三条链路承接较好，因此应给较高分。明显扣分点包括：技术栈和术语前后不稳（微信云开发/云数据库 vs MySQL，三层架构 vs MVC，Vue页面 vs 微信小程序原生组件）；登录方式前后不一致（学号+统一认证码 vs 微信一键登录）；需求中的用户管理、内容管理在详细设计中未充分落地；前景中的LBS匹配、信任增强等扩展内容后续丢失；个别图注与正文不一致（WebSocketHandler类）。因此不能给满分。",
+      "matched_core_points": [
+        "核心功能大多能建立需求到概要到详细的链路",
+        "发布/查询/审核链路较完整",
+        "术语与对象总体上还能追踪"
+      ],
+      "accepted_alternative_reasoning": "虽然存在命名差异，如‘失物信息/帖子/items’，只要语义一致即可视为可追踪，本次评分已按语义对应处理而未机械扣分。",
+      "missing_points": [
+        "用户管理和内容管理的详细设计链路不完整",
+        "LBS匹配与信任增强链路缺失",
+        "缺少系统性的追踪矩阵"
+      ],
+      "logic_issues": [
+        "登录方案前后不一致",
+        "技术栈前后混用",
+        "个别图文命名不一致"
+      ],
+      "improvement": "补一张三列表‘需求项—概要模块—详细设计项’追踪矩阵，并统一登录方案、数据库方案、页面技术命名。",
+      "confidence": 0.84,
+      "max_score": 13
+    },
+    {
+      "criterion_id": "individual_contribution_alignment",
+      "criterion_name": "分工说明与个人设计内容对应性",
+      "weight": 1.0,
+      "score": 1,
+      "evidence": "当前提交材料中没有可见的项目分工说明、个人负责模块说明或“本人负责”与设计内容相互印证的证据。仅能看到完整需求、概要、详细设计文本。",
+      "reasoning": "按规则，没有分工说明不必直接判0，但应基于现有证据谨慎给分。由于完全缺少个人负责模块与文档内容之间的对照证据，几乎无法判断哪些设计属于该同学个人贡献，因此只能给极低分而非高分。",
+      "matched_core_points": [
+        "存在该同学提交的完整设计文档"
+      ],
+      "accepted_alternative_reasoning": "如果课程要求个人独立完成且无团队分工材料，则可略给保留分；本次即按此给予极低保留分。",
+      "missing_points": [
+        "缺少分工说明",
+        "缺少个人负责模块与设计内容的对应关系",
+        "缺少个人贡献痕迹说明"
+      ],
+      "logic_issues": [
+        "无法根据现有证据验证个人贡献对应性"
+      ],
+      "improvement": "在报告最后补一张分工表，明确你负责的页面、接口、数据库或类，并在对应章节标注“本人负责”。",
+      "confidence": 0.93,
+      "max_score": 6
+    }
+  ],
+  "raw_total_score": 64.0,
+  "max_total_score": 100.0,
+  "percentile_score": 64,
+  "grade": "review",
+  "overall_confidence": 0.8,
+  "review_flag": "manual_review,major_traceability_gaps,consistency_risk",
+  "comment": {
+    "strengths": "【优点】需求范围与概要覆盖较扎实：你明确写出“普通学生/系统管理员”两类角色，并列出“登录、发布、搜索、审核、用户管理、内容管理”等核心用例；概要设计又逐章对应这些功能，还把“待审核→审核通过后展示”落实到模块，说明需求到设计有可追踪映射。",
+    "weaknesses": "【不足】最低分主要在分工说明与方法流程。报告中看不到“本人负责”或分工表，无法把个人贡献与页面/接口/数据库章节对应起来；另外 publishItem、auditItem 等方法处多为“接口参数如下/流程图如下”的占位语，缺少参数、校验、异常、返回值，离可实现的详细设计还有明显差距。",
+    "suggestions": "【建议】1. 先补“需求—概要—详细”追踪矩阵，并统一登录方案、数据库与技术栈命名，解决微信云开发/MySQL、统一认证/微信登录混用。2. 重点把 publishItem、auditItem 各补成完整方法说明：输入、校验、步骤、数据库操作、异常处理。3. 报告末尾新增分工表，并在对应章节标注“本人负责”。",
+    "full_text": "【优点】需求范围与概要覆盖较扎实：你明确写出“普通学生/系统管理员”两类角色，并列出“登录、发布、搜索、审核、用户管理、内容管理”等核心用例；概要设计又逐章对应这些功能，还把“待审核→审核通过后展示”落实到模块，说明需求到设计有可追踪映射。【不足】最低分主要在分工说明与方法流程。报告中看不到“本人负责”或分工表，无法把个人贡献与页面/接口/数据库章节对应起来；另外 publishItem、auditItem 等方法处多为“接口参数如下/流程图如下”的占位语，缺少参数、校验、异常、返回值，离可实现的详细设计还有明显差距。【建议】1. 先补“需求—概要—详细”追踪矩阵，并统一登录方案、数据库与技术栈命名，解决微信云开发/MySQL、统一认证/微信登录混用。2. 重点把 publishItem、auditItem 各补成完整方法说明：输入、校验、步骤、数据库操作、异常处理。3. 报告末尾新增分工表，并在对应章节标注“本人负责”。"
+  },
+  "traceability_analysis": {
+    "extracted_requirements": [
+      "系统目标：为校园师生提供基于微信小程序的集中式失物招领平台，提高信息传播效率与找回成功率",
+      "主要角色：普通学生用户、系统管理员",
+      "核心用例：用户登录",
+      "核心用例：发布失物信息",
+      "核心用例：发布招领信息",
+      "核心用例：搜索与查看失物招领信息",
+      "核心用例：管理我的发布",
+      "核心用例：信息审核",
+      "核心用例：用户管理",
+      "核心用例：内容管理",
+      "关键约束：所有用户发布的信息需经过管理员审核后方可公开展示",
+      "关键约束：用户进入小程序到完成信息发布操作时间不超过3分钟",
+      "关键约束：关键词搜索应在5秒内返回结果",
+      "关键约束：联系方式需要合理保护，不应在列表页直接公开",
+      "关键约束：系统主要运行于微信小程序与微信云开发环境",
+      "业务对象：用户、失物信息、招领信息、联系方式、审核状态"
+    ],
+    "hld_coverage": [
+      {
+        "requirement": "用户登录",
+        "status": "covered",
+        "evidence": "概要设计4.1对登录页面、token、本地缓存、UserController/UserService/UserDao及用户表字段进行了较完整说明。"
+      },
+      {
+        "requirement": "发布失物信息",
+        "status": "covered",
+        "evidence": "概要设计4.2描述PublishLostPage.vue、LostItemController/Service/Dao、待审核状态及字段。"
+      },
+      {
+        "requirement": "发布招领信息",
+        "status": "covered",
+        "evidence": "概要设计4.3描述PublishFoundPage.vue、FoundItemController/Service/Dao、待审核状态及字段。"
+      },
+      {
+        "requirement": "搜索与查看失物招领信息",
+        "status": "covered",
+        "evidence": "概要设计4.4说明HomePage.vue、关键词搜索、分类筛选、详情页和联系发布者。"
+      },
+      {
+        "requirement": "管理我的发布",
+        "status": "covered",
+        "evidence": "概要设计4.5说明MyPublishPage.vue、编辑/删除、权限校验与Dao操作。"
+      },
+      {
+        "requirement": "信息审核",
+        "status": "covered",
+        "evidence": "概要设计4.6说明管理员审核页面、AuditController、InfoService、status状态值。"
+      },
+      {
+        "requirement": "用户管理",
+        "status": "covered",
+        "evidence": "概要设计4.7说明搜索、禁言、封禁、解封、日志与通知。"
+      },
+      {
+        "requirement": "内容管理",
+        "status": "covered",
+        "evidence": "概要设计4.8说明信息下架/恢复、举报处理、日志记录。"
+      },
+      {
+        "requirement": "管理员审核后公开展示",
+        "status": "covered",
+        "evidence": "多个概要设计章节反复说明发布后状态为待审核，审核通过后展示。"
+      },
+      {
+        "requirement": "搜索5秒内返回",
+        "status": "weak",
+        "evidence": "概要设计7.1将搜索响应写为≤2秒，体现了性能设计，但与需求中的5秒没有直接追踪说明。"
+      },
+      {
+        "requirement": "发布流程不超过3分钟",
+        "status": "weak",
+        "evidence": "概要设计有表单简化、校验、图片上传优化，但未明确对应3分钟发布目标的验证设计。"
+      },
+      {
+        "requirement": "联系方式保护",
+        "status": "covered",
+        "evidence": "概要设计7.6写明列表页不直接展示联系方式，点击“联系TA”后弹窗显示，且仅限登录用户查看。"
+      },
+      {
+        "requirement": "LBS、多维标签智能匹配与推送",
+        "status": "missing",
+        "evidence": "需求前景方案中提出位置邻近度、标签相似度、模板消息推送，但概要设计未形成对应核心模块或流程设计。"
+      },
+      {
+        "requirement": "社交链路信任增强/学生证照片核验/社群交集展示",
+        "status": "missing",
+        "evidence": "需求前景方案提出信任增强与核验，但概要设计没有相应模块、页面或接口设计。"
+      }
+    ],
+    "lld_coverage": [
+      {
+        "requirement": "用户登录",
+        "status": "weak",
+        "evidence": "详细设计在2.2列出LoginPage和UserController/UserService，但没有专门的登录界面设计、接口设计或用户控制器详细方法说明。"
+      },
+      {
+        "requirement": "发布失物信息",
+        "status": "covered",
+        "evidence": "详细设计有发布页面设计、ItemController的publishItem方法、发布失物信息接口设计、items表设计。"
+      },
+      {
+        "requirement": "发布招领信息",
+        "status": "covered",
+        "evidence": "发布页面和ItemController publishItem统一承载失物/招领两类帖子，items表含帖子类型字段。"
+      },
+      {
+        "requirement": "搜索与查看失物招领信息",
+        "status": "covered",
+        "evidence": "首页页面设计、物品详情页面设计、queryItemDetail方法、信息查询接口。"
+      },
+      {
+        "requirement": "管理我的发布",
+        "status": "weak",
+        "evidence": "有MyPublishPage及“管理我的发布接口设计”，但缺少对应控制器/方法的详细设计展开。"
+      },
+      {
+        "requirement": "信息审核",
+        "status": "covered",
+        "evidence": "AuditController类设计、auditItem/queryPendingItems方法、信息审核接口、审核记录表。"
+      },
+      {
+        "requirement": "用户管理",
+        "status": "missing",
+        "evidence": "详细设计未展开AdminController或用户管理页面/接口/表设计。"
+      },
+      {
+        "requirement": "内容管理",
+        "status": "weak",
+        "evidence": "出现ReportController与举报流程，可部分支撑内容管理，但没有完整的内容管理页面、接口与管理方法设计。"
+      },
+      {
+        "requirement": "管理员审核后公开展示",
+        "status": "covered",
+        "evidence": "publishItem设置待审核，AuditController审核修改items状态，并写入auditRecords。"
+      },
+      {
+        "requirement": "联系方式保护",
+        "status": "covered",
+        "evidence": "物品详情页将联系方式作为必展示项，且概要设计中规定仅登录用户查看，整体上有一定落实。"
+      },
+      {
+        "requirement": "LBS、多维标签智能匹配与推送",
+        "status": "missing",
+        "evidence": "详细设计无匹配算法、位置模型、推送接口或相关表。"
+      },
+      {
+        "requirement": "社交链路信任增强/核验",
+        "status": "missing",
+        "evidence": "详细设计无学生证核验、社群交集、信任增强相关类、接口、表。"
+      },
+      {
+        "requirement": "消息联系发布者",
+        "status": "covered",
+        "evidence": "详细设计新增MessageController、messages表、sendMessage/queryMessageList，支撑详情页联系TA。"
+      }
+    ],
+    "consistency_issues": [
+      "需求说明强调微信小程序+微信云开发，但概要/详细设计多处改写为MySQL、Axios、Vue页面（如LoginPage.vue），平台与技术栈前后不完全一致。",
+      "需求中的登录方式写为普通用户登录；概要设计4.1写“输入学号和统一认证码完成身份验证”，而详细设计3.3个人中心又写“微信一键登录”，登录方案前后不一致。",
+      "概要设计3.3采用三层架构，详细设计又写MVC分层，同时又出现Controller-Service-Mapper，术语存在混用但大致可对应。",
+      "详细设计4.1图注写成“图4.1 WebSocketHandler类”，与ItemController内容明显不一致，属于文档残留或命名错误。",
+      "详细设计核心业务类覆盖了Item/Message/Report/Audit，但需求与概要中的User管理、Content管理在详细设计中没有对等展开，追踪链路断裂。",
+      "需求前景提出LBS智能匹配、模板消息推送、社交信任增强、学生证核验等扩展思路，但后续设计基本未落实。"
+    ],
+    "uncovered_requirements": [
+      "LBS与多维标签的智能匹配与推送",
+      "社交链路信任增强与信息核验",
+      "用户管理的详细设计落地",
+      "内容管理的完整详细设计落地",
+      "发布流程不超过3分钟的具体设计追踪",
+      "覆盖主要校园场景的设计落实"
+    ]
+  },
+  "metadata": {
+    "source_files": [
+      "raw/2024214281_宋玲艳/1.校园失物招领项目需求规格说明书(1).doc",
+      "raw/2024214281_宋玲艳/2 校园失物招领项目概要设计说明书（模板）V0.1.3 (1)(1).docx",
+      "raw/2024214281_宋玲艳/3 校园失物招领项目详细设计说明书（模板）V0.1.1(1).docx"
+    ],
+    "document_roles_present": [
+      "requirements",
+      "hld",
+      "lld"
+    ],
+    "placeholder_count": 0,
+    "placeholder_sections_summary": [],
+    "placeholder_enforcement": [],
+    "placeholder_forced_zero_count": 0,
+    "comment_status": "ok",
+    "comment_error": "",
+    "comment_attempts": 1,
+    "validation_errors": [],
+    "duration_ms": 187870,
+    "input_tokens": 39364,
+    "output_tokens": 9422
+  }
+}

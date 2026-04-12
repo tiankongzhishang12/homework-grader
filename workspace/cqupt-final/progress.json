@@ -1,0 +1,28 @@
+{
+  "batch_id": "cqupt-final",
+  "rubric_id": "cqupt-final-exam-raw-v3",
+  "mode": "real-time",
+  "started_at": "2026-03-24T11:13:38+00:00",
+  "last_updated": "2026-03-24T11:16:58+00:00",
+  "total": 3,
+  "completed": 3,
+  "failed": 0,
+  "pending": 0,
+  "completed_ids": [
+    "anon-002",
+    "anon-001",
+    "anon-003"
+  ],
+  "failed_ids": [],
+  "pending_ids": [],
+  "processing_order": [
+    "anon-002",
+    "anon-001",
+    "anon-003"
+  ],
+  "stats": {
+    "total_input_tokens": 22958,
+    "total_output_tokens": 8642,
+    "total_cost_usd": 0.023024
+  }
+}

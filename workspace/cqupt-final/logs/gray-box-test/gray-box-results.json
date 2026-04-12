@@ -1,0 +1,112 @@
+{
+  "pdf": "workspace\\cqupt-final\\raw\\text3.pdf",
+  "config": "grader-config.yaml",
+  "model": "gpt-5.4",
+  "preset": "cqupt_page1_v1",
+  "page_index": 0,
+  "full_page_image": "workspace\\cqupt-final\\logs\\gray-box-test\\page1-full.png",
+  "questions": {
+    "q1": {
+      "crop_file": "workspace\\cqupt-final\\logs\\gray-box-test\\q1.png",
+      "runs": [
+        {
+          "ok": true,
+          "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"gray-filled box is the 4th option, corresponding to D\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"gray-filled box is the 4th option, corresponding to D\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"第4个灰色填充框被选中，对应D。\"}"
+        }
+      ]
+    },
+    "q2": {
+      "crop_file": "workspace\\cqupt-final\\logs\\gray-box-test\\q2.png",
+      "runs": [
+        {
+          "ok": true,
+          "text": "{\"answer\":[\"B\",\"C\"],\"confidence\":0.98,\"notes\":\"Question 2 shows gray-filled boxes for options B and C; A and D are unfilled.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":[\"B\",\"C\"],\"confidence\":0.99,\"notes\":\"Q2 has four boxes labeled A-D; the gray-filled selected boxes are the 2nd and 3rd, corresponding to B and C.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":[\"B\",\"C\"],\"confidence\":0.99,\"notes\":\"Question 2 shows gray-filled boxes for B and C; A and D are unfilled.\"}"
+        }
+      ]
+    },
+    "q3": {
+      "crop_file": "workspace\\cqupt-final\\logs\\gray-box-test\\q3.png",
+      "runs": [
+        {
+          "ok": true,
+          "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"gray-filled box is the 4th option, corresponding to D\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"第3题灰色填充框在第4个选项位置，对应D。\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"gray-filled box is the fourth option, corresponding to D\"}"
+        }
+      ]
+    },
+    "q4": {
+      "crop_file": "workspace\\cqupt-final\\logs\\gray-box-test\\q4.png",
+      "runs": [
+        {
+          "ok": true,
+          "text": "{\"answer\":[\"A\",\"C\"],\"confidence\":0.97,\"notes\":\"Gray-filled boxes are the 1st and 3rd options.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":[\"A\",\"C\"],\"confidence\":0.98,\"notes\":\"Gray-filled boxes are the 1st and 3rd options.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":[\"A\",\"C\"],\"confidence\":0.99,\"notes\":\"gray-filled boxes are the 1st and 3rd options\"}"
+        }
+      ]
+    },
+    "q5": {
+      "crop_file": "workspace\\cqupt-final\\logs\\gray-box-test\\q5.png",
+      "runs": [
+        {
+          "ok": true,
+          "text": "{\"answer\":\"left\",\"confidence\":0.99,\"notes\":\"Left box is gray-filled; right box is unfilled with an x mark.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"left\",\"confidence\":0.98,\"notes\":\"Left box is visibly gray-filled; right box is unfilled with an x mark.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"left\",\"confidence\":0.98,\"notes\":\"Left box is visibly gray-filled; right box is unfilled with an x mark.\"}"
+        }
+      ]
+    },
+    "q6": {
+      "crop_file": "workspace\\cqupt-final\\logs\\gray-box-test\\q6.png",
+      "runs": [
+        {
+          "ok": true,
+          "text": "{\"answer\":\"right\",\"confidence\":0.99,\"notes\":\"Right box is visibly gray-filled; left box is unfilled with a check mark.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"right\",\"confidence\":0.98,\"notes\":\"Right box is visibly filled gray; left box is unfilled with a check-like mark.\"}"
+        },
+        {
+          "ok": true,
+          "text": "{\"answer\":\"right\",\"confidence\":0.99,\"notes\":\"right box is visibly filled gray; left box has a check-like mark only\"}"
+        }
+      ]
+    }
+  }
+}

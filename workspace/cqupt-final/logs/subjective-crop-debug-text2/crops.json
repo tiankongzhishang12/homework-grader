@@ -1,0 +1,128 @@
+{
+  "pdf": "workspace\\cqupt-final\\raw\\text2.pdf",
+  "preset": "cqupt_subjective_text1_v1",
+  "description": "CQUPT final-exam subjective-answer blocks for text1.pdf. Page 1 keeps q8 below q7. On page 2, q9 stays above the comprehensive section, programming is in the left lower area, algorithm sits above the white-box section on the right, and white-box testing occupies the right lower area.",
+  "page_indices": [
+    0,
+    1
+  ],
+  "full_page_images": {
+    "0": "workspace\\cqupt-final\\logs\\subjective-crop-debug-text2\\page1-full.png",
+    "1": "workspace\\cqupt-final\\logs\\subjective-crop-debug-text2\\page2-full.png"
+  },
+  "page_rects": {
+    "0": {
+      "x0": 0.0,
+      "y0": 0.0,
+      "x1": 1190.6400146484375,
+      "y1": 841.9199829101562,
+      "width": 1190.6400146484375,
+      "height": 841.9199829101562
+    },
+    "1": {
+      "x0": 0.0,
+      "y0": 0.0,
+      "x1": 1190.6400146484375,
+      "y1": 841.9199829101562,
+      "width": 1190.6400146484375,
+      "height": 841.9199829101562
+    }
+  },
+  "crops": {
+    "q8": {
+      "file": "workspace\\cqupt-final\\logs\\subjective-crop-debug-text2\\q8-p1.png",
+      "page_index": 0,
+      "part_index": 1,
+      "relative_rect": {
+        "x0": 0.52,
+        "y0": 0.58,
+        "x1": 0.98,
+        "y1": 0.96
+      },
+      "absolute_rect": {
+        "x0": 619.1328076171875,
+        "y0": 488.3135900878906,
+        "x1": 1166.8272143554686,
+        "y1": 808.24318359375,
+        "width": 547.6944067382811,
+        "height": 319.92959350585943
+      }
+    },
+    "q9": {
+      "file": "workspace\\cqupt-final\\logs\\subjective-crop-debug-text2\\q9-p2.png",
+      "page_index": 1,
+      "part_index": 1,
+      "relative_rect": {
+        "x0": 0.04,
+        "y0": 0.1,
+        "x1": 0.52,
+        "y1": 0.3
+      },
+      "absolute_rect": {
+        "x0": 47.6256005859375,
+        "y0": 84.19199829101564,
+        "x1": 619.1328076171875,
+        "y1": 252.57599487304685,
+        "width": 571.50720703125,
+        "height": 168.38399658203122
+      }
+    },
+    "programming_01": {
+      "file": "workspace\\cqupt-final\\logs\\subjective-crop-debug-text2\\programming_01-p2.png",
+      "page_index": 1,
+      "part_index": 1,
+      "relative_rect": {
+        "x0": 0.02,
+        "y0": 0.32,
+        "x1": 0.52,
+        "y1": 0.96
+      },
+      "absolute_rect": {
+        "x0": 23.81280029296875,
+        "y0": 269.41439453125,
+        "x1": 619.1328076171875,
+        "y1": 808.24318359375,
+        "width": 595.3200073242188,
+        "height": 538.8287890624999
+      }
+    },
+    "algorithm_01": {
+      "file": "workspace\\cqupt-final\\logs\\subjective-crop-debug-text2\\algorithm_01-p2.png",
+      "page_index": 1,
+      "part_index": 1,
+      "relative_rect": {
+        "x0": 0.5,
+        "y0": 0.1,
+        "x1": 0.9,
+        "y1": 0.5
+      },
+      "absolute_rect": {
+        "x0": 595.3200073242188,
+        "y0": 84.19199829101564,
+        "x1": 1071.576013183594,
+        "y1": 420.9599914550781,
+        "width": 476.25600585937514,
+        "height": 336.7679931640625
+      }
+    },
+    "white_box_testing_01": {
+      "file": "workspace\\cqupt-final\\logs\\subjective-crop-debug-text2\\white_box_testing_01-p2.png",
+      "page_index": 1,
+      "part_index": 1,
+      "relative_rect": {
+        "x0": 0.46,
+        "y0": 0.54,
+        "x1": 0.97,
+        "y1": 0.95
+      },
+      "absolute_rect": {
+        "x0": 547.6944067382813,
+        "y0": 454.6367907714844,
+        "x1": 1154.9208142089844,
+        "y1": 799.8239837646483,
+        "width": 607.2264074707032,
+        "height": 345.18719299316393
+      }
+    }
+  }
+}

@@ -1,0 +1,663 @@
+{
+  "student_id": "anon-003",
+  "submission_type": "text",
+  "source_files": [
+    "raw/text3.pdf"
+  ],
+  "extracted_at": "2026-03-24T10:41:51.589492+00:00",
+  "metadata": {
+    "word_count": 1078,
+    "paragraph_count": 58,
+    "heading_count": 8,
+    "has_references": false,
+    "language": "zh-CN",
+    "image_count": 0
+  },
+  "content": {
+    "full_text": "重庆邮电大学期末试卷\n\n学号：\n\n# 一、不定项选择题（20）\n\n1.UML 提供的图示中，哪一种最适合用来描述系统随时间变化的动态行为，并清晰展示对象间消息交换的顺\n序 ？\n\nA. 类图\n\nB. 对象图\n\nC. 组件图\n\nD. 序列图（时序图）\n\n1、\n\n2.关于需求工程中面谈结构的组织，以下哪些描述是正确的 ？\n\nA. 矩阵结构是面谈中最基础的组织形式\n\nB. 漏斗结构通常从宽泛的、开放式的问题开始，逐渐收窄到具体细节\n\nC. 金字塔结构适用于受访者需要通过具体细节引导才能进入状态的情况\n\nD. 所有面谈结构都必须以闭合式问题（只能回答Yes/No）作为结束\n\n2、\n\n3.在需求获取的面谈（Interview）中，如果面试官先询问具体的细节问题，再逐步过渡到概括性的宏\n观问题，最后以一个总结性的问题结束。这种面谈结构属于 ：\n\nA. 漏斗结构\n\nB. 金字塔结构\n\nC. 菱形结构\n\nD. 线性结构\n\n3、\n\n4.UML 建模分为静态建模和动态建模。以下哪些图属于描述系统动态行为的行为图 ？\n\nA. 用例图\n\nB. 类图\n\nC. 状态机图\n\nD. 活动图\n\n4、\n\n# 二、判断题（10）\n\n在进行需求面谈时，漏斗结构（Funnel Structure）是指面试官首先询问非常具体的问题，随后逐渐引向更\n宽泛的概括性问题。\n\n5\n\n在 UML 建模中，状态机图（State Machine Diagram）主要用于描述一个特定对象在其生命周期内，由于响应\n事件而经历的状态序列及转换。\n\n6、\n\n# 三、填空题（10）\n\n能力成熟度模型集成（CMMI）是衡量软件组织过程能力成熟度的重要标准，它将软件过程的成熟度从低到高划\n分为 5 个等级，分别是：(1)、(2)、(3)、(4) 以及 (5)__________。\n\n7、 已管理级     ，   初始级   ，  持续优化级   ，已量化级    ， 已定义级\n\n# 四、简答题（10）\n\n8、 简述需求面谈的三种结构（5）\n\n# A \nC\n\n# A \nB \nC\n\n√\n\n# A \nD\n\nB\n\nB\n\nD\n\n×\n\n9、 UML 建模有些什么图（5）\n\n# 五、综合题（50）\n\n1.编程（20）\n\n在图书馆管理系统中，需要定义一个“图书”类（Book）。请使用 Java 语言（或你熟悉的伪代码）编写该类，要\n求包含以下内容：\n\n私有属性：书名（title）、作者（author）、价格（price）。\n\n构造方法：用于初始化这三个属性。\n\n成员方法：displayInfo()，用于在控制台打印该图书的详细信息。\n\n2.算法（20）\n\n题目要求： \n给定一个已经升序排列的整型数组 int[] nums = {12, 25, 33, 48, 50, 66, 71, 80};。\n\n请写出使用二分查找法查找目标值 66 的具体步骤（写出每一轮的 low、high 和 mid 的值）。\n\n请说明二分查找算法的时间复杂度。\n\n白盒测试与路径覆盖（10）\n\n假设有以下一段 Java 代码片段，用于处理图书馆逾期欠费的简单逻辑： \npublic void checkFine(int days, boolean isStudent) { if (days > 0) { // 语句1 if (isStudent) { // 语句2 fine = days * 0.5; // \n语句3 } else { fine = days * 1.0; // 语句4 } } else { fine = 0; // 语句5 } System.out.println(\"罚金为：\" + fine); // 语句6 } \n计算环路复杂度：使用环路复杂度公式 V(G) = E - N + 2（其中 E 为边数，N 为节点数）计算该\n程序的复杂度。",
+    "assignment_text": "",
+    "student_answer": "重庆邮电大学期末试卷\n\n学号：\n\n# 一、不定项选择题（20）\n\n1.UML 提供的图示中，哪一种最适合用来描述系统随时间变化的动态行为，并清晰展示对象间消息交换的顺\n序 ？\n\nA. 类图\n\nB. 对象图\n\nC. 组件图\n\nD. 序列图（时序图）\n\n1、\n\n2.关于需求工程中面谈结构的组织，以下哪些描述是正确的 ？\n\nA. 矩阵结构是面谈中最基础的组织形式\n\nB. 漏斗结构通常从宽泛的、开放式的问题开始，逐渐收窄到具体细节\n\nC. 金字塔结构适用于受访者需要通过具体细节引导才能进入状态的情况\n\nD. 所有面谈结构都必须以闭合式问题（只能回答Yes/No）作为结束\n\n2、\n\n3.在需求获取的面谈（Interview）中，如果面试官先询问具体的细节问题，再逐步过渡到概括性的宏\n观问题，最后以一个总结性的问题结束。这种面谈结构属于 ：\n\nA. 漏斗结构\n\nB. 金字塔结构\n\nC. 菱形结构\n\nD. 线性结构\n\n3、\n\n4.UML 建模分为静态建模和动态建模。以下哪些图属于描述系统动态行为的行为图 ？\n\nA. 用例图\n\nB. 类图\n\nC. 状态机图\n\nD. 活动图\n\n4、\n\n# 二、判断题（10）\n\n在进行需求面谈时，漏斗结构（Funnel Structure）是指面试官首先询问非常具体的问题，随后逐渐引向更\n宽泛的概括性问题。\n\n5\n\n在 UML 建模中，状态机图（State Machine Diagram）主要用于描述一个特定对象在其生命周期内，由于响应\n事件而经历的状态序列及转换。\n\n6、\n\n# 三、填空题（10）\n\n能力成熟度模型集成（CMMI）是衡量软件组织过程能力成熟度的重要标准，它将软件过程的成熟度从低到高划\n分为 5 个等级，分别是：(1)、(2)、(3)、(4) 以及 (5)__________。\n\n7、 已管理级     ，   初始级   ，  持续优化级   ，已量化级    ， 已定义级\n\n# 四、简答题（10）\n\n8、 简述需求面谈的三种结构（5）\n\n# A \nC\n\n# A \nB \nC\n\n√\n\n# A \nD\n\nB\n\nB\n\nD\n\n×\n\n9、 UML 建模有些什么图（5）\n\n# 五、综合题（50）\n\n1.编程（20）\n\n在图书馆管理系统中，需要定义一个“图书”类（Book）。请使用 Java 语言（或你熟悉的伪代码）编写该类，要\n求包含以下内容：\n\n私有属性：书名（title）、作者（author）、价格（price）。\n\n构造方法：用于初始化这三个属性。\n\n成员方法：displayInfo()，用于在控制台打印该图书的详细信息。\n\n2.算法（20）\n\n题目要求： \n给定一个已经升序排列的整型数组 int[] nums = {12, 25, 33, 48, 50, 66, 71, 80};。\n\n请写出使用二分查找法查找目标值 66 的具体步骤（写出每一轮的 low、high 和 mid 的值）。\n\n请说明二分查找算法的时间复杂度。\n\n白盒测试与路径覆盖（10）\n\n假设有以下一段 Java 代码片段，用于处理图书馆逾期欠费的简单逻辑： \npublic void checkFine(int days, boolean isStudent) { if (days > 0) { // 语句1 if (isStudent) { // 语句2 fine = days * 0.5; // \n语句3 } else { fine = days * 1.0; // 语句4 } } else { fine = 0; // 语句5 } System.out.println(\"罚金为：\" + fine); // 语句6 } \n计算环路复杂度：使用环路复杂度公式 V(G) = E - N + 2（其中 E 为边数，N 为节点数）计算该\n程序的复杂度。",
+    "evidence_quality": "complete",
+    "sections": [
+      {
+        "heading": "",
+        "level": 1,
+        "text": "重庆邮电大学期末试卷\n\n学号："
+      },
+      {
+        "heading": "一、不定项选择题（20）",
+        "level": 1,
+        "text": "1.UML 提供的图示中，哪一种最适合用来描述系统随时间变化的动态行为，并清晰展示对象间消息交换的顺\n序 ？\n\nA. 类图\n\nB. 对象图\n\nC. 组件图\n\nD. 序列图（时序图）\n\n1、\n\n2.关于需求工程中面谈结构的组织，以下哪些描述是正确的 ？\n\nA. 矩阵结构是面谈中最基础的组织形式\n\nB. 漏斗结构通常从宽泛的、开放式的问题开始，逐渐收窄到具体细节\n\nC. 金字塔结构适用于受访者需要通过具体细节引导才能进入状态的情况\n\nD. 所有面谈结构都必须以闭合式问题（只能回答Yes/No）作为结束\n\n2、\n\n3.在需求获取的面谈（Interview）中，如果面试官先询问具体的细节问题，再逐步过渡到概括性的宏\n观问题，最后以一个总结性的问题结束。这种面谈结构属于 ：\n\nA. 漏斗结构\n\nB. 金字塔结构\n\nC. 菱形结构\n\nD. 线性结构\n\n3、\n\n4.UML 建模分为静态建模和动态建模。以下哪些图属于描述系统动态行为的行为图 ？\n\nA. 用例图\n\nB. 类图\n\nC. 状态机图\n\nD. 活动图\n\n4、"
+      },
+      {
+        "heading": "二、判断题（10）",
+        "level": 1,
+        "text": "在进行需求面谈时，漏斗结构（Funnel Structure）是指面试官首先询问非常具体的问题，随后逐渐引向更\n宽泛的概括性问题。\n\n5\n\n在 UML 建模中，状态机图（State Machine Diagram）主要用于描述一个特定对象在其生命周期内，由于响应\n事件而经历的状态序列及转换。\n\n6、"
+      },
+      {
+        "heading": "三、填空题（10）",
+        "level": 1,
+        "text": "能力成熟度模型集成（CMMI）是衡量软件组织过程能力成熟度的重要标准，它将软件过程的成熟度从低到高划\n分为 5 个等级，分别是：(1)、(2)、(3)、(4) 以及 (5)__________。\n\n7、 已管理级     ，   初始级   ，  持续优化级   ，已量化级    ， 已定义级"
+      },
+      {
+        "heading": "四、简答题（10）",
+        "level": 1,
+        "text": "8、 简述需求面谈的三种结构（5）"
+      },
+      {
+        "heading": "A \nC",
+        "level": 1,
+        "text": ""
+      },
+      {
+        "heading": "A \nB \nC",
+        "level": 1,
+        "text": "√"
+      },
+      {
+        "heading": "A \nD",
+        "level": 1,
+        "text": "B\n\nB\n\nD\n\n×\n\n9、 UML 建模有些什么图（5）"
+      },
+      {
+        "heading": "五、综合题（50）",
+        "level": 1,
+        "text": "1.编程（20）\n\n在图书馆管理系统中，需要定义一个“图书”类（Book）。请使用 Java 语言（或你熟悉的伪代码）编写该类，要\n求包含以下内容：\n\n私有属性：书名（title）、作者（author）、价格（price）。\n\n构造方法：用于初始化这三个属性。\n\n成员方法：displayInfo()，用于在控制台打印该图书的详细信息。\n\n2.算法（20）\n\n题目要求： \n给定一个已经升序排列的整型数组 int[] nums = {12, 25, 33, 48, 50, 66, 71, 80};。\n\n请写出使用二分查找法查找目标值 66 的具体步骤（写出每一轮的 low、high 和 mid 的值）。\n\n请说明二分查找算法的时间复杂度。\n\n白盒测试与路径覆盖（10）\n\n假设有以下一段 Java 代码片段，用于处理图书馆逾期欠费的简单逻辑： \npublic void checkFine(int days, boolean isStudent) { if (days > 0) { // 语句1 if (isStudent) { // 语句2 fine = days * 0.5; // \n语句3 } else { fine = days * 1.0; // 语句4 } } else { fine = 0; // 语句5 } System.out.println(\"罚金为：\" + fine); // 语句6 } \n计算环路复杂度：使用环路复杂度公式 V(G) = E - N + 2（其中 E 为边数，N 为节点数）计算该\n程序的复杂度。"
+      }
+    ],
+    "images": [],
+    "objective_answers": {
+      "status": "success",
+      "mode": "fixed_answer",
+      "preset": "cqupt_page1_v1",
+      "model": "gpt-5.4",
+      "judgment_mapping": {
+        "left": "√",
+        "right": "×",
+        "both": "both",
+        "none": "none",
+        "unknown": "unknown"
+      },
+      "full_page_image": "logs/objective-crops/anon-003/page1-full.png",
+      "answers": {
+        "1": {
+          "question_id": "1",
+          "criterion_id": "single_choice_01",
+          "question_type": "single_choice",
+          "status": "success",
+          "recognized_answer": "D",
+          "confidence": 0.99,
+          "successful_runs": 3,
+          "stable": true,
+          "needs_review": false,
+          "crop_file": "logs/objective-crops/anon-003/q1.png",
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"Q1 gray-filled box is the fourth option, corresponding to D.\"}",
+              "parsed": {
+                "answer": "D",
+                "confidence": 0.99,
+                "notes": "Q1 gray-filled box is the fourth option, corresponding to D."
+              },
+              "normalized_answer": "D"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"Gray-filled box is the fourth option, corresponding to D.\"}",
+              "parsed": {
+                "answer": "D",
+                "confidence": 0.99,
+                "notes": "Gray-filled box is the fourth option, corresponding to D."
+              },
+              "normalized_answer": "D"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"gray-filled box is the fourth option\"}",
+              "parsed": {
+                "answer": "D",
+                "confidence": 0.99,
+                "notes": "gray-filled box is the fourth option"
+              },
+              "normalized_answer": "D"
+            }
+          ]
+        },
+        "2": {
+          "question_id": "2",
+          "criterion_id": "multiple_choice_02",
+          "question_type": "multiple_choice",
+          "status": "success",
+          "recognized_answer": [
+            "B",
+            "C"
+          ],
+          "confidence": 0.99,
+          "successful_runs": 3,
+          "stable": true,
+          "needs_review": false,
+          "crop_file": "logs/objective-crops/anon-003/q2.png",
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"answer\":[\"B\",\"C\"],\"confidence\":0.99,\"notes\":\"Q2 shows gray-filled boxes for B and C; A and D are unfilled.\"}",
+              "parsed": {
+                "answer": [
+                  "B",
+                  "C"
+                ],
+                "confidence": 0.99,
+                "notes": "Q2 shows gray-filled boxes for B and C; A and D are unfilled."
+              },
+              "normalized_answer": [
+                "B",
+                "C"
+              ]
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":[\"B\",\"C\"],\"confidence\":0.99,\"notes\":\"Question 2 shows four boxes labeled A, blank/B, blank/C, D; the 2nd and 3rd boxes are gray-filled, indicating B and C selected.\"}",
+              "parsed": {
+                "answer": [
+                  "B",
+                  "C"
+                ],
+                "confidence": 0.99,
+                "notes": "Question 2 shows four boxes labeled A, blank/B, blank/C, D; the 2nd and 3rd boxes are gray-filled, indicating B and C selected."
+              },
+              "normalized_answer": [
+                "B",
+                "C"
+              ]
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":[\"B\",\"C\"],\"confidence\":0.99,\"notes\":\"Question 2 shows gray-filled boxes for B and C; A and D are unfilled.\"}",
+              "parsed": {
+                "answer": [
+                  "B",
+                  "C"
+                ],
+                "confidence": 0.99,
+                "notes": "Question 2 shows gray-filled boxes for B and C; A and D are unfilled."
+              },
+              "normalized_answer": [
+                "B",
+                "C"
+              ]
+            }
+          ]
+        },
+        "3": {
+          "question_id": "3",
+          "criterion_id": "single_choice_03",
+          "question_type": "single_choice",
+          "status": "success",
+          "recognized_answer": "D",
+          "confidence": 0.99,
+          "successful_runs": 3,
+          "stable": true,
+          "needs_review": false,
+          "crop_file": "logs/objective-crops/anon-003/q3.png",
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"gray-filled box is the 4th option, corresponding to D\"}",
+              "parsed": {
+                "answer": "D",
+                "confidence": 0.99,
+                "notes": "gray-filled box is the 4th option, corresponding to D"
+              },
+              "normalized_answer": "D"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"D\",\"confidence\":0.99,\"notes\":\"第4个灰色填充框被选中，对应D\"}",
+              "parsed": {
+                "answer": "D",
+                "confidence": 0.99,
+                "notes": "第4个灰色填充框被选中，对应D"
+              },
+              "normalized_answer": "D"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"D\",\"confidence\":0.98,\"notes\":\"第四个灰色填充框被选中，对应D\"}",
+              "parsed": {
+                "answer": "D",
+                "confidence": 0.98,
+                "notes": "第四个灰色填充框被选中，对应D"
+              },
+              "normalized_answer": "D"
+            }
+          ]
+        },
+        "4": {
+          "question_id": "4",
+          "criterion_id": "multiple_choice_04",
+          "question_type": "multiple_choice",
+          "status": "success",
+          "recognized_answer": [
+            "A",
+            "C"
+          ],
+          "confidence": 0.98,
+          "successful_runs": 3,
+          "stable": true,
+          "needs_review": false,
+          "crop_file": "logs/objective-crops/anon-003/q4.png",
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"answer\":[\"A\",\"C\"],\"confidence\":0.98,\"notes\":\"gray-filled boxes are the 1st and 3rd options\"}",
+              "parsed": {
+                "answer": [
+                  "A",
+                  "C"
+                ],
+                "confidence": 0.98,
+                "notes": "gray-filled boxes are the 1st and 3rd options"
+              },
+              "normalized_answer": [
+                "A",
+                "C"
+              ]
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":[\"A\",\"C\"],\"confidence\":0.99,\"notes\":\"Gray-filled boxes are the 1st and 3rd options, corresponding to A and C.\"}",
+              "parsed": {
+                "answer": [
+                  "A",
+                  "C"
+                ],
+                "confidence": 0.99,
+                "notes": "Gray-filled boxes are the 1st and 3rd options, corresponding to A and C."
+              },
+              "normalized_answer": [
+                "A",
+                "C"
+              ]
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":[\"A\",\"C\"],\"confidence\":0.98,\"notes\":\"Gray-filled boxes are the 1st and 3rd, corresponding to A and C.\"}",
+              "parsed": {
+                "answer": [
+                  "A",
+                  "C"
+                ],
+                "confidence": 0.98,
+                "notes": "Gray-filled boxes are the 1st and 3rd, corresponding to A and C."
+              },
+              "normalized_answer": [
+                "A",
+                "C"
+              ]
+            }
+          ]
+        },
+        "5": {
+          "question_id": "5",
+          "criterion_id": "judgment_05",
+          "question_type": "judgment",
+          "status": "success",
+          "recognized_answer": "√",
+          "confidence": 0.98,
+          "successful_runs": 3,
+          "stable": true,
+          "needs_review": false,
+          "crop_file": "logs/objective-crops/anon-003/q5.png",
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"answer\":\"left\",\"confidence\":0.99,\"notes\":\"Left box is visibly gray-filled; right box is unfilled with an x mark.\"}",
+              "parsed": {
+                "answer": "left",
+                "confidence": 0.99,
+                "notes": "Left box is visibly gray-filled; right box is unfilled with an x mark."
+              },
+              "normalized_answer": "√"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"left\",\"confidence\":0.98,\"notes\":\"Left box is visibly gray-filled; right box is unfilled with an x mark.\"}",
+              "parsed": {
+                "answer": "left",
+                "confidence": 0.98,
+                "notes": "Left box is visibly gray-filled; right box is unfilled with an x mark."
+              },
+              "normalized_answer": "√"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"left\",\"confidence\":0.98,\"notes\":\"Left box is visibly gray-filled; right box has an x but is not filled.\"}",
+              "parsed": {
+                "answer": "left",
+                "confidence": 0.98,
+                "notes": "Left box is visibly gray-filled; right box has an x but is not filled."
+              },
+              "normalized_answer": "√"
+            }
+          ]
+        },
+        "6": {
+          "question_id": "6",
+          "criterion_id": "judgment_06",
+          "question_type": "judgment",
+          "status": "success",
+          "recognized_answer": "×",
+          "confidence": 0.99,
+          "successful_runs": 3,
+          "stable": true,
+          "needs_review": false,
+          "crop_file": "logs/objective-crops/anon-003/q6.png",
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"answer\":\"right\",\"confidence\":0.99,\"notes\":\"Right box is visibly gray-filled; left box is unfilled with a check-like scribble.\"}",
+              "parsed": {
+                "answer": "right",
+                "confidence": 0.99,
+                "notes": "Right box is visibly gray-filled; left box is unfilled with a check-like scribble."
+              },
+              "normalized_answer": "×"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"right\",\"confidence\":0.99,\"notes\":\"Right box is visibly gray-filled; left box only shows a check-like mark.\"}",
+              "parsed": {
+                "answer": "right",
+                "confidence": 0.99,
+                "notes": "Right box is visibly gray-filled; left box only shows a check-like mark."
+              },
+              "normalized_answer": "×"
+            },
+            {
+              "ok": true,
+              "text": "{\"answer\":\"right\",\"confidence\":0.99,\"notes\":\"Right box is visibly filled gray; left box is unfilled with a handwritten mark.\"}",
+              "parsed": {
+                "answer": "right",
+                "confidence": 0.99,
+                "notes": "Right box is visibly filled gray; left box is unfilled with a handwritten mark."
+              },
+              "normalized_answer": "×"
+            }
+          ]
+        }
+      }
+    },
+    "subjective_answers": {
+      "status": "partial",
+      "mode": "vision_transcription",
+      "preset": "cqupt_subjective_v1",
+      "model": "gpt-5.4",
+      "full_page_images": {
+        "0": "logs/subjective-crops/anon-003/page1-full.png",
+        "1": "logs/subjective-crops/anon-003/page2-full.png"
+      },
+      "answers": {
+        "q8": {
+          "criterion_id": "short_answer_08",
+          "criterion_name": "第8题 简答题",
+          "question_id": "8",
+          "question_type": "short_answer",
+          "status": "success",
+          "transcribed_answer": "1.金字塔型 2.漏斗型 3.麦穗型,",
+          "confidence": 0.87,
+          "successful_runs": 2,
+          "stable": false,
+          "needs_review": true,
+          "crop_files": [
+            "logs/subjective-crops/anon-003/q8-p1.png"
+          ],
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"1.金字塔型 2.漏斗型 3.菱型形\",\"confidence\":0.84,\"notes\":\"手写较清晰，第三项末字疑似重复写成“形”\"}",
+              "parsed": {
+                "transcribed_answer": "1.金字塔型 2.漏斗型 3.菱型形",
+                "confidence": 0.84,
+                "notes": "手写较清晰，第三项末字疑似重复写成“形”"
+              },
+              "normalized_text": "1.金字塔型2.漏斗型3.菱型形"
+            },
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"1.金字塔型 2.漏斗型 3.麦穗型,\",\"confidence\":0.9,\"notes\":\"手写较清晰，末尾有逗号\"}",
+              "parsed": {
+                "transcribed_answer": "1.金字塔型 2.漏斗型 3.麦穗型,",
+                "confidence": 0.9,
+                "notes": "手写较清晰，末尾有逗号"
+              },
+              "normalized_text": "1.金字塔型2.漏斗型3.麦穗型,"
+            }
+          ]
+        },
+        "q9": {
+          "criterion_id": "short_answer_09",
+          "criterion_name": "第9题 简答题",
+          "question_id": "9",
+          "question_type": "short_answer",
+          "status": "success",
+          "transcribed_answer": "UML图有很多种，常用的包括类图，用例图，序列图，状态图和活动图",
+          "confidence": 0.97,
+          "successful_runs": 2,
+          "stable": true,
+          "needs_review": false,
+          "crop_files": [
+            "logs/subjective-crops/anon-003/q9-p2.png"
+          ],
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"UML图有很多种，常用的包括类图，用例图，序列图，状态图和活动图\",\"confidence\":0.96,\"notes\":\"手写清晰，答案完整\"}",
+              "parsed": {
+                "transcribed_answer": "UML图有很多种，常用的包括类图，用例图，序列图，状态图和活动图",
+                "confidence": 0.96,
+                "notes": "手写清晰，答案完整"
+              },
+              "normalized_text": "uml图有很多种，常用的包括类图，用例图，序列图，状态图和活动图"
+            },
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"UML图有很多种，常用的包括类图，用例图，序列图，状态图和活动图\",\"confidence\":0.98,\"notes\":\"手写清晰，内容完整\"}",
+              "parsed": {
+                "transcribed_answer": "UML图有很多种，常用的包括类图，用例图，序列图，状态图和活动图",
+                "confidence": 0.98,
+                "notes": "手写清晰，内容完整"
+              },
+              "normalized_text": "uml图有很多种，常用的包括类图，用例图，序列图，状态图和活动图"
+            }
+          ]
+        },
+        "programming_01": {
+          "criterion_id": "programming_01",
+          "criterion_name": "五、综合题 第1问 编程题",
+          "question_id": "五-1",
+          "question_type": "programming",
+          "status": "success",
+          "transcribed_answer": "public class Book {\n    private String title;\n    Private String author;\n    Private double price;\n\n    public Book(String title, String author, double price){\n        this.title=(title!=null)? title : \"未命名\";\n        this.author=(author!=null)? author : \"匿名\";\n        this.price = Math.max(0, price);\n    }\n\n    public String getTitlec(){ return title; }\n\n    @Override\n    public String toString() { return \"Book{title='\" + title + \"',\nprice='\" + price + \"'}\"; }",
+          "confidence": 0.77,
+          "successful_runs": 2,
+          "stable": true,
+          "needs_review": false,
+          "crop_files": [
+            "logs/subjective-crops/anon-003/programming_01-p2.png"
+          ],
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"public class Book {\\n    private string title;\\n    Private String author;\\n    Private double price;\\n\\n    public Book(String title, String author, double price) {\\n        this.title = (title != null) ? title : \\\"[unclear]书名\\\";\\n        this.author = (author != null) ? author : \\\"匿名\\\";\\n        this.price = Math.max(0, price);\\n    }\\n\\n    }\\n    Public String getTitle() { return title; }\\n\\n    @Override\\n    Public string toString() { return \\\"Book{title='\\\" + title + \\\"'，\\n    price=\\\" + price + \\\"}\\\"; }\\n\",\"confidence\":0.74,\"notes\":\"下半部分被裁切，toString内容和默认书名有一处不清晰。\"}",
+              "parsed": {
+                "transcribed_answer": "public class Book {\n    private string title;\n    Private String author;\n    Private double price;\n\n    public Book(String title, String author, double price) {\n        this.title = (title != null) ? title : \"[unclear]书名\";\n        this.author = (author != null) ? author : \"匿名\";\n        this.price = Math.max(0, price);\n    }\n\n    }\n    Public String getTitle() { return title; }\n\n    @Override\n    Public string toString() { return \"Book{title='\" + title + \"'，\n    price=\" + price + \"}\"; }\n",
+                "confidence": 0.74,
+                "notes": "下半部分被裁切，toString内容和默认书名有一处不清晰。"
+              },
+              "normalized_text": "publicclassbook{privatestringtitle;privatestringauthor;privatedoubleprice;publicbook(stringtitle,stringauthor,doubleprice){this.title=(title!=null)?title:\"[unclear]书名\";this.author=(author!=null)?author:\"匿名\";this.price=math.max(0,price);}}publicstringgettitle(){returntitle;}@overridepublicstringtostring(){return\"book{title='\"+title+\"'，price=\"+price+\"}\";}"
+            },
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"public class Book {\\n    private String title;\\n    Private String author;\\n    Private double price;\\n\\n    public Book(String title, String author, double price){\\n        this.title=(title!=null)? title : \\\"未命名\\\";\\n        this.author=(author!=null)? author : \\\"匿名\\\";\\n        this.price = Math.max(0, price);\\n    }\\n\\n    public String getTitlec(){ return title; }\\n\\n    @Override\\n    public String toString() { return \\\"Book{title='\\\" + title + \\\"',\\nprice='\\\" + price + \\\"'}\\\"; }\\n\",\"confidence\":0.79,\"notes\":\"下半部分被截断；按可见内容转写，个别大小写和方法名可能有误。\"}",
+              "parsed": {
+                "transcribed_answer": "public class Book {\n    private String title;\n    Private String author;\n    Private double price;\n\n    public Book(String title, String author, double price){\n        this.title=(title!=null)? title : \"未命名\";\n        this.author=(author!=null)? author : \"匿名\";\n        this.price = Math.max(0, price);\n    }\n\n    public String getTitlec(){ return title; }\n\n    @Override\n    public String toString() { return \"Book{title='\" + title + \"',\nprice='\" + price + \"'}\"; }\n",
+                "confidence": 0.79,
+                "notes": "下半部分被截断；按可见内容转写，个别大小写和方法名可能有误。"
+              },
+              "normalized_text": "publicclassbook{privatestringtitle;privatestringauthor;privatedoubleprice;publicbook(stringtitle,stringauthor,doubleprice){this.title=(title!=null)?title:\"未命名\";this.author=(author!=null)?author:\"匿名\";this.price=math.max(0,price);}publicstringgettitlec(){returntitle;}@overridepublicstringtostring(){return\"book{title='\"+title+\"',price='\"+price+\"'}\";}"
+            }
+          ]
+        },
+        "algorithm_01": {
+          "criterion_id": "algorithm_01",
+          "criterion_name": "五、综合题 第2问 算法题",
+          "question_id": "五-2",
+          "question_type": "algorithm",
+          "status": "success",
+          "transcribed_answer": "Find(nums, target):\n    mid = nums.length/2;\n    \n    if (nums[mid] == target)\n        print(\"找到了\")\n    \n    if (nums[mid] < target)\n        low = mid\n    else\n        high = mid\n\n复杂度：O(n/2)",
+          "confidence": 0.93,
+          "successful_runs": 2,
+          "stable": true,
+          "needs_review": false,
+          "crop_files": [
+            "logs/subjective-crops/anon-003/algorithm_01-p2-part1.png",
+            "logs/subjective-crops/anon-003/algorithm_01-p2-part2.png"
+          ],
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"Find(nums, target):\\n    mid = nums.length/2;\\n    \\n    if (nums[mid] == target)\\n        print(\\\"找到了\\\")\\n    \\n    if (nums[mid] < target)\\n        low = mid\\n    else\\n        high = mid\\n\\n复杂度：O(n/2)\",\"confidence\":0.93,\"notes\":\"Single handwritten answer image; some formatting normalized, content otherwise preserved.\"}",
+              "parsed": {
+                "transcribed_answer": "Find(nums, target):\n    mid = nums.length/2;\n    \n    if (nums[mid] == target)\n        print(\"找到了\")\n    \n    if (nums[mid] < target)\n        low = mid\n    else\n        high = mid\n\n复杂度：O(n/2)",
+                "confidence": 0.93,
+                "notes": "Single handwritten answer image; some formatting normalized, content otherwise preserved."
+              },
+              "normalized_text": "find(nums,target):mid=nums.length/2;if(nums[mid]==target)print(\"找到了\")if(nums[mid]<target)low=midelsehigh=mid复杂度：o(n/2)"
+            },
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"Find(nums, target):\\n    mid = nums.length/2;\\n\\nif (nums[mid] == target)\\n    print(\\\"找到了\\\")\\n\\nif (nums[mid] < target)\\n    low = mid\\nelse\\n    high = mid\\n\\n复杂度：O(n/2)\",\"confidence\":0.92,\"notes\":\"Only one answer image with handwritten pseudocode; some formatting normalized.\"}",
+              "parsed": {
+                "transcribed_answer": "Find(nums, target):\n    mid = nums.length/2;\n\nif (nums[mid] == target)\n    print(\"找到了\")\n\nif (nums[mid] < target)\n    low = mid\nelse\n    high = mid\n\n复杂度：O(n/2)",
+                "confidence": 0.92,
+                "notes": "Only one answer image with handwritten pseudocode; some formatting normalized."
+              },
+              "normalized_text": "find(nums,target):mid=nums.length/2;if(nums[mid]==target)print(\"找到了\")if(nums[mid]<target)low=midelsehigh=mid复杂度：o(n/2)"
+            }
+          ]
+        },
+        "white_box_testing_01": {
+          "criterion_id": "white_box_testing_01",
+          "criterion_name": "五、综合题 第3问 白盒测试与路径覆盖",
+          "question_id": "五-3",
+          "question_type": "white_box_testing",
+          "status": "success",
+          "transcribed_answer": "节点数N=5\n边数E=6\n计算：V(G)=6-5+2=3",
+          "confidence": 0.93,
+          "successful_runs": 2,
+          "stable": true,
+          "needs_review": false,
+          "crop_files": [
+            "logs/subjective-crops/anon-003/white_box_testing_01-p2.png"
+          ],
+          "runs": [
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"节点数N=5\\n边数E=6\\n计算：V(G)=6-5+2=3\",\"confidence\":0.95,\"notes\":\"手写内容清晰，首行应为“节点数N=5”\"}",
+              "parsed": {
+                "transcribed_answer": "节点数N=5\n边数E=6\n计算：V(G)=6-5+2=3",
+                "confidence": 0.95,
+                "notes": "手写内容清晰，首行应为“节点数N=5”"
+              },
+              "normalized_text": "节点数n=5边数e=6计算：v(g)=6-5+2=3"
+            },
+            {
+              "ok": true,
+              "text": "{\"transcribed_answer\":\"点数N=5\\n边数E=6\\n计算：V(G)=6-5+2=3\",\"confidence\":0.9,\"notes\":\"手写内容较清晰\"}",
+              "parsed": {
+                "transcribed_answer": "点数N=5\n边数E=6\n计算：V(G)=6-5+2=3",
+                "confidence": 0.9,
+                "notes": "手写内容较清晰"
+              },
+              "normalized_text": "点数n=5边数e=6计算：v(g)=6-5+2=3"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "gate_results": [
+    {
+      "gate_id": "G-001",
+      "gate_name": "文本抽取完整性",
+      "passed": true,
+      "details": "Word count: 1078 (required: 30-inf)",
+      "on_fail": "flag"
+    },
+    {
+      "gate_id": "G-002",
+      "gate_name": "题型结构提示",
+      "passed": true,
+      "details": "Found 13 of required 1 keywords: ['选择题', '判断题', '填空题', '简答题', '综合题', '编程', '算法', '白盒测试', '一、', '二、', '三、', '四、', '五、']",
+      "on_fail": "flag"
+    },
+    {
+      "gate_id": "G-003",
+      "gate_name": "灰色方块提示",
+      "passed": true,
+      "details": "Found 6 of required 1 keywords: ['选择', '判断', 'A', 'B', 'C', 'D']",
+      "on_fail": "flag"
+    }
+  ],
+  "processing_log": [
+    {
+      "step": "format_detection",
+      "status": "success",
+      "duration_ms": 0,
+      "message": "Detected .pdf"
+    },
+    {
+      "step": "text_extraction",
+      "status": "success",
+      "duration_ms": 16,
+      "message": ""
+    },
+    {
+      "step": "objective_answer_recognition",
+      "status": "success",
+      "duration_ms": 0,
+      "message": "status=success, recognized=6 question(s)"
+    },
+    {
+      "step": "subjective_answer_transcription",
+      "status": "warning",
+      "duration_ms": 0,
+      "message": "status=partial, transcribed=5 question block(s)"
+    },
+    {
+      "step": "answer_segmentation",
+      "status": "success",
+      "duration_ms": 0,
+      "message": "method=fallback, evidence_quality=complete, assignment_chars=0, answer_chars=1598"
+    },
+    {
+      "step": "metadata_extraction",
+      "status": "success",
+      "duration_ms": 1,
+      "message": ""
+    },
+    {
+      "step": "empty_check",
+      "status": "success",
+      "duration_ms": 0,
+      "message": "word_count=1078, image_count=0"
+    },
+    {
+      "step": "gate_checks",
+      "status": "success",
+      "duration_ms": 0,
+      "message": "3 gates evaluated"
+    }
+  ]
+}

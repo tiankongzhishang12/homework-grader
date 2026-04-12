@@ -1,0 +1,19 @@
+{
+  "batch_id": "practicum-batch",
+  "rubric_id": "software-project-traceability-rubric-v1",
+  "mode": "real-time",
+  "started_at": "2026-04-09T07:54:31.161240+00:00",
+  "last_updated": "2026-04-09T08:00:58.454464+00:00",
+  "total": 3,
+  "completed": 2,
+  "failed": 0,
+  "pending": 1,
+  "completed_ids": [
+    "anon-001",
+    "anon-002"
+  ],
+  "failed_ids": [],
+  "pending_ids": [
+    "anon-003"
+  ]
+}

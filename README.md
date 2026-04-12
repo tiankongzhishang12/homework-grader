@@ -234,6 +234,34 @@ workspace/my-batch/
 └── student-mapping.csv     # Anon ID ↔ real student info
 ```
 
+### Keep Batches Separate
+
+When you score different courses or exam types, give each one its own workspace
+and rubric. For example, keep a CQUPT final exam in `workspace/cqupt-final/`
+with its own `raw/`, `reference/`, `ir/`, `scores/`, `reports/`, and `logs/`
+instead of reusing the legacy sample workspace.
+
+Recommended pattern:
+
+```text
+workspace/
+|- raw/                     # Legacy sample homework only
+|- ir/
+|- scores/
+|- reports/
+`- cqupt-final/
+   |- raw/                  # Student final-exam PDFs only
+   |- reference/            # Standard-answer PDF only
+   |- ir/
+   |- scores/
+   |- reports/
+   `- logs/
+```
+
+For a ready-made isolated starter, see `workspace/cqupt-final/README.md`,
+`examples/cqupt-final-exam-rubric.yaml`, and
+`grader-config.cqupt-final.yaml`.
+
 ### Cost Estimate
 
 Using Claude Sonnet with Batch API (50% discount):
