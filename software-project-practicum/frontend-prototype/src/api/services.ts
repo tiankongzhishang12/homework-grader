@@ -44,11 +44,12 @@ export const answerApi = {
 export const rubricApi = {
   list: () => apiRequest<Rubric[]>("/api/rubrics"),
   binding: (taskId: string) => apiRequest<Rubric>(`/api/tasks/${taskId}/rubric-binding`),
-  generate: (payload: { prompt: string }) =>
+  generate: (payload: { prompt: string; baseRubricId?: string | null }) =>
     apiRequest<RubricDraft>("/api/rubrics/generate", { method: "POST", body: JSON.stringify(payload) }),
   create: (payload: Rubric) => apiRequest<Rubric>("/api/rubrics", { method: "POST", body: JSON.stringify(payload) }),
   update: (rubricId: string, payload: Partial<Rubric>) =>
     apiRequest<Rubric>(`/api/rubrics/${rubricId}`, { method: "PUT", body: JSON.stringify(payload) }),
+  remove: (rubricId: string) => apiRequest<{ success: boolean }>(`/api/rubrics/${rubricId}`, { method: "DELETE" }),
   bind: (taskId: string, rubricId: string) =>
     apiRequest<{ success: boolean }>(`/api/tasks/${taskId}/rubric-binding`, {
       method: "POST",

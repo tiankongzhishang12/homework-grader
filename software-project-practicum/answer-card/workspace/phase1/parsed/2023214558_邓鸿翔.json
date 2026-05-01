@@ -1,0 +1,92 @@
+{
+  "paper_id": "2023214558_邓鸿翔",
+  "student_number": "2023214558",
+  "student_name": "邓鸿翔",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620001\\2023214558_邓鸿翔.jpg",
+  "total_score": 66.0,
+  "section_scores": {
+    "single_choice": 16.0,
+    "true_false": 8.0,
+    "fill_blank": 6.0,
+    "short_answer": 14.5,
+    "comprehensive": 21.5
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 5.0,
+    "28": 3.0,
+    "29": 4.5,
+    "30": 5.5,
+    "31": 7.0,
+    "32": 6.0,
+    "33": 3.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 14.5,
+    "computed_comprehensive_sum": 21.5,
+    "computed_total": 66.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分处清晰可见红笔“66”。",
+    "客观题分数分别标注为：单选16、判断8、填空6。",
+    "主观题第26题为2分，第30题为5.5分，第31题为7分。",
+    "分数均来自各题右上方红字“得分”标注。",
+    "已忽略红色对勾、叉号及局部批注，不将其视为最终得分。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2174,
+      3063
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        74.0
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ],
+      "bottom_left": [
+        46.0,
+        3045.0
+      ]
+    }
+  }
+}

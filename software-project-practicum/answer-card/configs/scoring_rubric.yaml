@@ -1,0 +1,326 @@
+exam:
+  id: software-requirements-engineering-final-2025-2026-term1-rubric
+  name: "软件需求工程课程期末主观题评分标准"
+  version: 0.2
+  language: zh-CN
+  notes:
+    - "本文件基于 100 份教师已批改样本归纳，用于第二阶段主观题自动评分。"
+    - "26-29 题每题 5 分，30-33 题每题 10 分。"
+    - "31-33 为图示题，必须结合图像结构评分，不能只依赖 OCR 文本。"
+    - "当前版本已可用于验证，但 26-33 题仍保留教师复核出口。"
+
+global_policy:
+  use_visual_evidence: true
+  use_text_extraction_as_support: true
+  require_evidence_for_each_point: true
+  forbid_guessing_missing_content: true
+  review_if_confidence_below: 0.7
+  review_if_score_diff_vs_teacher_gt: 1.5
+  output_format:
+    - "per_point_scores"
+    - "evidence"
+    - "reasoning"
+    - "total_score"
+    - "confidence"
+
+subjective_questions:
+  "26":
+    title: "面谈结构类型"
+    max_score: 5
+    expected_answer_type: "text"
+    grading_strategy: "point_based"
+    teacher_review_required: true
+    scoring_points:
+      - id: "q26-1"
+        description: "答出“金字塔结构”"
+        score: 1.5
+      - id: "q26-2"
+        description: "答出“漏斗结构”"
+        score: 1.5
+      - id: "q26-3"
+        description: "答出“菱形结构”"
+        score: 1.5
+      - id: "q26-4"
+        description: "三项答全，或三项名称与简要说明对应完整"
+        score: 0.5
+    full_score_features:
+      - "明确写出金字塔结构、漏斗结构、菱形结构三项。"
+      - "只列名称即可得高分，若附简要说明也可视为满分表达。"
+    common_missing_points:
+      - "误写为结构化面谈、半结构化面谈、非结构化面谈。"
+      - "误写为面谈流程阶段而不是三种结构。"
+      - "只写与面谈方法相关内容，但未出现三项核心名称。"
+    deduction_rules:
+      - "每缺失一项核心结构名称，扣除对应分值。"
+      - "若答成其他分类体系，原则上不给对应点分。"
+    review_triggers:
+      - "答案存在疑似 OCR 混淆，无法确认是否写出三项核心名称。"
+
+  "27":
+    title: "信息系统分类"
+    max_score: 5
+    expected_answer_type: "text"
+    grading_strategy: "point_based"
+    teacher_review_required: true
+    scoring_points:
+      - id: "q27-1"
+        description: "答出“小型系统”或相近表述，如“部门级系统”"
+        score: 1
+      - id: "q27-2"
+        description: "答出“组织级系统”"
+        score: 1
+      - id: "q27-3"
+        description: "答出“战略信息系统”或相近表述，如“战略级系统”"
+        score: 1
+      - id: "q27-4"
+        description: "答出“组织间系统”"
+        score: 1
+      - id: "q27-5"
+        description: "四类答案答全，且表述基本准确"
+        score: 1
+    full_score_features:
+      - "出现四类目标分类，通常为小型系统、组织级系统、战略信息系统、组织间系统。"
+      - "只列出分类名称也可能得高分，但完整度和准确性仍会影响最后 1 分。"
+    common_missing_points:
+      - "只写出三类，缺少其中任一类。"
+      - "答成 TPS、MIS、DSS、OAS 等另一套分类体系。"
+      - "写成不被教师样本稳定认可的其他层级分类。"
+    deduction_rules:
+      - "四类中每缺 1 类，扣除对应 1 分。"
+      - "若四类未答全，则第 q27-5 点不得分。"
+    review_triggers:
+      - "小型系统与部门级系统等相近表述边界不清。"
+
+  "28":
+    title: "需求验证方法"
+    max_score: 5
+    expected_answer_type: "list_or_text"
+    grading_strategy: "point_pool"
+    teacher_review_required: true
+    scoring_policy:
+      per_valid_method: 1
+      max_counted_methods: 5
+    accepted_methods:
+      - canonical: "需求评审"
+        aliases: ["评审", "需求评审/评审", "需求审查"]
+      - canonical: "原型与模拟"
+        aliases: ["原型", "模拟", "原型法", "模拟法"]
+      - canonical: "开发或设计测试用例"
+        aliases: ["开发测试用例", "设计测试用例", "测试用例", "验证用例"]
+      - canonical: "利用跟踪关系"
+        aliases: ["需求跟踪", "跟踪关系校验", "追踪关系", "跟踪表"]
+      - canonical: "自动化分析"
+        aliases: ["自动分析", "工具分析", "自动化校验"]
+      - canonical: "用户手册编制"
+        aliases: ["编写用户手册", "用户手册", "手册编写"]
+    full_score_features:
+      - "高分答案通常会列出 5 个及以上被教师认可的方法。"
+      - "需求评审、原型与模拟是最稳定的高频高分点。"
+    common_missing_points:
+      - "只写评审和原型，缺少其他方法。"
+      - "把泛化流程表述误当成具体方法。"
+      - "重复写同一方法的不同说法。"
+    deduction_rules:
+      - "同一方法重复表达只计一次。"
+      - "未落到具体方法名称的表述不计分。"
+    review_triggers:
+      - "答案中方法名称过于模糊，语义等价无法稳定判断。"
+
+  "29":
+    title: "原型类型及用途"
+    max_score: 5
+    expected_answer_type: "text"
+    grading_strategy: "point_pool"
+    teacher_review_required: true
+    scoring_policy:
+      per_valid_type: 1
+      usage_explanation_bonus: 1
+      max_counted_types: 4
+      total_cap: 5
+    accepted_types:
+      - canonical: "演示原型"
+        aliases: ["展示原型"]
+        expected_usage: "与展示、演示、能力说明或可行性展示相关"
+      - canonical: "严格意义上的原型"
+        aliases: ["狭义原型"]
+        expected_usage: "与探索、澄清需求或解决需求不确定性相关"
+      - canonical: "试验原型"
+        aliases: ["实验原型"]
+        expected_usage: "与验证技术方案、解决技术问题不确定性相关"
+      - canonical: "演化系统原型"
+        aliases: ["进化型原型", "演化型原型"]
+        expected_usage: "与后续系统构建、作为最终系统构建核心相关"
+    full_score_features:
+      - "明确写出 4 个原型类型。"
+      - "不仅列出名称，还能对 4 类用途作对应说明。"
+    common_missing_points:
+      - "只写名称，不解释用途。"
+      - "加入其他原型分类，但没有覆盖教师样本稳定认可的 4 项。"
+      - "把演化系统原型写成单纯探索用途。"
+    deduction_rules:
+      - "每答对 1 类基础给 1 分。"
+      - "只有在类型较完整且用途对应基本正确时，才给第 5 分。"
+    review_triggers:
+      - "原型类型名称疑似手写模糊，无法稳定区分。"
+
+  "30":
+    title: "需求获取与分析过程说明"
+    max_score: 10
+    expected_answer_type: "text"
+    grading_strategy: "point_based"
+    teacher_review_required: true
+    scoring_points:
+      - id: "q30-1"
+        description: "说明前期要收集系统或项目背景资料，了解业务场景或现状"
+        score: 2
+      - id: "q30-2"
+        description: "明确需求获取目标、项目范围、问题域或业务痛点"
+        score: 2
+      - id: "q30-3"
+        description: "识别和分析涉众或用户，理解其需求、目标或意图"
+        score: 2
+      - id: "q30-4"
+        description: "给出需求获取的实施方式或计划，如访谈、问卷、文档分析、焦点小组等"
+        score: 2
+      - id: "q30-5"
+        description: "对获取结果进行整理分析，形成需求内容、主要功能、系统特性或高层方案"
+        score: 2
+    full_score_features:
+      - "答案体现完整的需求获取流程，而不是只列单个方法。"
+      - "既写前期背景与范围界定，也写涉众分析和方法实施。"
+      - "最终有分析归纳或输出结果。"
+    common_missing_points:
+      - "只写访谈、问卷等方法，没有写目标、范围或问题界定。"
+      - "只围绕单一对象展开，涉众识别不足。"
+      - "停留在去调研、去问的层面，没有分析归纳。"
+    deduction_rules:
+      - "只罗列方法而没有前后流程时，q30-5 不得分。"
+      - "背景、目标和涉众三项明显缺失两项以上时，不得超过 6 分。"
+    review_triggers:
+      - "高分但答案后半段图像模糊，无法确认分析归纳部分。"
+
+  "31":
+    title: "用例图建模"
+    max_score: 10
+    expected_answer_type: "diagram"
+    grading_strategy: "visual_point_based"
+    teacher_review_required: true
+    scoring_points:
+      - id: "q31-1"
+        description: "画出与题目对应的用例图基本结构，包含系统边界或系统名称"
+        score: 2
+      - id: "q31-2"
+        description: "识别出多个相关参与者，而不是只写单一角色"
+        score: 2
+      - id: "q31-3"
+        description: "给出较完整的核心用例，覆盖竞赛信息发布、查询、报名、材料上传、获奖统计等多个功能点"
+        score: 3
+      - id: "q31-4"
+        description: "参与者与用例之间的对应关系较清晰，连线和归属基本合理"
+        score: 2
+      - id: "q31-5"
+        description: "整体结构完整且可读，不是纯文字清单或明显跑题"
+        score: 1
+    full_score_features:
+      - "有系统边界，整体呈现为规范用例图。"
+      - "参与者较完整，通常至少覆盖学生与教务相关角色，并可扩展到教师、院领导、带队教师等。"
+      - "核心用例覆盖面较广。"
+    common_missing_points:
+      - "缺少系统边界或根本不是用例图。"
+      - "参与者过少。"
+      - "只有少量功能点，且角色与功能关系不清。"
+    deduction_rules:
+      - "只画少量人物和椭圆但无清晰关系，不超过 4 分。"
+      - "若整体为纯文字罗列或明显偏题，原则上不超过 3 分。"
+    review_triggers:
+      - "教师红笔与学生原图重叠，关键连线难以辨认。"
+
+  "32":
+    title: "E-R 图建模"
+    max_score: 10
+    expected_answer_type: "diagram"
+    grading_strategy: "visual_point_based"
+    teacher_review_required: true
+    scoring_points:
+      - id: "q32-1"
+        description: "左侧主要实体画出且基本完整"
+        score: 2
+      - id: "q32-2"
+        description: "中间主要实体画出且基本完整"
+        score: 2
+      - id: "q32-3"
+        description: "右侧主要实体画出且基本完整"
+        score: 2
+      - id: "q32-4"
+        description: "左侧与中间实体之间的关键联系表达正确"
+        score: 2
+      - id: "q32-5"
+        description: "中间与右侧实体之间的关键联系表达正确"
+        score: 2
+    full_score_features:
+      - "通常包含 3 个主要实体和 2 个关键联系，整体结构完整。"
+      - "实体周围常补有若干属性，联系附近常标注基数或多重性。"
+    common_missing_points:
+      - "只画出部分实体，没有形成完整三段式结构。"
+      - "只有实体没有联系，或联系链不完整。"
+      - "属性、基数、多重性表达缺失严重。"
+    deduction_rules:
+      - "单个实体或联系只部分正确时，可在对应 2 分点内酌情给 1 分。"
+      - "若只剩零散实体框且没有关键联系，原则上不超过 4 分。"
+    review_triggers:
+      - "实体名称被教师批注遮挡，导致无法稳定判断。"
+
+  "33":
+    title: "图书借阅业务数据流图"
+    max_score: 10
+    expected_answer_type: "diagram"
+    grading_strategy: "visual_point_based"
+    teacher_review_required: true
+    scoring_points:
+      - id: "q33-1"
+        description: "答案属于图书借阅或图书管理业务相关的数据流图类作答，而非其他图形模型"
+        score: 2
+      - id: "q33-2"
+        description: "画出顶层或 0 层表示，有总体处理并与外部实体存在主要数据流"
+        score: 2
+      - id: "q33-3"
+        description: "对顶层处理进行分解，包含读者鉴别、库存查询、借出处理、库存更新、记录更新等关键子过程"
+        score: 3
+      - id: "q33-4"
+        description: "列出并接入关键数据存储，如读者记录、图书库存、借阅记录等"
+        score: 2
+      - id: "q33-5"
+        description: "主要数据流有文字标注，连接关系基本合理，整体结构可读"
+        score: 1
+    full_score_features:
+      - "明确是图书借阅业务的数据流图。"
+      - "有 0 层或顶层表示。"
+      - "有较完整的子过程分解和关键数据存储。"
+    common_missing_points:
+      - "未画顶层表示，只画局部流程。"
+      - "缺少关键数据存储。"
+      - "数据流没有标注名称，或箭头方向和连接关系混乱。"
+      - "误画成其他类型图或与题目业务无关。"
+    deduction_rules:
+      - "只有少量过程框但无完整分解和数据存储时，不超过 4 分。"
+      - "若画成其他模型或业务明显不对应，按低分或零分处理。"
+    review_triggers:
+      - "图示结构复杂且教师批注覆盖较多，关键数据流方向不清。"
+
+llm_scoring_instructions:
+  subjective_text_questions:
+    instruction: |
+      逐个得分点判断是否命中。
+      必须先给出学生答案中的证据，再给分。
+      不能因为篇幅长、术语多就自动给高分。
+      对于没有写出的内容，不得脑补。
+  subjective_diagram_questions:
+    instruction: |
+      必须结合图像结构本身判断。
+      不要把教师红笔对勾、叉号、+1/+2 批注误当作学生答案内容。
+      优先关注实体、参与者、过程、联系、基数、箭头方向、命名一致性和结构完整性。
+
+manual_review_recommendations:
+  - "若自动分与教师真值相差超过 1.5 分，进入人工复核。"
+  - "若图示题图片模糊、裁切严重、教师批注遮挡关键结构，进入人工复核。"
+  - "若文本题出现多种相近表述、模型无法稳定判断语义等价，进入人工复核。"

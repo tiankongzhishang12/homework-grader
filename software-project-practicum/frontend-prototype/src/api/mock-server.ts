@@ -46,6 +46,66 @@ const formatVersion = (count: number) => `v${count}.0`;
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
+const buildFallbackStudentDetail = (student: StudentRow): StudentDetail => ({
+  id: student.id,
+  name: student.name,
+  studentNumber: student.studentNumber,
+  anonymousId: student.anonymousId,
+  score: student.score,
+  percentileScore: student.score,
+  grade: student.grade,
+  confidence: student.confidence,
+  summary: `${student.name} 的列表结果已生成，但尚未写入完整评分明细。系统基于结果列表生成临时解释，便于教师继续查看。`,
+  qualityFindings: student.riskTags.length > 0 ? student.riskTags : ["当前样本暂无额外质量提示。"],
+  dimensions: [
+    {
+      id: "fallback-overall",
+      name: "综合表现",
+      score: student.score,
+      maxScore: 100,
+      confidence: student.confidence,
+      evidence: "该条解释由结果列表兜底生成，完整证据需等待后端评分详情文件补齐。",
+      reasoning: `当前总分为 ${student.score}，等级为 ${student.grade}，置信度为 ${student.confidence}。`,
+      matched: ["结果列表已有总分、等级和风险标签。"],
+      missing: student.traceabilityGapCount > 0 ? [`存在 ${student.traceabilityGapCount} 个追踪缺口。`] : ["暂无明确缺失项。"],
+      improvement: "建议补齐该学生的完整评分 JSON，以展示逐维度证据、推理和改进建议。",
+    },
+  ],
+  traceability: {
+    requirements: ["完整评分详情待补齐"],
+    hldCoverage: [
+      {
+        requirement: "完整评分详情待补齐",
+        status: student.traceabilityGapCount > 0 ? "weak" : "covered",
+        evidence: "当前仅能从结果列表读取追踪缺口数量。",
+      },
+    ],
+    lldCoverage: [
+      {
+        requirement: "完整评分详情待补齐",
+        status: student.traceabilityGapCount > 0 ? "weak" : "covered",
+        evidence: "当前仅能从结果列表读取追踪缺口数量。",
+      },
+    ],
+    uncoveredRequirements: student.traceabilityGapCount > 0 ? ["完整追踪明细待补齐"] : [],
+  },
+  gates: [
+    {
+      name: "结果列表门禁状态",
+      passed: student.gateStatus === "通过",
+      detail: student.gateStatus,
+      onFail: "flag",
+    },
+  ],
+  materials: {
+    documentCount: 0,
+    wordCount: 0,
+    imageCount: 0,
+    roles: [],
+    logs: ["完整材料摘要待后端评分详情补齐。"],
+  },
+});
+
 const seedDatabase = (): MockDatabase => {
   const rubrics: Rubric[] = [
     {
@@ -175,6 +235,78 @@ const seedDatabase = (): MockDatabase => {
         workspace: "valid",
       },
     },
+    {
+      id: "frontier-report",
+      courseName: "软件前沿技术",
+      className: "2024级软件工程1班",
+      taskName: "作业一：前沿技术调研报告",
+      taskType: "课程作业",
+      studentCount: 74,
+      submittedCount: 68,
+      configReady: true,
+      configProgress: 100,
+      batchStatus: "idle",
+      nextAction: "可直接开始阅卷并在结果完成后导出",
+      courseCode: "FE-2026",
+      term: "2025-2026-2",
+      score: 100,
+      deadline: "2026-04-22 23:59",
+      description: "面向软件前沿技术调研报告的摘要、结构与论证评分。",
+      configStatuses: {
+        answers: "in_use",
+        rubric: "in_use",
+        exportTemplate: "in_use",
+        workspace: "valid",
+      },
+    },
+    {
+      id: "frontier-quiz",
+      courseName: "软件前沿技术",
+      className: "2024级软件工程2班",
+      taskName: "期中测验：前沿工具与框架",
+      taskType: "课程考试",
+      studentCount: 70,
+      submittedCount: 70,
+      configReady: true,
+      configProgress: 100,
+      batchStatus: "completed",
+      nextAction: "查看评分分布并导出成绩",
+      courseCode: "FE-2026",
+      term: "2025-2026-2",
+      score: 100,
+      deadline: "2026-04-10 21:00",
+      description: "用于评估学生对前沿工具与框架的理解和综合应用。",
+      configStatuses: {
+        answers: "in_use",
+        rubric: "in_use",
+        exportTemplate: "in_use",
+        workspace: "valid",
+      },
+    },
+    {
+      id: "testing-exam",
+      courseName: "软件测试",
+      className: "2023级软件工程2班",
+      taskName: "阶段考试：测试用例设计",
+      taskType: "课程考试",
+      studentCount: 52,
+      submittedCount: 52,
+      configReady: false,
+      configProgress: 66,
+      batchStatus: "idle",
+      nextAction: "先补齐标准答案和路径配置，再开始评分",
+      courseCode: "TEST-2026",
+      term: "2025-2026-2",
+      score: 100,
+      deadline: "2026-04-25 18:00",
+      description: "重点评估测试用例设计完整性、边界场景和缺陷预估能力。",
+      configStatuses: {
+        answers: "confirmed",
+        rubric: "confirmed",
+        exportTemplate: "in_use",
+        workspace: "unchecked",
+      },
+    },
   ];
 
   const answers: Record<string, AnswerVersion[]> = {
@@ -214,6 +346,45 @@ const seedDatabase = (): MockDatabase => {
         current: true,
       },
     ],
+    "frontier-report": [
+      {
+        id: "ans-frontier-report-1",
+        version: "v1.0",
+        fileName: "前沿技术调研报告标准答案.docx",
+        uploadedAt: "2026-04-15 20:10",
+        parseStatus: "in_use",
+        itemCount: 8,
+        activatedAt: "2026-04-16 09:20",
+        status: "in_use",
+        current: true,
+      },
+    ],
+    "frontier-quiz": [
+      {
+        id: "ans-frontier-quiz-1",
+        version: "v1.0",
+        fileName: "前沿工具期中测验标准答案.pdf",
+        uploadedAt: "2026-04-09 18:00",
+        parseStatus: "in_use",
+        itemCount: 6,
+        activatedAt: "2026-04-09 18:20",
+        status: "in_use",
+        current: true,
+      },
+    ],
+    "testing-exam": [
+      {
+        id: "ans-testing-exam-1",
+        version: "v0.9",
+        fileName: "测试用例设计考试答案.docx",
+        uploadedAt: "2026-04-13 21:00",
+        parseStatus: "confirmed",
+        itemCount: 9,
+        activatedAt: "2026-04-13 21:30",
+        status: "confirmed",
+        current: true,
+      },
+    ],
   };
 
   const workspaces: Record<string, WorkspaceConfig> = {
@@ -234,6 +405,34 @@ const seedDatabase = (): MockDatabase => {
       status: "valid",
       lastCheckedAt: "2026-04-17 08:10",
       lastMessage: "目录结构完整，可用于批量阅卷。",
+    },
+    "frontier-report": {
+      rootPath: "workspace/2025-2026-2/软件前沿技术/作业一",
+      rawPath: "workspace/2025-2026-2/软件前沿技术/作业一/raw",
+      irPath: "workspace/2025-2026-2/软件前沿技术/作业一/ir",
+      scoresPath: "workspace/2025-2026-2/软件前沿技术/作业一/scores",
+      reportsPath: "workspace/2025-2026-2/软件前沿技术/作业一/reports",
+      status: "valid",
+      lastCheckedAt: "2026-04-17 09:00",
+      lastMessage: "目录结构完整，已准备好开始阅卷。",
+    },
+    "frontier-quiz": {
+      rootPath: "workspace/2025-2026-2/软件前沿技术/期中测验",
+      rawPath: "workspace/2025-2026-2/软件前沿技术/期中测验/raw",
+      irPath: "workspace/2025-2026-2/软件前沿技术/期中测验/ir",
+      scoresPath: "workspace/2025-2026-2/软件前沿技术/期中测验/scores",
+      reportsPath: "workspace/2025-2026-2/软件前沿技术/期中测验/reports",
+      status: "valid",
+      lastCheckedAt: "2026-04-12 08:40",
+      lastMessage: "期中测验已完成阅卷，可用于结果回看。",
+    },
+    "testing-exam": {
+      rootPath: "workspace/2025-2026-2/软件测试/阶段考试",
+      rawPath: "workspace/2025-2026-2/软件测试/阶段考试/raw",
+      irPath: "workspace/2025-2026-2/软件测试/阶段考试/ir",
+      scoresPath: "workspace/2025-2026-2/软件测试/阶段考试/scores",
+      reportsPath: "workspace/2025-2026-2/软件测试/阶段考试/reports",
+      status: "unchecked",
     },
   };
 
@@ -363,21 +562,81 @@ const seedDatabase = (): MockDatabase => {
     tasks,
     answers,
     rubrics,
-    taskRubricBinding: { exp3: "rubric-traceability-1", exp4: "rubric-traceability-1" },
+    taskRubricBinding: {
+      exp3: "rubric-traceability-1",
+      exp4: "rubric-traceability-1",
+      "frontier-report": "rubric-common-1",
+      "frontier-quiz": "rubric-common-1",
+      "testing-exam": "rubric-common-1",
+    },
     templates,
-    taskTemplateBinding: { exp3: "template-main-1", exp4: "template-main-1" },
+    taskTemplateBinding: {
+      exp3: "template-main-1",
+      exp4: "template-main-1",
+      "frontier-report": "template-main-1",
+      "frontier-quiz": "template-main-1",
+      "testing-exam": "template-main-1",
+    },
     workspaces,
     batches: {
       exp3: { status: "idle" },
       exp4: { status: "completed", startedAt: "2026-04-16T08:20:00.000Z" },
+      "frontier-report": { status: "idle" },
+      "frontier-quiz": { status: "completed", startedAt: "2026-04-11T09:00:00.000Z" },
+      "testing-exam": { status: "idle" },
     },
     students: {
       exp3: studentsExp3,
       exp4: studentsExp3.map((student, index) => ({ ...student, id: `exp4-${student.id}`, anonymousId: `exp4-${student.anonymousId}`, score: student.score + index })),
+      "frontier-report": studentsExp3.map((student, index) => ({
+        ...student,
+        id: `frontier-report-${student.id}`,
+        anonymousId: `frontier-report-${student.anonymousId}`,
+        score: student.score + 5 + index,
+      })),
+      "frontier-quiz": studentsExp3.map((student, index) => ({
+        ...student,
+        id: `frontier-quiz-${student.id}`,
+        anonymousId: `frontier-quiz-${student.anonymousId}`,
+        score: student.score + 8 + index,
+      })),
+      "testing-exam": studentsExp3.map((student, index) => ({
+        ...student,
+        id: `testing-exam-${student.id}`,
+        anonymousId: `testing-exam-${student.anonymousId}`,
+        score: student.score - 2 + index,
+      })),
     },
     studentDetails: {
       "anon-003": detailExp3,
       "exp4-anon-003": { ...detailExp3, id: "exp4-anon-003", anonymousId: "exp4-anon-003", score: 81, percentileScore: 82, confidence: 0.87 },
+      "frontier-report-anon-003": {
+        ...detailExp3,
+        id: "frontier-report-anon-003",
+        anonymousId: "frontier-report-anon-003",
+        score: 86,
+        percentileScore: 88,
+        confidence: 0.9,
+        summary: "调研报告结构完整，技术选择有根据，仍可补强落地性分析。",
+      },
+      "frontier-quiz-anon-003": {
+        ...detailExp3,
+        id: "frontier-quiz-anon-003",
+        anonymousId: "frontier-quiz-anon-003",
+        score: 89,
+        percentileScore: 91,
+        confidence: 0.93,
+        summary: "对前沿工具链理解较完整，关键概念表述清晰，可直接纳入课程结果分析。",
+      },
+      "testing-exam-anon-003": {
+        ...detailExp3,
+        id: "testing-exam-anon-003",
+        anonymousId: "testing-exam-anon-003",
+        score: 69,
+        percentileScore: 71,
+        confidence: 0.8,
+        summary: "测试用例覆盖主流程，但边界场景和异常路径设计仍有明显缺口。",
+      },
     },
     analytics: {
       exp3: {
@@ -414,6 +673,56 @@ const seedDatabase = (): MockDatabase => {
           { title: "模块边界说明不足", count: 5, detail: "部分模块设计边界不够清楚。" },
         ],
       },
+      "frontier-report": {
+        averageScore: 82.6,
+        totalStudents: 74,
+        lowConfidenceCount: 2,
+        gateWarningCount: 1,
+        placeholderResidueCount: 0,
+        scoreBands: [
+          { label: "60-69", value: 4 },
+          { label: "70-79", value: 18 },
+          { label: "80-89", value: 28 },
+          { label: "90+", value: 12 },
+        ],
+        topIssues: [
+          { title: "技术路线论证不充分", count: 7, detail: "结论有，但缺少对技术选型依据的展开。" },
+          { title: "参考资料引用格式不统一", count: 4, detail: "存在引用来源不完整或格式不一致的问题。" },
+        ],
+      },
+      "frontier-quiz": {
+        averageScore: 85.1,
+        totalStudents: 70,
+        lowConfidenceCount: 1,
+        gateWarningCount: 0,
+        placeholderResidueCount: 0,
+        scoreBands: [
+          { label: "60-69", value: 2 },
+          { label: "70-79", value: 14 },
+          { label: "80-89", value: 32 },
+          { label: "90+", value: 15 },
+        ],
+        topIssues: [
+          { title: "框架适用场景判断偏弱", count: 5, detail: "能说出工具名称，但落到使用场景时不够准确。" },
+        ],
+      },
+      "testing-exam": {
+        averageScore: 73.8,
+        totalStudents: 52,
+        lowConfidenceCount: 3,
+        gateWarningCount: 2,
+        placeholderResidueCount: 1,
+        scoreBands: [
+          { label: "60-69", value: 8 },
+          { label: "70-79", value: 21 },
+          { label: "80-89", value: 14 },
+          { label: "90+", value: 3 },
+        ],
+        topIssues: [
+          { title: "边界用例覆盖不足", count: 9, detail: "主流程覆盖基本具备，但边界和异常场景遗漏较多。" },
+          { title: "断言设计不够具体", count: 6, detail: "存在“测试通过”但缺少明确判定标准的情况。" },
+        ],
+      },
     },
     exports: {
       exp3: [
@@ -427,6 +736,18 @@ const seedDatabase = (): MockDatabase => {
         },
       ],
       exp4: [],
+      "frontier-report": [],
+      "frontier-quiz": [
+        {
+          id: "export-frontier-quiz-1",
+          createdAt: "2026-04-12 18:30",
+          fileName: "软件前沿技术-期中测验-2026-04-12.xlsx",
+          templateVersion: "v1.0",
+          status: "completed",
+          warnings: ["1 份低置信度样本"],
+        },
+      ],
+      "testing-exam": [],
     },
   };
 };
@@ -741,6 +1062,7 @@ export const mockFetch = async (input: RequestInfo | URL, init?: RequestInit): P
     const rubric: Rubric = {
       ...body,
       id: uid("rubric"),
+      createdAt: body.createdAt ?? normalizeDateTime(nowIso()),
       updatedAt: normalizeDateTime(nowIso()),
     };
     db.rubrics.unshift(rubric);
@@ -759,10 +1081,22 @@ export const mockFetch = async (input: RequestInfo | URL, init?: RequestInit): P
     return ok(rubric);
   }
 
+  if (rubricUpdateMatch && method === "DELETE") {
+    const id = rubricUpdateMatch[1];
+    const rubric = db.rubrics.find((item) => item.id === id);
+    if (!rubric) return notFound("评分标准不存在。");
+    const boundTask = Object.values(db.taskRubricBinding).some((rubricId) => rubricId === id);
+    const deletable = rubric.source === "rubric_copy" && rubric.status === "draft" && !boundTask;
+    if (!deletable) return badRequest("当前仅允许删除未绑定任务的草稿副本。");
+    db.rubrics = db.rubrics.filter((item) => item.id !== id);
+    writeDb(db);
+    return ok({ success: true });
+  }
+
   if (pathname === "/api/rubrics/generate" && method === "POST") {
     const body = JSON.parse((init?.body as string | undefined) ?? "{}") as { prompt?: string };
     const hasMissingGate = !(body.prompt ?? "").includes("门禁");
-    const totalScore = body.prompt?.includes("100") ? 98 : 96;
+    const totalScore = body.prompt?.includes("100") ? 100 : 96;
     const draft: RubricDraft = {
       name: "文本生成 Rubric 初稿",
       description: "基于教师自然语言描述生成的结构化评分标准草稿。",
@@ -776,7 +1110,7 @@ export const mockFetch = async (input: RequestInfo | URL, init?: RequestInit): P
         "当前识别出的维度总分未闭合到 100 分。",
         ...(hasMissingGate ? ["未识别到明确的门禁规则定义。"] : []),
       ],
-      yaml: "rubric_id: generated-draft\ntotal_score: 98\n...",
+      yaml: `rubric_id: generated-draft\ntotal_score: ${totalScore}\n...`,
       canBind: !hasMissingGate && totalScore === 100,
     };
     return ok(draft);
@@ -793,7 +1127,7 @@ export const mockFetch = async (input: RequestInfo | URL, init?: RequestInit): P
     const body = JSON.parse((init?.body as string | undefined) ?? "{}") as { rubricId: string };
     db.taskRubricBinding[taskId] = body.rubricId;
     const rubric = db.rubrics.find((item) => item.id === body.rubricId);
-    if (rubric && rubric.status === "confirmed") {
+    if (rubric && (rubric.status === "confirmed" || rubric.status === "draft")) {
       rubric.status = "in_use";
     }
     writeDb(db);
@@ -934,7 +1268,13 @@ export const mockFetch = async (input: RequestInfo | URL, init?: RequestInit): P
 
   const studentMatch = pathname.match(/^\/api\/students\/([^/]+)$/);
   if (studentMatch && method === "GET") {
-    const detail = db.studentDetails[studentMatch[1]];
+    const studentId = decodeURIComponent(studentMatch[1]);
+    const taskId = requestUrl.searchParams.get("taskId") ?? "";
+    const fallbackId = taskId && studentId.startsWith(`${taskId}-`) ? studentId.slice(taskId.length + 1) : studentId;
+    const row = taskId
+      ? db.students[taskId]?.find((student) => student.id === studentId || student.anonymousId === studentId || student.id === fallbackId || student.anonymousId === fallbackId)
+      : undefined;
+    const detail = db.studentDetails[studentId] ?? db.studentDetails[fallbackId] ?? (row ? buildFallbackStudentDetail(row) : null);
     return detail ? ok(detail) : notFound("未找到该学生的评分详情。");
   }
 

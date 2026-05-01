@@ -1,0 +1,96 @@
+{
+  "paper_id": "2023214603_任鸿骞",
+  "student_number": "2023214603",
+  "student_name": "任鸿骞",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620001\\2023214603_任鸿骞.jpg",
+  "total_score": 71.0,
+  "section_scores": {
+    "single_choice": 14.0,
+    "true_false": 6.0,
+    "fill_blank": 8.0,
+    "short_answer": 16.0,
+    "comprehensive": 27.0
+  },
+  "question_scores": {
+    "26": 1.0,
+    "27": 5.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 7.0,
+    "31": 7.0,
+    "32": 9.0,
+    "33": 4.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 16.0,
+    "computed_comprehensive_sum": 27.0,
+    "computed_total": 71.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "单项选择区域可见“得分：14 满分：20”。",
+    "判断题区域可见“得分：6 满分：10”。",
+    "填空题区域可见“得分：8 满分：10”。",
+    "第26题区域可见“得分：1 满分：5”。",
+    "第30题区域可见“得分：7 满分：10”。",
+    "第31题区域可见“得分：7 满分：10”。",
+    "顶部汇总表中可见总分为71。",
+    "分数取自各题右上方红色“得分”标注。",
+    "已忽略红色对勾、叉号及题内局部“+1”“+2”等批注，不作为最终题目得分。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2175,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.5,
+        74.0
+      ],
+      "top_right": [
+        2157.0,
+        73.5
+      ],
+      "bottom_left": [
+        46.0,
+        3044.5
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

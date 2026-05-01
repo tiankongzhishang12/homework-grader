@@ -1,0 +1,94 @@
+{
+  "paper_id": "2023214331_陈瑜",
+  "student_number": "2023214331",
+  "student_name": "陈瑜",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214331_陈瑜.jpg",
+  "total_score": 79.0,
+  "section_scores": {
+    "single_choice": 20.0,
+    "true_false": 7.0,
+    "fill_blank": 4.0,
+    "short_answer": 16.0,
+    "comprehensive": 32.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 5.0,
+    "28": 5.0,
+    "29": 4.0,
+    "30": 8.0,
+    "31": 10.0,
+    "32": 8.0,
+    "33": 6.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 16.0,
+    "computed_comprehensive_sum": 32.0,
+    "computed_total": 79.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分顶部红笔写有“79”，汇总表右下也为79。",
+    "客观题分数分别读到：单项选择20、判断7、填空4。",
+    "第26题未见清晰大号‘得分’字样，但左侧红笔‘评分：2’可作为该题最终分数。",
+    "第30题红笔得分为8，第31题红笔得分为10。",
+    "已忽略红色对勾、叉号及局部批注标记。",
+    "仅提取每题右上方红字“得分”后的最终分数。",
+    "已忽略红色对勾、叉号及局部“+2”批注。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        73.5
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.0
+      ]
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "paper_id": "2023214430_潘志强",
+  "student_number": "2023214430",
+  "student_name": "潘志强",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214430_潘志强.jpg",
+  "total_score": 73.5,
+  "section_scores": {
+    "single_choice": 18.0,
+    "true_false": 8.0,
+    "fill_blank": 10.0,
+    "short_answer": 16.5,
+    "comprehensive": 21.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 5.0,
+    "28": 5.0,
+    "29": 4.5,
+    "30": 6.0,
+    "31": 7.0,
+    "32": 5.0,
+    "33": 3.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 16.5,
+    "computed_comprehensive_sum": 21.0,
+    "computed_total": 73.5,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分在页眉上方有红笔大字“73.5”。",
+    "选择题区右侧可见“得分：18 满分：20”。",
+    "判断题区右侧可见“得分：8 满分：10”。",
+    "填空题区右侧可见“得分：10 满分：10”。",
+    "第26题对应区域可见红笔评分为2（右侧满分5）。",
+    "第30题对应区域可见红笔评分为6。",
+    "第31题对应区域可见红笔评分为7。",
+    "提取的是题目右上角/题头处红笔最终分数。",
+    "已忽略红色对勾、叉号及局部“+2”等过程性批注。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        46.5,
+        73.5
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

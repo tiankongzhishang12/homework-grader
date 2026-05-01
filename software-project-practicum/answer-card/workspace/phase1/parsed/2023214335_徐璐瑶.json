@@ -1,0 +1,99 @@
+{
+  "paper_id": "2023214335_徐璐瑶",
+  "student_number": "2023214335",
+  "student_name": "徐璐瑶",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214335_徐璐瑶.jpg",
+  "total_score": 79.0,
+  "section_scores": {
+    "single_choice": 18.0,
+    "true_false": 7.0,
+    "fill_blank": 4.0,
+    "short_answer": 17.0,
+    "comprehensive": 30.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 5.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 9.0,
+    "31": 9.0,
+    "32": 6.0,
+    "33": 6.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 17.0,
+    "computed_comprehensive_sum": 30.0,
+    "computed_total": 76.0,
+    "missing_score_fields": [],
+    "sum_matches_total": false,
+    "issues": [
+      "section_sum_not_match_total"
+    ]
+  },
+  "notes": [
+    "总分顶部有大号红色“79”，右上汇总表中也可见合计为79。",
+    "单选题区域清晰可见“得分：18 满分：20”。",
+    "判断题区域清晰可见“得分：7 满分：10”。",
+    "填空题区域清晰可见“得分：4 满分：10”。",
+    "第30题与第31题均清晰可见“得分：9 满分：10”。",
+    "第26题右侧得分字样较淡，但左侧红字“评分：2”可作为该题最终分数依据。",
+    "第27、28、29题右上角均清晰标注“得分：5”。",
+    "第32题图中有多个局部“+2/+1”批注，但按要求不作为最终分；采用该题右上角红字“得分：6”。",
+    "第33题右上角清晰标注“得分：6”。",
+    "section_sum_not_match_total"
+  ],
+  "needs_review": true,
+  "confidence": {
+    "overall": 0.72,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2175,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        46.5,
+        73.5
+      ],
+      "top_right": [
+        2157.0,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.5
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

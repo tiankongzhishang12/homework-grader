@@ -1,0 +1,95 @@
+{
+  "paper_id": "2023214372_石程锦",
+  "student_number": "2023214372",
+  "student_name": "石程锦",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214372_石程锦.jpg",
+  "total_score": 53.0,
+  "section_scores": {
+    "single_choice": 20.0,
+    "true_false": 7.0,
+    "fill_blank": 2.0,
+    "short_answer": 9.0,
+    "comprehensive": 21.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 0.0,
+    "28": 3.0,
+    "29": 4.0,
+    "30": 5.0,
+    "31": 6.0,
+    "32": 9.0,
+    "33": 1.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 9.0,
+    "computed_comprehensive_sum": 21.0,
+    "computed_total": 59.0,
+    "missing_score_fields": [],
+    "sum_matches_total": false,
+    "issues": [
+      "section_sum_not_match_total"
+    ]
+  },
+  "notes": [
+    "顶部有红色总分“53”",
+    "客观题区域可见：单选得分20、判断得分7、填空得分2",
+    "主观题可见：第26题得分2，第30题得分5，第31题得分6",
+    "按题目区域右上角红字“得分”提取最终分数。",
+    "已忽略红色对勾、叉号及第32题中的局部“+2”等过程批注，不将其当作最终得分。",
+    "section_sum_not_match_total"
+  ],
+  "needs_review": true,
+  "confidence": {
+    "overall": 0.72,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2175,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        74.0
+      ],
+      "top_right": [
+        2157.0,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

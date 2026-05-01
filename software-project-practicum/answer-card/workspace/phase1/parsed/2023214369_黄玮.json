@@ -1,0 +1,93 @@
+{
+  "paper_id": "2023214369_黄玮",
+  "student_number": "2023214369",
+  "student_name": "黄玮",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214369_黄玮.jpg",
+  "total_score": 56.0,
+  "section_scores": {
+    "single_choice": 10.0,
+    "true_false": 5.0,
+    "fill_blank": 7.0,
+    "short_answer": 11.0,
+    "comprehensive": 23.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 1.0,
+    "28": 5.0,
+    "29": 3.0,
+    "30": 6.0,
+    "31": 8.0,
+    "32": 6.0,
+    "33": 3.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 11.0,
+    "computed_comprehensive_sum": 23.0,
+    "computed_total": 56.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分取自顶部汇总表中的“56”（同时页面上方有红笔圈出的56）",
+    "客观题得分分别为：单项选择10、判断5、填空7",
+    "主观题最终得分识别为：第26题2分、第30题6分、第31题8分",
+    "已忽略红色对勾、叉号及局部加分批注，不将其视为最终得分",
+    "分数取自各题右上方红笔“得分”标注：27=1，28=5，29=3，32=6，33=3。",
+    "已忽略红色对勾、叉号及局部“+1/+2”批注。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        74.0
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.5
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.5
+      ]
+    }
+  }
+}

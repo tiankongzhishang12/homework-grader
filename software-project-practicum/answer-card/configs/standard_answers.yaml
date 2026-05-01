@@ -1,0 +1,116 @@
+exam:
+  id: software-requirements-engineering-final-2025-2026-term1-draft
+  name: "软件需求工程课程期末答题卡标准答案（第二阶段初稿）"
+  version: 0.1
+  language: zh-CN
+  total_score: 100
+  notes:
+    - "本文件是第二阶段自动判分所需的标准答案初稿。"
+    - "单选题与填空题答案主要依据当前样卷、第一阶段识别结果和题面内容整理。"
+    - "判断题答案目前属于待教师复核版本，正式批量评分前应逐题核对。"
+    - "填空题允许别名、同义表达和常见简写。"
+
+scoring_policy:
+  objective_full_match_only: true
+  fill_blank_enable_alias_match: true
+  fill_blank_enable_case_insensitive: true
+  fill_blank_strip_spaces: true
+  fill_blank_strip_punctuation: true
+
+question_types:
+  single_choice:
+    questions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    per_question_score: 2
+    max_score: 20
+  true_false:
+    questions: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    per_question_score: 1
+    max_score: 10
+  fill_blank:
+    questions: [21, 22, 23, 24, 25]
+    per_question_score: 2
+    max_score: 10
+
+single_choice:
+  description: "单项选择题标准答案。初稿基于当前样卷中满分客观题答案整理。"
+  answers:
+    "1": "B"
+    "2": "D"
+    "3": "C"
+    "4": "C"
+    "5": "A"
+    "6": "B"
+    "7": "D"
+    "8": "A"
+    "9": "B"
+    "10": "D"
+
+true_false:
+  description: "判断题标准答案。当前为待教师确认的初稿。"
+  teacher_review_required: true
+  answers:
+    "11": "F"
+    "12": "T"
+    "13": "F"
+    "14": "T"
+    "15": "F"
+    "16": "F"
+    "17": "F"
+    "18": "T"
+    "19": "F"
+    "20": "T"
+
+fill_blank:
+  description: "填空题标准答案与可接受别名。"
+  answers:
+    "21":
+      canonical: "需求规格"
+      aliases:
+        - "软件需求规格"
+        - "需求规格说明"
+        - "软件需求规格说明"
+        - "需求规格说明书"
+        - "软件需求规格说明书"
+      reject_if_contains: []
+    "22":
+      canonical: "前向"
+      aliases:
+        - "正向"
+        - "正向跟踪"
+        - "前向跟踪"
+      reject_if_contains: []
+    "23":
+      canonical: "需求分析"
+      aliases:
+        - "软件需求分析"
+        - "需求分析阶段"
+      reject_if_contains: []
+    "24":
+      canonical: "需求规格说明"
+      aliases:
+        - "需求规格"
+        - "需求规格说明书"
+        - "软件需求规格说明"
+        - "软件需求规格说明书"
+      reject_if_contains: []
+    "25":
+      canonical: "外部实体"
+      aliases:
+        - "外部客体"
+        - "外部参与者"
+      reject_if_contains: []
+
+fill_blank_matching:
+  normalize_rules:
+    - "去除首尾空白"
+    - "去除中英文括号和句号"
+    - "中文全角半角统一"
+    - "大小写不敏感"
+  llm_fallback:
+    enabled: true
+    instruction: "仅在规则未命中时，判断学生答案是否与标准答案语义等价。若不确定，返回不等价并标记人工复核。"
+
+manual_review_triggers:
+  - "判断题答案文件仍处于 draft 状态"
+  - "填空题答案未命中 canonical 或 aliases"
+  - "学生答案包含明显 OCR 噪声或连写难以可靠切分"

@@ -1,0 +1,94 @@
+{
+  "paper_id": "2023214383_周瑛",
+  "student_number": "2023214383",
+  "student_name": "周瑛",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214383_周瑛.jpg",
+  "total_score": 78.0,
+  "section_scores": {
+    "single_choice": 20.0,
+    "true_false": 10.0,
+    "fill_blank": 7.0,
+    "short_answer": 12.0,
+    "comprehensive": 29.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 0.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 7.0,
+    "31": 6.0,
+    "32": 9.0,
+    "33": 7.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 12.0,
+    "computed_comprehensive_sum": 29.0,
+    "computed_total": 78.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "顶部汇总表显示总分78；客观题分别为单选20、判断10、填空7。",
+    "第26题左侧红字可见“评分：2”，右侧分数较淡但与之对应；第30题为7分，第31题为6分。",
+    "第27题右上角显示“得分: 0 / 满分: 5”。",
+    "第28题右上角显示“得分: 5 / 满分: 5”。",
+    "第29题右上角显示“得分: 5 / 满分: 5”。",
+    "第32题右上角显示“得分: 9 / 满分: 10”；图中局部红色“+2”批注未作为最终分数。",
+    "第33题右上角显示“得分: 7 / 满分: 10”。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        73.5
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.5
+      ],
+      "bottom_left": [
+        46.5,
+        3044.0
+      ]
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "paper_id": "2023214610_刘阳",
+  "student_number": "2023214610",
+  "student_name": "刘阳",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214610_刘阳.jpg",
+  "total_score": 68.5,
+  "section_scores": {
+    "single_choice": 18.0,
+    "true_false": 6.0,
+    "fill_blank": 6.0,
+    "short_answer": 12.0,
+    "comprehensive": 26.5
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 0.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 6.5,
+    "31": 9.0,
+    "32": 7.0,
+    "33": 4.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 12.0,
+    "computed_comprehensive_sum": 26.5,
+    "computed_total": 68.5,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分在页眉处有大号红笔“68.5”，且分数表“合计”处也为68.5。",
+    "客观题区域可见：单项选择得分18，判断题得分6，填空题得分6。",
+    "主观题区域可见：第26题得分2，第30题得分6.5，第31题得分9。",
+    "已忽略红色对勾、叉号及局部批注，不将其当作最终得分。",
+    "已按每题右上方红色“得分”读取最终分数。",
+    "已忽略红色对勾、叉号及题内局部“+1/+2”批注，不将其作为最终得分。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        46.5,
+        74.0
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_left": [
+        46.5,
+        3044.5
+      ],
+      "bottom_right": [
+        2156.5,
+        3044.0
+      ]
+    }
+  }
+}

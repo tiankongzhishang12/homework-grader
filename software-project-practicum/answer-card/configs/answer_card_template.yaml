@@ -1,0 +1,100 @@
+template:
+  width: 2199
+  height: 3110
+  dark_threshold: 72
+  edge_search_ratio: 0.16
+  border_padding: 18
+
+input:
+  scanned_dir: "../../workspace/practicum-batch/raw/软件需求答题卡扫描件"
+
+workspace:
+  phase1_dir: "../workspace/phase1"
+
+score_limits:
+  total_score: 100
+  single_choice: 20
+  true_false: 10
+  fill_blank: 10
+  q26: 5
+  q27: 5
+  q28: 5
+  q29: 5
+  q30: 10
+  q31: 10
+  q32: 10
+  q33: 10
+
+regions:
+  total_score:
+    x: 210
+    y: 0
+    w: 700
+    h: 330
+    prompt_label: "总分大数字区域"
+  single_choice_score:
+    x: 640
+    y: 470
+    w: 700
+    h: 120
+    prompt_label: "单项选择题得分区域"
+  true_false_score:
+    x: 640
+    y: 640
+    w: 700
+    h: 120
+    prompt_label: "判断题得分区域"
+  fill_blank_score:
+    x: 40
+    y: 820
+    w: 1400
+    h: 120
+    prompt_label: "填空题得分区域"
+  q26_score:
+    x: 40
+    y: 950
+    w: 1200
+    h: 100
+    prompt_label: "第26题评分栏"
+  q27_score:
+    x: 1170
+    y: 30
+    w: 1000
+    h: 90
+    prompt_label: "第27题评分栏"
+  q28_score:
+    x: 1170
+    y: 430
+    w: 1000
+    h: 90
+    prompt_label: "第28题评分栏"
+  q29_score:
+    x: 1170
+    y: 760
+    w: 1000
+    h: 90
+    prompt_label: "第29题评分栏"
+  q30_score:
+    x: 40
+    y: 1270
+    w: 1200
+    h: 100
+    prompt_label: "第30题评分栏"
+  q31_score:
+    x: 40
+    y: 1935
+    w: 1200
+    h: 100
+    prompt_label: "第31题评分栏"
+  q32_score:
+    x: 1170
+    y: 1270
+    w: 1000
+    h: 100
+    prompt_label: "第32题评分栏"
+  q33_score:
+    x: 1170
+    y: 1940
+    w: 1000
+    h: 100
+    prompt_label: "第33题评分栏"

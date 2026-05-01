@@ -10,6 +10,7 @@ export const useConfigStore = defineStore("config", {
     rubrics: [] as Rubric[],
     currentRubric: null as Rubric | null,
     generatedDraft: null as RubricDraft | null,
+    generatedDraftMeta: null as { source: "text_generated" | "rubric_copy"; copiedFromName?: string } | null,
     templates: [] as ExportTemplate[],
     currentTemplate: null as ExportTemplate | null,
     workspace: null as WorkspaceConfig | null,
@@ -60,23 +61,37 @@ export const useConfigStore = defineStore("config", {
         this.saving = false;
       }
     },
-    async generateRubric(prompt: string) {
+    async generateRubric(prompt: string, baseRubric?: Rubric | null) {
       this.saving = true;
       try {
-        this.generatedDraft = await rubricApi.generate({ prompt });
+        const normalizedPrompt = [
+          prompt,
+          /100/.test(prompt) ? "" : "总分 100 分。",
+          /门禁/.test(prompt) ? "" : "请补充明确的门禁规则。",
+        ]
+          .filter(Boolean)
+          .join("\n");
+        this.generatedDraft = await rubricApi.generate({ prompt: normalizedPrompt, baseRubricId: baseRubric?.id ?? null });
+        this.generatedDraftMeta = baseRubric
+          ? { source: "rubric_copy", copiedFromName: `${baseRubric.name} ${baseRubric.version}` }
+          : { source: "text_generated" };
       } finally {
         this.saving = false;
       }
     },
+    resetGeneratedDraft() {
+      this.generatedDraft = null;
+      this.generatedDraftMeta = null;
+    },
     async saveGeneratedRubric(taskId: string, bindable = false) {
-      if (!this.generatedDraft) return;
+      if (!this.generatedDraft) return null;
       this.saving = true;
       try {
         const created = await rubricApi.create({
           id: "",
           name: this.generatedDraft.name,
           version: "v0.1",
-          source: "text_generated",
+          source: this.generatedDraftMeta?.source ?? "text_generated",
           status: bindable ? "confirmed" : "draft",
           updatedAt: "",
           description: this.generatedDraft.description,
@@ -84,11 +99,18 @@ export const useConfigStore = defineStore("config", {
           totalScore: this.generatedDraft.totalScore,
           dimensions: this.generatedDraft.dimensions,
           yaml: this.generatedDraft.yaml,
+          createdAt: new Date().toLocaleString("zh-CN", { hour12: false }).replace(/\//g, "-"),
+          copiedFromName: this.generatedDraftMeta?.copiedFromName,
+          editCount: 0,
         });
         this.rubrics = await rubricApi.list();
         this.currentRubric = created;
-        useUiStore().pushToast("文本生成 Rubric 已保存为草稿。");
+        this.resetGeneratedDraft();
+        useUiStore().pushToast(
+          created.source === "rubric_copy" ? "已基于现有标准生成草稿副本。" : "文本生成的 Rubric 已保存为草稿。",
+        );
         await useTaskContextStore().refreshBlockers(taskId);
+        return created;
       } finally {
         this.saving = false;
       }
@@ -101,6 +123,19 @@ export const useConfigStore = defineStore("config", {
         this.rubrics = await rubricApi.list();
         useUiStore().pushToast("评分标准已绑定到当前任务。");
         await useTaskContextStore().refreshBlockers(taskId);
+      } finally {
+        this.saving = false;
+      }
+    },
+    async deleteRubricCopy(rubricId: string) {
+      this.saving = true;
+      try {
+        await rubricApi.remove(rubricId);
+        this.rubrics = await rubricApi.list();
+        if (this.currentRubric?.id === rubricId) {
+          this.currentRubric = null;
+        }
+        useUiStore().pushToast("评分标准副本已删除。");
       } finally {
         this.saving = false;
       }

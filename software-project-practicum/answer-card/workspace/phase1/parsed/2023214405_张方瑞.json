@@ -1,0 +1,93 @@
+{
+  "paper_id": "2023214405_张方瑞",
+  "student_number": "2023214405",
+  "student_name": "张方瑞",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214405_张方瑞.jpg",
+  "total_score": 74.0,
+  "section_scores": {
+    "single_choice": 16.0,
+    "true_false": 6.0,
+    "fill_blank": 6.0,
+    "short_answer": 15.0,
+    "comprehensive": 31.0
+  },
+  "question_scores": {
+    "26": 1.0,
+    "27": 5.0,
+    "28": 4.0,
+    "29": 5.0,
+    "30": 7.0,
+    "31": 10.0,
+    "32": 9.0,
+    "33": 5.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 15.0,
+    "computed_comprehensive_sum": 31.0,
+    "computed_total": 74.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "顶部红笔总分写为74，汇总表合计栏也显示74。",
+    "客观题三部分分别在各题型右侧标注为：得分16、得分6、得分6。",
+    "第26题右侧标注得分1；第30题得分7；第31题得分10。",
+    "已忽略红色对勾、叉号及局部批注，不将其视为最终得分。",
+    "提取的是各题右上角红笔“得分”数值。",
+    "已忽略红色对勾、叉号以及题内局部“+2”批注，不作为最终得分。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        73.5
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_left": [
+        46.5,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

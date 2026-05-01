@@ -1,0 +1,96 @@
+{
+  "paper_id": "2023214378_李松桃",
+  "student_number": "2023214378",
+  "student_name": "李松桃",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214378_李松桃.jpg",
+  "total_score": 61.0,
+  "section_scores": {
+    "single_choice": 16.0,
+    "true_false": 6.0,
+    "fill_blank": 2.0,
+    "short_answer": 9.5,
+    "comprehensive": 27.5
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 1.0,
+    "28": 3.0,
+    "29": 3.5,
+    "30": 6.5,
+    "31": 7.0,
+    "32": 10.0,
+    "33": 4.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 9.5,
+    "computed_comprehensive_sum": 27.5,
+    "computed_total": 61.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分可见为红笔大字“61”，顶部汇总表合计也为61",
+    "单选题区域显示“得分：16 满分：20”",
+    "判断题区域显示“得分：6 满分：10”",
+    "填空题区域显示“得分：2 满分：10”",
+    "第26题可见“评分：2”且右侧有“得分：2”",
+    "第30题可见“评分：6.5”且右侧有“得分：6.5”",
+    "第31题可见“评分：7”且右侧有“得分：7”",
+    "依据每题右上方红字“得分”提取最终分数。",
+    "已忽略红色对勾、叉号及局部“+2”批注，它们不是题目最终得分。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2175,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        74.0
+      ],
+      "top_right": [
+        2157.0,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.5
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

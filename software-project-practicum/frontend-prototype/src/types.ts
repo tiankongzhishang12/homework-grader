@@ -2,7 +2,8 @@ export type ConfigStatus = "draft" | "confirmed" | "in_use";
 export type AnswerParseStatus = "uploading" | "parsing" | "parse_failed" | ConfigStatus;
 export type WorkspaceStatus = "unchecked" | "valid" | "invalid" | "initializing";
 export type BatchStatus = "idle" | "preprocessing" | "scoring" | "aggregating" | "completed" | "failed";
-export type RubricSource = "manual" | "template_copy" | "text_generated";
+export type CourseStatus = "not_ready" | "idle" | "running" | "completed";
+export type RubricSource = "manual" | "template_copy" | "text_generated" | "rubric_copy";
 export type QualityFlag =
   | "low_confidence"
   | "traceability_gap"
@@ -44,6 +45,37 @@ export type TaskDetail = TaskSummary & {
   };
 };
 
+export type CourseClassGroup = {
+  className: string;
+  studentCount: number;
+  submittedCount: number;
+  activeTaskCount: number;
+  tasks: TaskDetail[];
+};
+
+export type TaskCourseGroup = {
+  courseName: string;
+  courseCode: string;
+  term: string;
+  status: CourseStatus;
+  recentBatchSummary: string;
+  classCount: number;
+  totalStudents: number;
+  taskCount: number;
+  readyTaskCount: number;
+  runningTaskCount: number;
+  completedTaskCount: number;
+  classes: CourseClassGroup[];
+};
+
+export type TaskClassGroup = CourseClassGroup;
+export type CourseSummary = TaskCourseGroup;
+
+export type CourseTaskGroup = {
+  taskType: string;
+  tasks: TaskDetail[];
+};
+
 export type ConfigBlocker = {
   id: string;
   title: string;
@@ -82,6 +114,10 @@ export type Rubric = {
   totalScore: number;
   dimensions: RubricDimension[];
   yaml: string;
+  createdAt?: string;
+  copiedFromName?: string;
+  lastUsedTaskName?: string;
+  editCount?: number;
 };
 
 export type RubricDraft = {

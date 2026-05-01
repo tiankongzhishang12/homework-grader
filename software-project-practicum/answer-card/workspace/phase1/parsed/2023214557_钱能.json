@@ -1,0 +1,96 @@
+{
+  "paper_id": "2023214557_钱能",
+  "student_number": "2023214557",
+  "student_name": "钱能",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620001\\2023214557_钱能.jpg",
+  "total_score": 78.5,
+  "section_scores": {
+    "single_choice": 16.0,
+    "true_false": 9.0,
+    "fill_blank": 8.0,
+    "short_answer": 12.0,
+    "comprehensive": 33.5
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 0.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 7.5,
+    "31": 10.0,
+    "32": 7.0,
+    "33": 9.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 12.0,
+    "computed_comprehensive_sum": 33.5,
+    "computed_total": 78.5,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分在页首有大号红字“78.5”，右上成绩汇总表中也可见“78.5”。",
+    "选择题区域右侧标注为“得分：16 满分：20”。",
+    "判断题区域右侧标注为“得分：9 满分：10”。",
+    "填空题区域右侧标注为“得分：8 满分：10”；题内零散“+2”等批注未计为单独最终分数。",
+    "第26题右侧标注为“得分：2 满分：5”。",
+    "第30题右侧标注为“得分：7.5 满分：10”。",
+    "第31题右侧标注为“得分：10 满分：10”。",
+    "提取的是每题区域右上角红笔“得分”数值。",
+    "已忽略红色对勾、叉号及局部“+1/+2”等批注，不将其视为最终分数。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2175,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        74.0
+      ],
+      "top_right": [
+        2157.0,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.5
+      ]
+    }
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "paper_id": "2023214375_陈志辉",
+  "student_number": "2023214375",
+  "student_name": "陈志辉",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214375_陈志辉.jpg",
+  "total_score": 58.5,
+  "section_scores": {
+    "single_choice": 8.0,
+    "true_false": 7.0,
+    "fill_blank": 5.0,
+    "short_answer": 14.0,
+    "comprehensive": 24.5
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 2.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 5.5,
+    "31": 6.0,
+    "32": 9.0,
+    "33": 4.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 14.0,
+    "computed_comprehensive_sum": 24.5,
+    "computed_total": 58.5,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分顶部红笔写有“58.5”，且汇总表合计处也可见58.5。",
+    "客观题各部分可见：单选8，判断7，填空5。",
+    "第26题右侧题区可见“得分：2 满分：5”；忽略了红色叉号与局部批注。",
+    "第30题可见“得分：5.5 满分：10”；第31题可见“得分：6 满分：10”。",
+    "第27题右上角清晰显示“得分：2”。",
+    "第28题右上角清晰显示“得分：5”。",
+    "第29题右上角清晰显示“得分：5”。",
+    "第32题右上角清晰显示“得分：9”；图中局部“+2”“+1”是批注，不是最终总分。",
+    "第33题右上角清晰显示“得分：4”。",
+    "已忽略红色对勾、叉号等符号，仅提取题目最终得分。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        73.5
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.5
+      ]
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "paper_id": "2023214407_李锦阳",
+  "student_number": "2023214407",
+  "student_name": "李锦阳",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620001\\2023214407_李锦阳.jpg",
+  "total_score": 63.0,
+  "section_scores": {
+    "single_choice": 18.0,
+    "true_false": 8.0,
+    "fill_blank": 4.0,
+    "short_answer": 11.0,
+    "comprehensive": 22.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 1.0,
+    "28": 5.0,
+    "29": 3.0,
+    "30": 7.0,
+    "31": 6.0,
+    "32": 6.0,
+    "33": 3.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 11.0,
+    "computed_comprehensive_sum": 22.0,
+    "computed_total": 63.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分处有明显红笔“63”。",
+    "客观题区域可见：单项选择18，判断题8，填空题4。",
+    "主观题可见：第26题2分，第30题7分，第31题6分。",
+    "已忽略红色对勾、叉号及零散批注，不将其作为最终得分。",
+    "提取的是各题右上角红笔“得分”数值。",
+    "已忽略红色对勾、叉号及题内局部“+2”“+1”等批注，不作为最终得分。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2175,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        73.5
+      ],
+      "top_right": [
+        2157.0,
+        74.0
+      ],
+      "bottom_left": [
+        46.5,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

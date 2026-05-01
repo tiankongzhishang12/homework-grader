@@ -1,0 +1,99 @@
+{
+  "paper_id": "2023214423_吴俊逸",
+  "student_number": "2023214423",
+  "student_name": "吴俊逸",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214423_吴俊逸.jpg",
+  "total_score": 61.0,
+  "section_scores": {
+    "single_choice": 12.0,
+    "true_false": 5.0,
+    "fill_blank": 3.0,
+    "short_answer": 12.0,
+    "comprehensive": 29.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 0.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 9.0,
+    "31": 9.0,
+    "32": 6.0,
+    "33": 5.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 12.0,
+    "computed_comprehensive_sum": 29.0,
+    "computed_total": 61.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分顶部有红笔大字“61”，且上方汇总表合计得分也为61。",
+    "单项选择题区域标注“得分：12 满分：20”。",
+    "判断题区域标注“得分：5 满分：10”。",
+    "填空题区域标注“得分：3 满分：10”。",
+    "第26题区域标注“得分：2 满分：5”。",
+    "第30题区域标注“得分：9 满分：10”。",
+    "第31题区域标注“得分：9 满分：10”。",
+    "第27题右上角清晰可见“得分：0”。",
+    "第28题右上角清晰可见“得分：5”。",
+    "第29题右上角清晰可见“得分：5”。",
+    "第32题右上角清晰可见“得分：6”，图中局部“+2”仅为批注，不作为最终得分。",
+    "第33题右上角清晰可见“得分：5”。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        74.0
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.0
+      ]
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "paper_id": "2023214424_李秋睿",
+  "student_number": "2023214424",
+  "student_name": "李秋睿",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214424_李秋睿.jpg",
+  "total_score": 68.0,
+  "section_scores": {
+    "single_choice": 18.0,
+    "true_false": 6.0,
+    "fill_blank": 5.0,
+    "short_answer": 11.0,
+    "comprehensive": 28.0
+  },
+  "question_scores": {
+    "26": 1.0,
+    "27": 0.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 9.0,
+    "31": 7.0,
+    "32": 6.0,
+    "33": 6.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 11.0,
+    "computed_comprehensive_sum": 28.0,
+    "computed_total": 68.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分处可见红笔大字“68”，汇总表合计也为68。",
+    "客观题分项可见：单项选择18分、判断题6分、填空题5分。",
+    "主观题可见：第26题1分、第30题9分、第31题7分。",
+    "已忽略红色对勾、叉号及局部批注，不将其视为最终得分。",
+    "题27右上角可见最终得分“得分: 0”，红叉不是分数。",
+    "题28可见最终得分“得分: 5”。",
+    "题29可见最终得分“得分: 5”，文中多个红色勾画不是最终分数。",
+    "题32可见最终得分“得分: 6”，图中局部“+2”“+1”等批注未作为最终分数。",
+    "题33可见最终得分“得分: 6”，红叉不是分数。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        73.5
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_left": [
+        46.5,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.0
+      ]
+    }
+  }
+}

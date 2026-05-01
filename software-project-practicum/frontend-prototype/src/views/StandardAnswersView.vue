@@ -1,111 +1,132 @@
 <template>
   <section class="view" v-if="taskStore.currentTask">
-    <div class="hero-card">
+    <div class="hero-card hero-card--dense">
       <div>
-        <div class="eyebrow">标准答案设置</div>
-        <h2 class="hero-card__title">支持导入标准答案文件，并在激活前完成解析预览</h2>
+        <div class="eyebrow">标准答案</div>
+        <h2 class="hero-card__title">上传后先解析，再手动激活为当前版本</h2>
         <p class="hero-card__text">
-          标准答案不是一段静态说明，而是任务配置中的正式对象。新文件上传后会先进入解析流程，只有老师手动激活后才会替换当前使用版本。
+          标准答案是任务配置中的正式对象。新文件上传后先进入解析流程，只有老师手动激活后才会替换当前使用版本。
         </p>
       </div>
-      <div class="hero-card__meta">
+      <div class="hero-card__meta hero-card__meta--summary">
         <span class="pill pill--good">{{ taskStore.currentTask.taskName }}</span>
-        <span class="pill">{{ currentVersionLabel }}</span>
+        <span class="pill">{{ currentAnswer ? currentAnswer.version : "暂无版本" }}</span>
+        <span class="pill" :class="currentAnswer ? parseStatusTone(currentAnswer.parseStatus) : 'pill--warn'">
+          {{ currentAnswer ? parseStatusLabel(currentAnswer.parseStatus) : "待上传" }}
+        </span>
       </div>
     </div>
 
-    <div class="content-grid content-grid--two">
+    <div class="config-subpage-grid">
       <section class="panel">
-        <div class="panel__header">
+        <div class="panel__header panel__header--stack">
           <div>
-            <h3>当前使用版本</h3>
-            <p class="panel__description">已开始阅卷的任务不会自动切换到新版本，必须由教师手动激活。</p>
+            <h3>当前生效版本</h3>
+            <p class="panel__description">正在被当前任务使用的标准答案版本。</p>
           </div>
           <button class="action-button" :disabled="configStore.saving" @click="triggerUpload">
-            {{ configStore.saving ? "处理中..." : "上传标准答案文件" }}
+            {{ configStore.saving ? "处理中..." : "上传标准答案" }}
           </button>
           <input ref="fileInput" class="hidden-input" type="file" accept=".doc,.docx,.pdf" @change="onFileChange" />
         </div>
 
-        <div v-if="currentAnswer" class="detail-blocks">
-          <article class="detail-block">
-            <h4>版本信息</h4>
-            <div class="form-mock">
-              <div class="form-mock__row"><span>版本号</span><strong>{{ currentAnswer.version }}</strong></div>
-              <div class="form-mock__row"><span>文件名</span><strong>{{ currentAnswer.fileName }}</strong></div>
-              <div class="form-mock__row"><span>上传时间</span><strong>{{ currentAnswer.uploadedAt }}</strong></div>
-              <div class="form-mock__row"><span>最近激活</span><strong>{{ currentAnswer.activatedAt ?? "尚未激活" }}</strong></div>
-            </div>
+        <div v-if="currentAnswer" class="config-summary-stack">
+          <article class="detail-block detail-block--highlight">
+            <h4>{{ currentAnswer.fileName }}</h4>
+            <p>{{ currentAnswer.version }} · 上传于 {{ currentAnswer.uploadedAt }}</p>
           </article>
-          <article class="detail-block">
-            <h4>解析结果</h4>
-            <div class="form-mock">
-              <div class="form-mock__row"><span>解析状态</span><strong>{{ parseStatusLabel(currentAnswer.parseStatus) }}</strong></div>
-              <div class="form-mock__row"><span>题目/条目数</span><strong>{{ currentAnswer.itemCount }}</strong></div>
-              <div class="form-mock__row"><span>配置状态</span><strong>{{ configStatusLabel(currentAnswer.status) }}</strong></div>
+
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span>解析状态</span>
+              <strong>{{ parseStatusLabel(currentAnswer.parseStatus) }}</strong>
             </div>
-          </article>
+            <div class="summary-item">
+              <span>配置状态</span>
+              <strong>{{ configStatusLabel(currentAnswer.status) }}</strong>
+            </div>
+            <div class="summary-item">
+              <span>条目数</span>
+              <strong>{{ currentAnswer.itemCount }}</strong>
+            </div>
+            <div class="summary-item">
+              <span>最近激活</span>
+              <strong>{{ currentAnswer.activatedAt ?? "尚未激活" }}</strong>
+            </div>
+          </div>
+
+          <div v-if="currentAnswer.parseMessage" class="inline-alert inline-alert--warn">
+            {{ currentAnswer.parseMessage }}
+          </div>
         </div>
+
+        <div v-else class="empty-state">当前任务尚未上传任何标准答案版本。</div>
       </section>
 
-      <section class="panel">
+      <aside class="panel config-side-panel">
         <div class="panel__header">
-          <h3>操作说明</h3>
+          <h3>操作规则</h3>
         </div>
         <ul class="detail-list">
           <li>支持上传 `.doc`、`.docx`、`.pdf` 标准答案文件。</li>
-          <li>新文件默认先进入草稿或解析失败状态，不会自动替换当前版本。</li>
-          <li>若文件名包含 `fail`，演示环境会模拟解析失败，用于验证异常状态展示。</li>
+          <li>新文件默认进入解析流程，不会自动覆盖当前版本。</li>
+          <li>解析失败的版本不能直接激活，需要重新上传或修复后再试。</li>
         </ul>
-      </section>
+      </aside>
     </div>
 
     <section class="panel">
       <div class="panel__header">
-        <h3>版本历史</h3>
+        <div>
+          <h3>版本历史</h3>
+          <p class="panel__description">查看历史版本并决定是否切换为当前使用版本。</p>
+        </div>
         <button class="action-button action-button--ghost" :disabled="refreshing" @click="reloadAnswers">
-          {{ refreshing ? "刷新中..." : "查看历史版本" }}
+          {{ refreshing ? "刷新中..." : "刷新版本列表" }}
         </button>
       </div>
 
-      <div class="table-shell">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>版本</th>
-              <th>文件名</th>
-              <th>上传时间</th>
-              <th>解析状态</th>
-              <th>配置状态</th>
-              <th>条目数</th>
-              <th>当前版本</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in configStore.answers" :key="item.id">
-              <td>{{ item.version }}</td>
-              <td>{{ item.fileName }}</td>
-              <td>{{ item.uploadedAt }}</td>
-              <td>{{ parseStatusLabel(item.parseStatus) }}</td>
-              <td>{{ configStatusLabel(item.status) }}</td>
-              <td>{{ item.itemCount }}</td>
-              <td>{{ item.current ? "是" : "否" }}</td>
-              <td>
-                <div class="tag-row">
-                  <span class="tag">预览解析结果</span>
-                  <button class="tag-button" :disabled="item.current || item.status === 'parse_failed' || configStore.saving" @click="activate(item.id)">
-                    设为当前版本
-                  </button>
-                </div>
-                <div v-if="item.status === 'parse_failed'" class="inline-alert inline-alert--risk">
-                  {{ item.parseMessage ?? "解析失败，请重试。" }}
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-if="configStore.answers.length > 0" class="config-card-stack">
+        <article v-for="item in configStore.answers" :key="item.id" class="config-record-card">
+          <div class="config-record-card__top">
+            <div>
+              <div class="rubric-card__title">{{ item.fileName }}</div>
+              <div class="rubric-card__meta">{{ item.version }} · 上传于 {{ item.uploadedAt }}</div>
+            </div>
+            <div class="tag-row">
+              <span class="status-badge" :class="parseStatusTone(item.parseStatus)">{{ parseStatusLabel(item.parseStatus) }}</span>
+              <span class="status-badge" :class="configStatusTone(item.status)">{{ configStatusLabel(item.status) }}</span>
+              <span v-if="item.current" class="tag tag--good">当前版本</span>
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span>条目数</span>
+              <strong>{{ item.itemCount }}</strong>
+            </div>
+            <div class="summary-item">
+              <span>最近激活</span>
+              <strong>{{ item.activatedAt ?? "尚未激活" }}</strong>
+            </div>
+          </div>
+
+          <div v-if="item.parseMessage" class="inline-alert inline-alert--risk">
+            {{ item.parseMessage }}
+          </div>
+
+          <div class="toolbar__actions">
+            <button
+              class="action-button"
+              :disabled="item.current || item.status === 'parse_failed' || configStore.saving"
+              @click="activate(item.id)"
+            >
+              {{ item.current ? "当前使用中" : "设为当前版本" }}
+            </button>
+          </div>
+        </article>
       </div>
+      <div v-else class="empty-state">暂无历史版本。</div>
     </section>
   </section>
 </template>
@@ -131,22 +152,39 @@ watch(
 );
 
 const currentAnswer = computed(() => configStore.answers.find((item) => item.current) ?? configStore.answers[0] ?? null);
-const currentVersionLabel = computed(() => (currentAnswer.value ? `当前版本：${currentAnswer.value.version}` : "当前暂无版本"));
 
 const parseStatusLabel = (status: string) => {
   const map: Record<string, string> = {
     uploading: "上传中",
     parsing: "解析中",
     parse_failed: "解析失败",
-    draft: "解析成功（草稿）",
+    draft: "已解析（草稿）",
     confirmed: "已确认",
     in_use: "使用中",
   };
   return map[status] ?? status;
 };
+
 const configStatusLabel = (status: string) => {
-  const map: Record<string, string> = { draft: "草稿", confirmed: "已确认", in_use: "使用中", parse_failed: "解析失败" };
+  const map: Record<string, string> = {
+    draft: "草稿",
+    confirmed: "已确认",
+    in_use: "使用中",
+    parse_failed: "解析失败",
+  };
   return map[status] ?? status;
+};
+
+const parseStatusTone = (status: string) => {
+  if (status === "in_use" || status === "confirmed") return "status-badge--good";
+  if (status === "parse_failed") return "status-badge--risk";
+  return "status-badge--warn";
+};
+
+const configStatusTone = (status: string) => {
+  if (status === "in_use" || status === "confirmed") return "status-badge--good";
+  if (status === "parse_failed") return "status-badge--risk";
+  return "status-badge--warn";
 };
 
 const triggerUpload = () => fileInput.value?.click();

@@ -1,0 +1,97 @@
+{
+  "paper_id": "2023213643_胡旭东",
+  "student_number": "2023213643",
+  "student_name": "胡旭东",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023213643_胡旭东.jpg",
+  "total_score": 67.0,
+  "section_scores": {
+    "single_choice": 16.0,
+    "true_false": 7.0,
+    "fill_blank": 8.0,
+    "short_answer": 12.0,
+    "comprehensive": 24.0
+  },
+  "question_scores": {
+    "26": 2.0,
+    "27": 0.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 7.0,
+    "31": 9.0,
+    "32": 6.0,
+    "33": 2.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 12.0,
+    "computed_comprehensive_sum": 24.0,
+    "computed_total": 67.0,
+    "missing_score_fields": [],
+    "sum_matches_total": true,
+    "issues": []
+  },
+  "notes": [
+    "总分读到为67（顶部汇总表/大红字）",
+    "客观题分项读到：单选16、判断7、填空8",
+    "主观题读到：第26题2分、第30题7分、第31题9分",
+    "已忽略红色对勾、叉号和局部加分批注",
+    "题27右上角可见“得分：0 满分：5”。",
+    "题28右上角可见“得分：5 满分：5”。",
+    "题29右上角可见“得分：5 满分：5”。",
+    "题32右上角可见“得分：6 满分：10”；图中局部“+2”批注未当作最终得分。",
+    "题33右上角可见“得分：2 满分：10”。",
+    "已忽略红色对勾、叉号等判题标记。"
+  ],
+  "needs_review": false,
+  "confidence": {
+    "overall": 0.98,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      56,
+      2175,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        47.0,
+        74.0
+      ],
+      "top_right": [
+        2157.0,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.0
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.5
+      ]
+    }
+  }
+}

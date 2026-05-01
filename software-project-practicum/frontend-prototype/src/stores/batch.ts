@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { batchApi, exportApi, resultApi } from "../api/services";
+import { ApiError } from "../api/client";
 import type { AnalysisSummary, BatchLog, BatchProgress, ExportRecord, StudentDetail, StudentRow } from "../types";
 import { useTaskContextStore } from "./task-context";
 import { useUiStore } from "./ui";
@@ -67,8 +68,12 @@ export const useBatchStore = defineStore("batch", {
     },
     async loadStudent(studentId: string, taskId: string) {
       this.loading = true;
+      this.currentStudent = null;
       try {
         this.currentStudent = await resultApi.student(studentId, taskId);
+      } catch (error) {
+        const message = error instanceof ApiError ? error.message : "未能加载学生评分详情。";
+        useUiStore().pushToast(message, "risk");
       } finally {
         this.loading = false;
       }
@@ -81,7 +86,7 @@ export const useBatchStore = defineStore("batch", {
       try {
         const record = await exportApi.start(taskId);
         this.exports = [record, ...this.exports];
-        useUiStore().pushToast("Excel 导出已生成并写入导出历史。");
+        useUiStore().pushToast("Excel 导出已生成，并写入导出历史。");
       } finally {
         this.loading = false;
       }

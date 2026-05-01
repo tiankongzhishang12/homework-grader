@@ -1,0 +1,95 @@
+{
+  "paper_id": "2023214391_李朝阳",
+  "student_number": "2023214391",
+  "student_name": "李朝阳",
+  "source_image": "D:\\grade code\\homework-grader\\software-project-practicum\\workspace\\practicum-batch\\raw\\软件需求答题卡扫描件\\A13251A2130620002\\2023214391_李朝阳.jpg",
+  "total_score": 64.0,
+  "section_scores": {
+    "single_choice": 14.0,
+    "true_false": 7.0,
+    "fill_blank": 2.0,
+    "short_answer": 10.0,
+    "comprehensive": 29.0
+  },
+  "question_scores": {
+    "26": 0.0,
+    "27": 0.0,
+    "28": 5.0,
+    "29": 5.0,
+    "30": 9.0,
+    "31": 8.0,
+    "32": 7.0,
+    "33": 5.0
+  },
+  "checks": {
+    "total_score_present": true,
+    "single_choice_score_present": true,
+    "true_false_score_present": true,
+    "fill_blank_score_present": true,
+    "q26_score_present": true,
+    "q27_score_present": true,
+    "q28_score_present": true,
+    "q29_score_present": true,
+    "q30_score_present": true,
+    "q31_score_present": true,
+    "q32_score_present": true,
+    "q33_score_present": true,
+    "computed_short_answer_sum": 10.0,
+    "computed_comprehensive_sum": 29.0,
+    "computed_total": 62.0,
+    "missing_score_fields": [],
+    "sum_matches_total": false,
+    "issues": [
+      "section_sum_not_match_total"
+    ]
+  },
+  "notes": [
+    "页首红笔总分为64。",
+    "客观题分区可见：单选14，判断7，填空2。",
+    "主观题分区可见：第26题0分，第30题9分，第31题8分。",
+    "各题最终分数取自对应题目区域右上方红笔“得分”标注。",
+    "已忽略红色对勾、叉号及局部“+2”样式批注。",
+    "section_sum_not_match_total"
+  ],
+  "needs_review": true,
+  "confidence": {
+    "overall": 0.72,
+    "total_score": 0.98,
+    "question_scores": 0.9
+  },
+  "normalization": {
+    "source_size": [
+      2199,
+      3110
+    ],
+    "normalized_size": [
+      2199,
+      3110
+    ],
+    "crop_bbox": [
+      28,
+      55,
+      2174,
+      3062
+    ],
+    "corners_found": true,
+    "corners": {
+      "top_left": [
+        46.5,
+        73.5
+      ],
+      "top_right": [
+        2156.5,
+        74.0
+      ],
+      "bottom_left": [
+        46.0,
+        3044.5
+      ],
+      "bottom_right": [
+        2156.0,
+        3044.5
+      ]
+    }
+  }
+}

@@ -3,7 +3,7 @@
     <article class="auth-card">
       <div class="eyebrow">教师登录</div>
       <h1 class="auth-card__title">软件项目基础实践智能阅卷系统</h1>
-      <p class="auth-card__text">首发版本面向教师单端，支持任务配置、自动阅卷、结果分析与 Excel 导出。</p>
+      <p class="auth-card__text">当前版本面向教师端，支持任务配置、自动阅卷、结果分析和 Excel 导出。</p>
 
       <form class="auth-form" @submit.prevent="submit">
         <label class="field">
