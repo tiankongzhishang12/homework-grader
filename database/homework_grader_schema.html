@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智能阅卷系统数据库结构 v2</title>
+  <style>
+    :root {
+      --bg: #f4f7f3;
+      --card: #ffffff;
+      --ink: #1b2430;
+      --muted: #64748b;
+      --line: #93a39a;
+      --org: #245f73;
+      --teach: #4b7f52;
+      --assess: #b76e27;
+      --pipe: #6c5a8f;
+      --grade: #a6403f;
+      --shadow: 0 18px 45px rgba(33, 42, 35, .14);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(36, 95, 115, .12), transparent 28%),
+        radial-gradient(circle at 90% 8%, rgba(183, 110, 39, .16), transparent 24%),
+        linear-gradient(135deg, #f8faf5 0%, #eef5f0 44%, #f7efe6 100%);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 24px;
+      border-bottom: 1px solid rgba(148, 163, 184, .35);
+      background: rgba(255, 255, 255, .86);
+      backdrop-filter: blur(16px);
+    }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -.4px; }
+    .subtitle { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    button {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      border-radius: 999px;
+      padding: 8px 13px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button:hover { background: #f8fafc; }
+    button.active { color: #fff; background: #1f2937; border-color: #1f2937; }
+    main { padding: 22px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .stat {
+      background: rgba(255,255,255,.84);
+      border: 1px solid rgba(203, 213, 225, .72);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, .06);
+    }
+    .stat b { display: block; font-size: 26px; margin-bottom: 4px; }
+    .stat span { color: var(--muted); font-size: 13px; }
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .side {
+      position: sticky;
+      top: 94px;
+      background: rgba(255,255,255,.9);
+      border: 1px solid rgba(203, 213, 225, .8);
+      border-radius: 24px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .side h2 { margin: 0 0 10px; font-size: 16px; }
+    .domain-list { display: grid; gap: 8px; }
+    .domain-btn {
+      width: 100%;
+      text-align: left;
+      border-radius: 15px;
+      padding: 11px 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+    .domain-btn small { color: var(--muted); }
+    .domain-btn.active small { color: rgba(255,255,255,.78); }
+    .note {
+      margin-top: 14px;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.75;
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 11px;
+    }
+    .canvas {
+      min-height: 680px;
+      border: 1px solid rgba(203, 213, 225, .75);
+      border-radius: 28px;
+      background:
+        linear-gradient(rgba(148, 163, 184, .12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, .12) 1px, transparent 1px),
+        rgba(255,255,255,.62);
+      background-size: 28px 28px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    .domain {
+      display: none;
+      animation: rise .22s ease-out;
+    }
+    .domain.active { display: block; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .domain-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .domain-head h2 { margin: 0; font-size: 22px; }
+    .domain-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .tables {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 14px;
+    }
+    .table-card {
+      overflow: hidden;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px solid rgba(203, 213, 225, .9);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, .09);
+    }
+    .table-title {
+      color: #fff;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .org .table-title { background: var(--org); }
+    .teach .table-title { background: var(--teach); }
+    .assess .table-title { background: var(--assess); }
+    .pipe .table-title { background: var(--pipe); }
+    .grade .table-title { background: var(--grade); }
+    .table-title b { display: block; font-size: 15px; }
+    .table-title small { display: block; opacity: .86; margin-top: 2px; }
+    .detail-btn {
+      border-color: rgba(255,255,255,.52);
+      color: #fff;
+      background: rgba(255,255,255,.16);
+      padding: 5px 9px;
+      font-size: 12px;
+      flex: 0 0 auto;
+    }
+    .detail-btn:hover { background: rgba(255,255,255,.26); }
+    .field-list { list-style: none; margin: 0; padding: 8px 0; }
+    .field-list li {
+      display: flex;
+      gap: 7px;
+      align-items: baseline;
+      padding: 5px 13px;
+      border-bottom: 1px dashed #edf2f7;
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.45;
+    }
+    .field-list li:last-child { border-bottom: none; }
+    code {
+      font-family: "Cascadia Mono", Consolas, monospace;
+      color: #111827;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 1px 5px;
+    }
+    .badge {
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .pk { color: #92400e; background: #fef3c7; }
+    .fk { color: #1d4ed8; background: #dbeafe; }
+    .uk { color: #047857; background: #d1fae5; }
+    .rel-box {
+      margin-top: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.86);
+      border: 1px solid rgba(203, 213, 225, .78);
+      padding: 14px;
+    }
+    .rel-box h3 { margin: 0 0 9px; font-size: 15px; }
+    .rel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 8px;
+    }
+    .rel {
+      color: #475569;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 13px;
+      padding: 9px 10px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    dialog {
+      width: min(980px, 94vw);
+      max-height: 86vh;
+      border: 0;
+      border-radius: 26px;
+      padding: 0;
+      box-shadow: 0 30px 90px rgba(15, 23, 42, .32);
+      overflow: hidden;
+    }
+    dialog::backdrop { background: rgba(15, 23, 42, .42); backdrop-filter: blur(3px); }
+    .modal-head {
+      color: #fff;
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .modal-head h2 { margin: 0; font-size: 22px; }
+    .modal-head p { margin: 5px 0 0; font-size: 12px; opacity: .9; }
+    .modal-body { padding: 18px 20px 22px; overflow: auto; max-height: 68vh; }
+    .attr-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      overflow: hidden;
+      font-size: 12px;
+    }
+    .attr-table th {
+      background: #f1f5f9;
+      color: #334155;
+      text-align: left;
+      padding: 9px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .attr-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #edf2f7;
+      color: #475569;
+      vertical-align: top;
+      line-height: 1.55;
+    }
+    .attr-table tr:last-child td { border-bottom: none; }
+    .close-btn {
+      color: #fff;
+      border-color: rgba(255,255,255,.55);
+      background: rgba(255,255,255,.16);
+    }
+    .org-bg { background: var(--org); }
+    .teach-bg { background: var(--teach); }
+    .assess-bg { background: var(--assess); }
+    .pipe-bg { background: var(--pipe); }
+    .grade-bg { background: var(--grade); }
+    @media (max-width: 980px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layout { grid-template-columns: 1fr; }
+      .side { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>智能阅卷系统数据库结构 v2</h1>
+      <p class="subtitle">基于当前 MySQL 数据库生成：23 张中文业务表说明，按业务域查看字段、主外键和核心关系。</p>
+    </div>
+    <div class="toolbar">
+      <button class="active" data-target="org">组织人员域</button>
+      <button data-target="teach">课程教学域</button>
+      <button data-target="assess">考核定义域</button>
+      <button data-target="pipe">提交处理域</button>
+      <button data-target="grade">评分成绩域</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stats">
+      <div class="stat"><b>23</b><span>当前业务表总数</span></div>
+      <div class="stat"><b>37</b><span>已建立外键约束</span></div>
+      <div class="stat"><b>5</b><span>业务域分组</span></div>
+      <div class="stat"><b>v2</b><span>组织结构统一为 organization_unit</span></div>
+    </section>
+
+    <section class="layout">
+      <aside class="side">
+        <h2>查看方式</h2>
+        <div class="domain-list" id="domainNav"></div>
+        <div class="note">
+          当前结构没有再创建旧版学校表、学院表、专业表、班级表四张表，而是统一放入组织结构节点表。
+        </div>
+      </aside>
+      <section class="canvas" id="canvas"></section>
+    </section>
+  </main>
+
+  <dialog id="detailDialog"></dialog>
+
+  <script>
+    const domains = {
+      org: {
+        name: '组织人员域',
+        cls: 'org',
+        desc: '学校、学院、专业、行政班级统一由 organization_unit 承载；教师、学生分别关联组织节点。',
+        tables: ['organization_unit', 'teacher', 'student']
+      },
+      teach: {
+        name: '课程教学域',
+        cls: 'teach',
+        desc: '课程、开课、教学班，以及开课教师和教学班学生关系。',
+        tables: ['course', 'course_offering', 'teaching_class', 'course_offering_teacher', 'teaching_class_student']
+      },
+      assess: {
+        name: '考核定义域',
+        cls: 'assess',
+        desc: '定义一次考核、考核模板、题目、Rubric、标准答案和答题卡区域布局。',
+        tables: ['assessment', 'assessment_template', 'question_definition', 'rubric_definition', 'standard_answer', 'answer_card_layout']
+      },
+      pipe: {
+        name: '提交处理域',
+        cls: 'pipe',
+        desc: '记录学生提交、提交文件、内容抽取任务和抽取结果，是评分流水线的输入层。',
+        tables: ['submission', 'submission_asset', 'extraction_run', 'extraction_result']
+      },
+      grade: {
+        name: '评分成绩域',
+        cls: 'grade',
+        desc: '记录自动评分任务、分项结果、最终确认结果、课程总评和成绩发布记录。',
+        tables: ['grading_run', 'score_item_result', 'final_result', 'course_grade', 'grade_publish_record']
+      }
+    };
+
+    const tables = {
+      organization_unit: {
+        zh: '组织结构节点表',
+        domain: 'org',
+        purpose: '统一表示学校、学院、专业、行政班级。',
+        fields: [
+          ['组织节点编号','BIGINT','NO','PK','组织节点主键'],
+          ['父节点编号','BIGINT','YES','FK','父节点，学校节点为空'],
+          ['组织编码','VARCHAR(50)','NO','UK','同父节点下组织编码唯一'],
+          ['组织名称','VARCHAR(100)','NO','','组织名称'],
+          ['组织类型','VARCHAR(30)','NO','','学校/学院/专业/行政班级'],
+          ['所属年级','INT','YES','','班级所属年级，仅行政班级使用'],
+          ['排序号','INT','NO','','排序号'],
+          ['状态','TINYINT','NO','','1 启用，0 停用'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间'],
+          ['父节点唯一键','BIGINT','YES','UK','生成列，解决根节点唯一约束中的空值问题']
+        ],
+        constraints: ['uk_org_parent_code(parent_key, unit_code)', 'fk_org_parent(parent_id) -> organization_unit(id)', 'CHECK unit_type in SCHOOL/COLLEGE/MAJOR/CLASS', 'CHECK CLASS 必须有 grade_year，非 CLASS 必须为空']
+      },
+      teacher: {
+        zh: '教师表',
+        domain: 'org',
+        purpose: '记录教师基础信息和主归属组织。',
+        fields: [
+          ['教师编号','BIGINT','NO','PK','教师主键'],
+          ['主归属组织编号','BIGINT','NO','FK','教师主归属单位'],
+          ['教师工号','VARCHAR(50)','NO','UK','教师工号'],
+          ['教师姓名','VARCHAR(50)','NO','','教师姓名'],
+          ['电话','VARCHAR(30)','YES','','电话'],
+          ['邮箱','VARCHAR(100)','YES','','邮箱'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_teacher_no(teacher_no)', 'fk_teacher_org(org_unit_id) -> organization_unit(id)']
+      },
+      student: {
+        zh: '学生表',
+        domain: 'org',
+        purpose: '记录学生基础信息和当前行政班级。',
+        fields: [
+          ['学生编号','BIGINT','NO','PK','学生主键'],
+          ['行政班级组织编号','BIGINT','NO','FK','当前行政班级，指向组织结构节点表中的行政班级节点'],
+          ['学号','VARCHAR(50)','NO','UK','学号'],
+          ['学生姓名','VARCHAR(50)','NO','','学生姓名'],
+          ['性别','VARCHAR(10)','YES','','性别'],
+          ['入学年份','INT','NO','','入学年份'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_student_no(student_no)', 'fk_student_class_org(class_org_id) -> organization_unit(id)']
+      },
+      course: {
+        zh: '课程表',
+        domain: 'teach',
+        purpose: '课程基础资源，不代表某学期开课。',
+        fields: [
+          ['课程编号','BIGINT','NO','PK','课程主键'],
+          ['课程编码','VARCHAR(50)','NO','UK','课程编码'],
+          ['课程名称','VARCHAR(100)','NO','','课程名称'],
+          ['学分','DECIMAL(4,1)','YES','','学分'],
+          ['课程类型','VARCHAR(50)','YES','','课程类型'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_course_code(course_code)']
+      },
+      course_offering: {
+        zh: '开课表',
+        domain: 'teach',
+        purpose: '表示一门课程在某学年学期由某组织单位开设。',
+        fields: [
+          ['开课编号','BIGINT','NO','PK','开课主键'],
+          ['课程编号','BIGINT','NO','FK','课程'],
+          ['开课单位组织编号','BIGINT','NO','FK','开课单位'],
+          ['学年','VARCHAR(20)','NO','','学年'],
+          ['学期','VARCHAR(20)','NO','','学期'],
+          ['开课名称','VARCHAR(100)','NO','','开课名称'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_course_offering(course_id, org_unit_id, academic_year, term, offering_name)', 'fk_course_offering_course(course_id) -> course(id)', 'fk_course_offering_org(org_unit_id) -> organization_unit(id)']
+      },
+      teaching_class: {
+        zh: '教学班表',
+        domain: 'teach',
+        purpose: '某次开课下的教学分组，不等于行政班级。',
+        fields: [
+          ['教学班编号','BIGINT','NO','PK','教学班主键'],
+          ['开课编号','BIGINT','NO','FK','所属开课'],
+          ['教学班编码','VARCHAR(50)','NO','UK','教学班编码'],
+          ['教学班名称','VARCHAR(100)','NO','','教学班名称'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_teaching_class(course_offering_id, class_code)', 'fk_teaching_class_offering(course_offering_id) -> course_offering(id)']
+      },
+      course_offering_teacher: {
+        zh: '开课教师关联表',
+        domain: 'teach',
+        purpose: '开课与教师的多对多关系。',
+        fields: [
+          ['关联编号','BIGINT','NO','PK','关联主键'],
+          ['开课编号','BIGINT','NO','FK','开课'],
+          ['教师编号','BIGINT','NO','FK','教师'],
+          ['教师角色','VARCHAR(30)','NO','UK','教师角色'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_offering_teacher_role(course_offering_id, teacher_id, role)', 'fk_offering_teacher_offering(course_offering_id) -> course_offering(id)', 'fk_offering_teacher_teacher(teacher_id) -> teacher(id)']
+      },
+      teaching_class_student: {
+        zh: '教学班学生关联表',
+        domain: 'teach',
+        purpose: '教学班与学生的多对多关系。',
+        fields: [
+          ['关联编号','BIGINT','NO','PK','关联主键'],
+          ['教学班编号','BIGINT','NO','FK','教学班'],
+          ['学生编号','BIGINT','NO','FK','学生'],
+          ['加入状态','VARCHAR(30)','NO','','加入状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_teaching_class_student(teaching_class_id, student_id)', 'fk_teaching_class_student_class(teaching_class_id) -> teaching_class(id)', 'fk_teaching_class_student_student(student_id) -> student(id)']
+      },
+      assessment: {
+        zh: '考核任务表',
+        domain: 'assess',
+        purpose: '一次作业、试卷、报告等考核任务。',
+        fields: [
+          ['考核编号','BIGINT','NO','PK','考核主键'],
+          ['开课编号','BIGINT','NO','FK','所属开课'],
+          ['考核标题','VARCHAR(200)','NO','UK','考核标题'],
+          ['考核类型','VARCHAR(30)','NO','','考核类型'],
+          ['提交形式','VARCHAR(30)','NO','','提交形式'],
+          ['评分方式','VARCHAR(30)','NO','','评分方式'],
+          ['总分','DECIMAL(6,2)','NO','','总分'],
+          ['权重','DECIMAL(5,2)','YES','','权重'],
+          ['截止时间','DATETIME','YES','','截止时间'],
+          ['是否允许重交','TINYINT','NO','','是否允许重交'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_assessment_title(course_offering_id, title)', 'fk_assessment_offering(course_offering_id) -> course_offering(id)']
+      },
+      assessment_template: {
+        zh: '考核模板表',
+        domain: 'assess',
+        purpose: '一次考核的题目/Rubric/答题卡模板版本。',
+        fields: [
+          ['模板编号','BIGINT','NO','PK','模板主键'],
+          ['考核编号','BIGINT','NO','FK','考核任务'],
+          ['模板名称','VARCHAR(100)','NO','','模板名称'],
+          ['模板类型','VARCHAR(30)','NO','','模板类型'],
+          ['版本号','INT','NO','UK','版本号'],
+          ['模板总分','DECIMAL(6,2)','NO','','模板总分'],
+          ['是否启用','TINYINT','NO','','是否启用'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_assessment_template_version(assessment_id, version_no)', 'fk_assessment_template_assessment(assessment_id) -> assessment(id)']
+      },
+      question_definition: {
+        zh: '题目定义表',
+        domain: 'assess',
+        purpose: '模板下的题目结构和评分规则。',
+        fields: [
+          ['题目编号','BIGINT','NO','PK','题目主键'],
+          ['模板编号','BIGINT','NO','FK','考核模板'],
+          ['题号','VARCHAR(20)','NO','UK','题号'],
+          ['题型','VARCHAR(30)','NO','','题型'],
+          ['分区名称','VARCHAR(100)','YES','','分区名称'],
+          ['满分','DECIMAL(6,2)','NO','','满分'],
+          ['评分规则','TEXT','YES','','评分规则'],
+          ['排序号','INT','NO','','排序号'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_question_definition_no(template_id, question_no)', 'fk_question_definition_template(template_id) -> assessment_template(id)']
+      },
+      rubric_definition: {
+        zh: 'Rubric 评分标准表',
+        domain: 'assess',
+        purpose: '模板下的维度化评分标准。',
+        fields: [
+          ['评分项编号','BIGINT','NO','PK','Rubric 主键'],
+          ['模板编号','BIGINT','NO','FK','考核模板'],
+          ['评分项编码','VARCHAR(50)','NO','UK','评分项编码'],
+          ['评分项名称','VARCHAR(100)','NO','','评分项名称'],
+          ['满分','DECIMAL(6,2)','NO','','满分'],
+          ['评分项描述','TEXT','YES','','评分项描述'],
+          ['扣分规则','TEXT','YES','','扣分规则'],
+          ['排序号','INT','NO','','排序号'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_rubric_definition_code(template_id, rubric_code)', 'fk_rubric_definition_template(template_id) -> assessment_template(id)']
+      },
+      standard_answer: {
+        zh: '标准答案表',
+        domain: 'assess',
+        purpose: '题目对应的标准答案文本或结构化答案。',
+        fields: [
+          ['标准答案编号','BIGINT','NO','PK','标准答案主键'],
+          ['题目编号','BIGINT','NO','FK','题目定义'],
+          ['答案文本','TEXT','YES','','答案文本'],
+          ['结构化答案','JSON','YES','','结构化答案'],
+          ['版本号','INT','NO','','版本号'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['fk_standard_answer_question(question_definition_id) -> question_definition(id)']
+      },
+      answer_card_layout: {
+        zh: '答题卡布局表',
+        domain: 'assess',
+        purpose: '记录答题卡题区、分数区等图像区域。',
+        fields: [
+          ['布局编号','BIGINT','NO','PK','布局主键'],
+          ['模板编号','BIGINT','NO','FK','考核模板'],
+          ['题目编号','BIGINT','YES','FK','题目定义，可为空'],
+          ['页码','INT','NO','','页码'],
+          ['区域类型','VARCHAR(30)','NO','','区域类型'],
+          ['横坐标','INT','NO','','左上角横坐标'],
+          ['纵坐标','INT','NO','','左上角纵坐标'],
+          ['宽度','INT','NO','','宽度'],
+          ['高度','INT','NO','','高度'],
+          ['批注横坐标','INT','YES','','批注横坐标'],
+          ['批注纵坐标','INT','YES','','批注纵坐标'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['fk_answer_card_layout_template(template_id) -> assessment_template(id)', 'fk_answer_card_layout_question(question_definition_id) -> question_definition(id)']
+      },
+      submission: {
+        zh: '学生提交表',
+        domain: 'pipe',
+        purpose: '某学生对某考核的一次提交。',
+        fields: [
+          ['提交编号','BIGINT','NO','PK','提交主键'],
+          ['考核编号','BIGINT','NO','FK','考核任务'],
+          ['学生编号','BIGINT','NO','FK','学生'],
+          ['提交次数','INT','NO','UK','提交次数'],
+          ['提交状态','VARCHAR(30)','NO','','提交状态'],
+          ['提交时间','DATETIME','YES','','提交时间'],
+          ['是否迟交','TINYINT','NO','','是否迟交'],
+          ['来源平台','VARCHAR(50)','YES','','来源平台'],
+          ['来源提交编号','VARCHAR(100)','YES','','来源提交编号'],
+          ['状态','TINYINT','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_submission_attempt(assessment_id, student_id, attempt_no)', 'fk_submission_assessment(assessment_id) -> assessment(id)', 'fk_submission_student(student_id) -> student(id)']
+      },
+      submission_asset: {
+        zh: '提交资源表',
+        domain: 'pipe',
+        purpose: '一次提交下的原始文件、转换文件或结果文件。',
+        fields: [
+          ['资源编号','BIGINT','NO','PK','资源主键'],
+          ['提交编号','BIGINT','NO','FK','学生提交'],
+          ['资源类型','VARCHAR(30)','NO','UK','资源类型'],
+          ['文件媒体类型','VARCHAR(100)','YES','','文件媒体类型'],
+          ['文件名','VARCHAR(255)','NO','','文件名'],
+          ['文件扩展名','VARCHAR(20)','YES','','扩展名'],
+          ['文件路径','VARCHAR(500)','NO','','存储路径'],
+          ['文件哈希','VARCHAR(128)','YES','','文件哈希'],
+          ['文件大小','BIGINT','YES','','文件大小'],
+          ['页数','INT','YES','','页数'],
+          ['来源资源编号','BIGINT','YES','FK','来源资源'],
+          ['版本号','INT','NO','UK','版本号'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_submission_asset_version(submission_id, asset_type, version_no)', 'fk_submission_asset_submission(submission_id) -> submission(id)', 'fk_submission_asset_source(source_asset_id) -> submission_asset(id)']
+      },
+      extraction_run: {
+        zh: '内容抽取任务表',
+        domain: 'pipe',
+        purpose: '记录 OCR、文档解析、模型抽取等处理任务。',
+        fields: [
+          ['抽取任务编号','BIGINT','NO','PK','抽取任务主键'],
+          ['提交编号','BIGINT','NO','FK','学生提交'],
+          ['抽取器类型','VARCHAR(30)','NO','','抽取器类型'],
+          ['抽取器名称','VARCHAR(100)','NO','','抽取器名称'],
+          ['模型名称','VARCHAR(100)','YES','','模型名称'],
+          ['提示词版本','VARCHAR(50)','YES','','提示词版本'],
+          ['任务状态','VARCHAR(30)','NO','','任务状态'],
+          ['结果资源编号','BIGINT','YES','FK','结果资源'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['fk_extraction_run_submission(submission_id) -> submission(id)', 'fk_extraction_run_asset(result_asset_id) -> submission_asset(id)']
+      },
+      extraction_result: {
+        zh: '内容抽取结果表',
+        domain: 'pipe',
+        purpose: '保存抽取后的摘要文本和结构化内容。',
+        fields: [
+          ['抽取结果编号','BIGINT','NO','PK','抽取结果主键'],
+          ['抽取任务编号','BIGINT','NO','FK','抽取任务'],
+          ['结果类型','VARCHAR(30)','NO','','结果类型'],
+          ['摘要文本','TEXT','YES','','摘要文本'],
+          ['结构化内容','JSON','YES','','结构化内容'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['fk_extraction_result_run(extraction_run_id) -> extraction_run(id)']
+      },
+      grading_run: {
+        zh: '评分任务表',
+        domain: 'grade',
+        purpose: '记录一次自动评分或人工评分运行。',
+        fields: [
+          ['评分任务编号','BIGINT','NO','PK','评分任务主键'],
+          ['提交编号','BIGINT','NO','FK','学生提交'],
+          ['抽取任务编号','BIGINT','YES','FK','内容抽取任务'],
+          ['运行类型','VARCHAR(30)','NO','','运行类型'],
+          ['评分模式','VARCHAR(30)','NO','','评分模式'],
+          ['模型名称','VARCHAR(100)','YES','','模型名称'],
+          ['评分标准版本','VARCHAR(50)','YES','','评分标准版本'],
+          ['总分','DECIMAL(6,2)','YES','','总分'],
+          ['置信度','DECIMAL(5,4)','YES','','置信度'],
+          ['状态','VARCHAR(30)','NO','','状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['fk_grading_run_submission(submission_id) -> submission(id)', 'fk_grading_run_extraction(extraction_run_id) -> extraction_run(id)']
+      },
+      score_item_result: {
+        zh: '分项评分结果表',
+        domain: 'grade',
+        purpose: '题目级或 Rubric 维度级评分明细。',
+        fields: [
+          ['分项结果编号','BIGINT','NO','PK','分项结果主键'],
+          ['评分任务编号','BIGINT','NO','FK','评分任务'],
+          ['评分项目类型','VARCHAR(20)','NO','','项目类型'],
+          ['题目编号','BIGINT','YES','FK','题目定义'],
+          ['评分项编号','BIGINT','YES','FK','Rubric 定义'],
+          ['得分','DECIMAL(6,2)','NO','','得分'],
+          ['满分','DECIMAL(6,2)','NO','','满分'],
+          ['是否正确','TINYINT','YES','','是否正确'],
+          ['是否需要复核','TINYINT','NO','','是否需要复核'],
+          ['置信度','DECIMAL(5,4)','YES','','置信度'],
+          ['评分证据文本','TEXT','YES','','评分证据文本'],
+          ['评分证据结构化数据','JSON','YES','','评分证据结构化数据'],
+          ['评语','TEXT','YES','','评语'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['fk_score_item_result_run(grading_run_id) -> grading_run(id)', 'fk_score_item_result_question(question_definition_id) -> question_definition(id)', 'fk_score_item_result_rubric(rubric_definition_id) -> rubric_definition(id)']
+      },
+      final_result: {
+        zh: '最终结果表',
+        domain: 'grade',
+        purpose: '一次提交最终采用的成绩和复核状态。',
+        fields: [
+          ['最终结果编号','BIGINT','NO','PK','最终结果主键'],
+          ['提交编号','BIGINT','NO','UK/FK','学生提交，唯一'],
+          ['采用评分任务编号','BIGINT','YES','FK','被采纳的评分任务'],
+          ['最终分数','DECIMAL(6,2)','NO','','最终分数'],
+          ['成绩来源','VARCHAR(30)','NO','','成绩来源'],
+          ['复核状态','VARCHAR(30)','NO','','复核状态'],
+          ['确认教师编号','BIGINT','YES','FK','确认教师'],
+          ['确认时间','DATETIME','YES','','确认时间'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_final_result_submission(submission_id)', 'fk_final_result_submission(submission_id) -> submission(id)', 'fk_final_result_grading_run(selected_grading_run_id) -> grading_run(id)', 'fk_final_result_teacher(confirmed_by_teacher_id) -> teacher(id)']
+      },
+      course_grade: {
+        zh: '课程总评表',
+        domain: 'grade',
+        purpose: '课程维度的学生最终成绩汇总。',
+        fields: [
+          ['课程总评编号','BIGINT','NO','PK','课程总评主键'],
+          ['开课编号','BIGINT','NO','UK/FK','开课'],
+          ['学生编号','BIGINT','NO','UK/FK','学生'],
+          ['平时成绩','DECIMAL(6,2)','YES','','平时成绩'],
+          ['考试成绩','DECIMAL(6,2)','YES','','考试成绩'],
+          ['总评成绩','DECIMAL(6,2)','NO','','总评成绩'],
+          ['成绩等级','VARCHAR(20)','YES','','等级'],
+          ['是否最终确认','TINYINT','NO','','是否最终确认'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['uk_course_grade_student(course_offering_id, student_id)', 'fk_course_grade_offering(course_offering_id) -> course_offering(id)', 'fk_course_grade_student(student_id) -> student(id)']
+      },
+      grade_publish_record: {
+        zh: '成绩发布记录表',
+        domain: 'grade',
+        purpose: '记录成绩发布范围、发布人、发布时间和状态。',
+        fields: [
+          ['发布记录编号','BIGINT','NO','PK','发布记录主键'],
+          ['考核编号','BIGINT','YES','FK','考核任务'],
+          ['开课编号','BIGINT','YES','FK','开课'],
+          ['发布范围','VARCHAR(30)','NO','','发布范围'],
+          ['发布教师编号','BIGINT','NO','FK','发布教师'],
+          ['发布时间','DATETIME','NO','','发布时间'],
+          ['发布状态','VARCHAR(30)','NO','','发布状态'],
+          ['创建时间','DATETIME','NO','','创建时间'],
+          ['更新时间','DATETIME','NO','','更新时间']
+        ],
+        constraints: ['fk_grade_publish_assessment(assessment_id) -> assessment(id)', 'fk_grade_publish_offering(course_offering_id) -> course_offering(id)', 'fk_grade_publish_teacher(published_by_teacher_id) -> teacher(id)']
+      }
+    };
+
+    const relations = [
+      ['organization_unit','organization_unit','父子树结构'],
+      ['organization_unit','teacher','主归属单位'],
+      ['organization_unit','student','当前行政班级'],
+      ['organization_unit','course_offering','开课单位'],
+      ['course','course_offering','课程开课'],
+      ['course_offering','teaching_class','开课下教学班'],
+      ['course_offering','course_offering_teacher','开课教师'],
+      ['teacher','course_offering_teacher','教师参与开课'],
+      ['teaching_class','teaching_class_student','教学班学生'],
+      ['student','teaching_class_student','学生加入教学班'],
+      ['course_offering','assessment','开课下考核'],
+      ['assessment','assessment_template','考核模板版本'],
+      ['assessment_template','question_definition','题目定义'],
+      ['assessment_template','rubric_definition','Rubric 定义'],
+      ['question_definition','standard_answer','标准答案'],
+      ['assessment_template','answer_card_layout','答题卡布局'],
+      ['question_definition','answer_card_layout','题目区域'],
+      ['assessment','submission','考核提交'],
+      ['student','submission','学生提交'],
+      ['submission','submission_asset','提交资源'],
+      ['submission_asset','submission_asset','资源派生'],
+      ['submission','extraction_run','内容抽取'],
+      ['submission_asset','extraction_run','抽取结果资源'],
+      ['extraction_run','extraction_result','抽取结果'],
+      ['submission','grading_run','评分任务'],
+      ['extraction_run','grading_run','基于抽取评分'],
+      ['grading_run','score_item_result','分项结果'],
+      ['question_definition','score_item_result','题目得分'],
+      ['rubric_definition','score_item_result','Rubric 得分'],
+      ['submission','final_result','最终结果'],
+      ['grading_run','final_result','采用评分任务'],
+      ['teacher','final_result','教师确认'],
+      ['course_offering','course_grade','课程成绩'],
+      ['student','course_grade','学生课程成绩'],
+      ['assessment','grade_publish_record','考核成绩发布'],
+      ['course_offering','grade_publish_record','课程成绩发布'],
+      ['teacher','grade_publish_record','发布教师']
+    ];
+
+    const nav = document.getElementById('domainNav');
+    const canvas = document.getElementById('canvas');
+    const dialog = document.getElementById('detailDialog');
+
+    const zhTerms = {
+      organization_unit: '组织结构节点表',
+      course_offering_teacher: '开课教师关联表',
+      teaching_class_student: '教学班学生关联表',
+      assessment_template: '考核模板表',
+      question_definition: '题目定义表',
+      rubric_definition: 'Rubric评分标准表',
+      answer_card_layout: '答题卡布局表',
+      submission_asset: '提交资源表',
+      extraction_result: '内容抽取结果表',
+      extraction_run: '内容抽取任务表',
+      score_item_result: '分项评分结果表',
+      grade_publish_record: '成绩发布记录表',
+      teaching_class: '教学班表',
+      course_offering: '开课表',
+      standard_answer: '标准答案表',
+      final_result: '最终结果表',
+      course_grade: '课程总评表',
+      grading_run: '评分任务表',
+      assessment: '考核任务表',
+      submission: '学生提交表',
+      teacher: '教师表',
+      student: '学生表',
+      course: '课程表',
+      parent_key: '父节点唯一键',
+      parent_id: '父节点编号',
+      org_unit_id: '组织节点编号',
+      class_org_id: '行政班级组织编号',
+      course_id: '课程编号',
+      course_offering_id: '开课编号',
+      teaching_class_id: '教学班编号',
+      teacher_id: '教师编号',
+      student_id: '学生编号',
+      assessment_id: '考核编号',
+      template_id: '模板编号',
+      question_definition_id: '题目编号',
+      rubric_definition_id: '评分项编号',
+      submission_id: '提交编号',
+      source_asset_id: '来源资源编号',
+      result_asset_id: '结果资源编号',
+      extraction_run_id: '抽取任务编号',
+      grading_run_id: '评分任务编号',
+      selected_grading_run_id: '采用评分任务编号',
+      confirmed_by_teacher_id: '确认教师编号',
+      published_by_teacher_id: '发布教师编号',
+      unit_code: '组织编码',
+      unit_type: '组织类型',
+      grade_year: '所属年级',
+      teacher_no: '教师工号',
+      student_no: '学号',
+      course_code: '课程编码',
+      class_code: '教学班编码',
+      role: '教师角色',
+      title: '考核标题',
+      version_no: '版本号',
+      question_no: '题号',
+      rubric_code: '评分项编码',
+      asset_type: '资源类型',
+      attempt_no: '提交次数'
+    };
+
+    function localizeText(text) {
+      let output = String(text);
+      Object.keys(zhTerms).forEach(key => {
+        output = output.replaceAll(key, zhTerms[key]);
+      });
+      return output
+        .replaceAll('CHECK', '检查约束')
+        .replaceAll('NULL', '空值')
+        .replaceAll('CLASS', '行政班级')
+        .replaceAll('SCHOOL', '学校')
+        .replaceAll('COLLEGE', '学院')
+        .replaceAll('MAJOR', '专业')
+        .replaceAll('fk_', '外键：')
+        .replaceAll('uk_', '唯一约束：');
+    }
+
+    function badge(key) {
+      if (!key) return '';
+      return key.split('/').map(k => `<span class="badge ${k.toLowerCase()}">${k}</span>`).join('');
+    }
+
+    function fieldItem(field) {
+      return `<li>${badge(field[3])}<code>${field[0]}</code><span>${field[1]} · ${field[4] || '字段'}</span></li>`;
+    }
+
+    function tableCard(name) {
+      const t = tables[name];
+      const cls = domains[t.domain].cls;
+      const important = t.fields.filter(f => f[3]).concat(t.fields.filter(f => !f[3])).slice(0, 7);
+      return `
+        <article class="table-card ${cls}">
+          <div class="table-title">
+            <div><b>${t.zh}</b><small>${t.purpose}</small></div>
+            <button class="detail-btn" onclick="showDetail('${name}')">详情</button>
+          </div>
+          <ul class="field-list">${important.map(fieldItem).join('')}</ul>
+        </article>
+      `;
+    }
+
+    function domainRelations(domainKey) {
+      const names = new Set(domains[domainKey].tables);
+      return relations
+        .filter(r => names.has(r[0]) || names.has(r[1]))
+        .map(r => `<div class="rel"><code>${tables[r[0]].zh}</code> → <code>${tables[r[1]].zh}</code><br>${r[2]}</div>`)
+        .join('');
+    }
+
+    function render(domainKey) {
+      const d = domains[domainKey];
+      canvas.innerHTML = `
+        <section class="domain active">
+          <div class="domain-head">
+            <div>
+              <h2>${d.name}</h2>
+              <p>${d.desc}</p>
+            </div>
+            <span class="pill">${d.tables.length} 张表</span>
+          </div>
+          <div class="tables">${d.tables.map(tableCard).join('')}</div>
+          <section class="rel-box">
+            <h3>相关关系</h3>
+            <div class="rel-grid">${domainRelations(domainKey)}</div>
+          </section>
+        </section>
+      `;
+      document.querySelectorAll('[data-target]').forEach(btn => btn.classList.toggle('active', btn.dataset.target === domainKey));
+      document.querySelectorAll('.domain-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.target === domainKey));
+    }
+
+    function showDetail(name) {
+      const t = tables[name];
+      const cls = domains[t.domain].cls;
+      const rows = t.fields.map(f => `
+        <tr>
+          <td><code>${f[0]}</code></td>
+          <td>${f[1]}</td>
+          <td>${f[2]}</td>
+          <td>${badge(f[3]) || '—'}</td>
+          <td>${f[4] || '—'}</td>
+        </tr>
+      `).join('');
+      const rels = relations
+        .filter(r => r[0] === name || r[1] === name)
+        .map(r => `<div class="rel"><code>${tables[r[0]].zh}</code> → <code>${tables[r[1]].zh}</code><br>${r[2]}</div>`)
+        .join('') || '<div class="rel">无直接外键关系</div>';
+      dialog.innerHTML = `
+        <div class="modal-head ${cls}-bg">
+          <div>
+            <h2>${t.zh}</h2>
+            <p>${t.zh} ｜ ${domains[t.domain].name} ｜ ${t.purpose}</p>
+          </div>
+          <button class="close-btn" onclick="detailDialog.close()">关闭</button>
+        </div>
+        <div class="modal-body">
+          <table class="attr-table">
+            <thead>
+              <tr><th>字段</th><th>类型</th><th>允许空</th><th>键</th><th>说明</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <section class="rel-box">
+            <h3>表级约束</h3>
+            <div class="rel-grid">${t.constraints.map(c => `<div class="rel">${localizeText(c)}</div>`).join('')}</div>
+          </section>
+          <section class="rel-box">
+            <h3>直接关系</h3>
+            <div class="rel-grid">${rels}</div>
+          </section>
+        </div>
+      `;
+      dialog.showModal();
+    }
+
+    Object.entries(domains).forEach(([key, d]) => {
+      const btn = document.createElement('button');
+      btn.className = 'domain-btn';
+      btn.dataset.target = key;
+      btn.innerHTML = `<span>${d.name}</span><small>${d.tables.length} 张表</small>`;
+      btn.onclick = () => render(key);
+      nav.appendChild(btn);
+    });
+
+    document.querySelectorAll('header [data-target]').forEach(btn => {
+      btn.onclick = () => render(btn.dataset.target);
+    });
+
+    render('org');
+  </script>
+</body>
+</html>

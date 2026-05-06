@@ -1,18 +1,19 @@
 package com.homeworkgrader.config;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "grader")
 public class GraderProperties {
-    private Path workspaceRoot;
+    private String workspaceRoot;
     private Python python = new Python();
 
     public Path getWorkspaceRoot() {
-        return workspaceRoot;
+        return Paths.get(workspaceRoot);
     }
 
-    public void setWorkspaceRoot(Path workspaceRoot) {
+    public void setWorkspaceRoot(String workspaceRoot) {
         this.workspaceRoot = workspaceRoot;
     }
 
@@ -26,7 +27,7 @@ public class GraderProperties {
 
     public static class Python {
         private String executable;
-        private Path workingDirectory;
+        private String workingDirectory;
         private String preprocessScript;
         private String gradingScript;
         private String exportScript;
@@ -40,10 +41,10 @@ public class GraderProperties {
         }
 
         public Path getWorkingDirectory() {
-            return workingDirectory;
+            return Paths.get(workingDirectory);
         }
 
-        public void setWorkingDirectory(Path workingDirectory) {
+        public void setWorkingDirectory(String workingDirectory) {
             this.workingDirectory = workingDirectory;
         }
 

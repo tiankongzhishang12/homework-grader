@@ -40,8 +40,17 @@ const error = ref("");
 
 const submit = async () => {
   error.value = "";
+  if (!username.value.trim()) {
+    error.value = "请输入账号。";
+    return;
+  }
+  if (!password.value) {
+    error.value = "请输入密码。";
+    return;
+  }
+
   try {
-    await authStore.login(username.value, password.value);
+    await authStore.login(username.value.trim(), password.value);
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/tasks";
     await router.push(redirect);
   } catch (err) {

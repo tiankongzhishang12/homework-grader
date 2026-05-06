@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { setUnauthorizedHandler } from "./api/client";
 import { pinia } from "./stores/pinia";
 import { useAuthStore } from "./stores/auth";
 import AppShell from "./views/AppShell.vue";
@@ -44,6 +45,14 @@ const router = createRouter({
       ],
     },
   ],
+});
+
+setUnauthorizedHandler(() => {
+  const authStore = useAuthStore(pinia);
+  authStore.clearSession();
+  if (router.currentRoute.value.name !== "login") {
+    void router.push({ name: "login", query: { redirect: router.currentRoute.value.fullPath } });
+  }
 });
 
 router.beforeEach(async (to) => {

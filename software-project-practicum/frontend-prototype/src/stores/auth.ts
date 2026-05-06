@@ -13,6 +13,10 @@ export const useAuthStore = defineStore("auth", {
     isAuthenticated: (state) => Boolean(state.user),
   },
   actions: {
+    clearSession() {
+      this.user = null;
+      this.initialized = true;
+    },
     async restoreSession() {
       if (this.initialized) return;
       this.loading = true;
