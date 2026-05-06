@@ -1,3 +1,62 @@
 _ssh/
 sshkey/
 _python313/
+
+# Local secrets and environment files
+.env
+.env.*
+*.local
+*.pem
+*.key
+*.p12
+*.jks
+
+# Local Python and Node environments
+.venv/
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build outputs
+target/
+dist/
+*.class
+*.jar
+*.war
+
+# Browser/test/runtime temporary files
+.tmp-chrome-profile/
+*.dmp
+*.pid
+*.job
+*.log
+
+# Local database files and data dumps.
+# Keep schema/design files such as database/*schema*.sql and *.html trackable.
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*dump*.sql
+*seed*.sql
+*data*.sql
+database/**/data/
+database/**/exports/
+database/**/backups/
+
+# Grading workspaces may contain student submissions, mappings, reports, and scores.
+workspace/**
+!workspace/**/
+!workspace/**/.gitkeep
+software-project-practicum/workspace/**
+!software-project-practicum/workspace/**/
+!software-project-practicum/workspace/**/.gitkeep
+software-project-practicum/answer-card/workspace/**
+!software-project-practicum/answer-card/workspace/**/
+!software-project-practicum/answer-card/workspace/**/.gitkeep
+
+# Office temporary files
+~$*
