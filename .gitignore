@@ -49,14 +49,8 @@ database/**/backups/
 
 # Grading workspaces may contain student submissions, mappings, reports, and scores.
 workspace/**
-!workspace/**/
-!workspace/**/.gitkeep
 software-project-practicum/workspace/**
-!software-project-practicum/workspace/**/
-!software-project-practicum/workspace/**/.gitkeep
 software-project-practicum/answer-card/workspace/**
-!software-project-practicum/answer-card/workspace/**/
-!software-project-practicum/answer-card/workspace/**/.gitkeep
 
 # Office temporary files
 ~$*
