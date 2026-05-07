@@ -71,6 +71,17 @@ Base path: `/api`
 - `PUT /final-results/{id}/adjust`
 - `POST /assessments/{id}/grades/publish`
 
+Assessment grading start/progress is the real backend main-flow path. `POST /api/assessments/{id}/grading/start` now returns a progress object with:
+
+- `assessmentId`
+- `status`
+- `message`
+- `scriptResult`
+- `startedAt`
+- `updatedAt`
+
+`GET /api/assessments/{id}/grading/progress` returns the same shape. Current progress state is kept in memory by `GradingWorkflowService`; later production hardening should persist grading progress to database-backed run records.
+
 ## ExportController
 
 Base path: `/api`
@@ -104,6 +115,8 @@ These APIs adapt backend or mock-like data for the Vue prototype:
 - `GET /analytics`
 - `POST /batch/export`
 - `GET /exports`
+
+`/api/batch/*` remains a frontend prototype adapter path. Do not treat it as the real grading main flow; new backend work should target `/api/assessments/{id}/grading/*`.
 
 ## Frontend Client Mismatch Watch
 

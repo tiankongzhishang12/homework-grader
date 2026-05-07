@@ -305,10 +305,11 @@
 - Service：`GradingWorkflowService.start`
 - 调度：`PythonScriptClient.runPreprocess()`、`PythonScriptClient.runGrading()`
 
-建议主线：
+当前主线：
 
 - `{id}` 是 `assessmentId`。
-- 返回标准化进度对象，至少包含 `assessmentId`、`status`、`message`、`scriptResult` 或 run summary。
+- 返回标准化进度对象，包含 `assessmentId`、`status`、`message`、`scriptResult`、`startedAt`、`updatedAt`。
+- `start` 会先写入 `QUEUED` 状态并异步提交阅卷任务，避免继续依赖 `/api/batch/start` 原型接口。
 - 暂时不做复杂权限。
 
 ### 8. 查询 grading progress
@@ -318,10 +319,11 @@
 - `GET /api/assessments/{id}/grading/progress`
 - Controller：`GradingController.progress`
 
-建议主线：
+当前主线：
 
 - 保持当前路径。
-- 后续可把内存进度落库到 `grading_run` 或新增状态记录，但本方案不改 schema。
+- 返回字段与 start 保持一致：`assessmentId`、`status`、`message`、`scriptResult`、`startedAt`、`updatedAt`。
+- 当前仍使用 `GradingWorkflowService` 内存 Map 保存进度，后续应迁移为数据库持久化，例如落到 `grading_run` 或独立运行状态记录；本阶段不改 schema。
 - `/api/batch/progress?taskId=...` 不作为主线。
 
 ### 9. 查询 score_item_result
@@ -439,7 +441,8 @@
 现状：
 
 - 前端 `POST /api/batch/start` 使用 `{ taskId }`。
-- 后端核心 `POST /api/assessments/{id}/grading/start` 使用 `assessmentId`。
+- 后端核心 `POST /api/assessments/{id}/grading/start` 使用 `assessmentId`，并已稳定返回 `assessmentId`、`status`、`message`、`scriptResult`、`startedAt`、`updatedAt`。
+- 后端核心 `GET /api/assessments/{id}/grading/progress` 返回同形状进度对象。
 - `FrontendViewController` 的 `/api/batch/*` 是 demo 聚合接口。
 
 策略：
@@ -448,6 +451,7 @@
 2. Phase 1 不删除 `/api/batch/*`。
 3. Phase 2 前端改为调用 assessment grading API。
 4. Phase 3 如需兼容旧前端，可让 `/api/batch/start` 内部只做参数转换并转发到核心 service，但标注 deprecated。
+5. 后续生产化应将当前内存进度迁移到数据库持久化，避免后端重启后丢失运行状态。
 
 ### P0-3 `final_result` 前端接入
 
@@ -493,7 +497,7 @@
 1. 标准答案核心接口已补齐；下一步稳定其联调用例和错误返回。
 2. 稳定 assessment/template/question/rubric 创建顺序和返回结构。
 3. 稳定 submission 上传与 asset 下载。
-4. 稳定 `/api/assessments/{id}/grading/start` 和 progress 返回结构。
+4. 稳定 `/api/assessments/{id}/grading/start` 和 progress 返回结构。已完成基础稳定：返回 `assessmentId`、`status`、`message`、`scriptResult`、`startedAt`、`updatedAt`，当前仍以内存 Map 保存进度。
 5. 确认 `final_result` 查询、确认、调整、发布接口可用，并尽量补齐 `confirmed_at`。
 6. 稳定真实导出和 latest report 下载。
 
@@ -553,7 +557,7 @@
 | 优先级 | 任务 | 推荐阶段 | 说明 |
 | --- | --- | --- | --- |
 | P0 | 补标准答案核心接口 | Phase 1 | 已补齐真实核心接口；后续需前端迁移和联调。 |
-| P0 | 统一阅卷启动和进度主线到 `/api/assessments/{id}/grading/*` | Phase 1 | 阻塞后端主流程闭环。 |
+| P0 | 统一阅卷启动和进度主线到 `/api/assessments/{id}/grading/*` | Phase 1 | 已稳定基础返回结构；后续需数据库持久化运行状态。 |
 | P0 | 稳定 final results 查询、confirm、adjust、publish | Phase 1 | 阻塞教师复核和可审计成绩闭环。 |
 | P0 | 稳定 assessment export 和 latest report download | Phase 1 | 阻塞真实导出闭环。 |
 | P1 | 前端新增真实 assessment/grading/finalResult/export API client | Phase 2 | 阻塞前后端联调。 |
@@ -590,18 +594,18 @@
 
 ## 推荐优先修复的第一个后端任务
 
-“标准答案核心接口补齐”已完成，下一步优先做后端主流程阅卷接口稳定。
+“标准答案核心接口补齐”已完成，后端主流程阅卷 start/progress 基础返回结构也已稳定。下一步优先做 final result 复核审计补强。
 
 理由：
 
 - 标准答案接口已经可以串起 `assessment_template -> question_definition -> standard_answer -> grading`。
-- 当前下一个后端 P0 是稳定 `/api/assessments/{id}/grading/start` 与 `/api/assessments/{id}/grading/progress` 的真实返回结构。
-- 这样可以让后端在不依赖 `/api/batch/*` 的情况下跑通真实阅卷主流程。
+- 当前下一个后端 P0 是补强 `final_result` 确认/调整/发布的审计闭环，尤其是 `confirm` 设置 `confirmed_at`。
+- start/progress 仍需要后续数据库持久化，但基础接口形状已经可供前端联调。
 
 建议第一个任务范围：
 
-- 规范 grading start/progress 返回结构
-- 保持使用 `GradingWorkflowService`
-- 保持 `PythonScriptClient` 和 `grader.python.*`
+- 修复 `confirm` 未设置 `confirmed_at`
+- 梳理 `final_result` 调整原因和教师身份字段
+- 保持 final result 与 raw grading run 区分
 - 不改 SQL schema
 - 不动 Python 脚本
