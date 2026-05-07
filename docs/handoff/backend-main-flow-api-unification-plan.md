@@ -261,19 +261,19 @@
 
 ### 5. 创建或导入 standard_answer
 
-当前缺口：
+当前状态：
 
 - schema 有 `standard_answer`。
 - `CrudJdbcRepository` allowlist 有 `standard_answer`。
-- 但 Controller 没有创建、上传或查询单个标准答案版本的真实核心接口。
+- 后端已补齐按 `question_definition` 维护 `standard_answer` 的真实核心接口。
 
-建议新增核心接口：
+当前核心接口：
 
 - `POST /api/questions/{questionId}/standard-answers`
 - `GET /api/questions/{questionId}/standard-answers`
 - `GET /api/standard-answers/{id}`
 
-如果需要文件上传，可增加：
+后续如果需要文件上传解析，可增加：
 
 - `POST /api/templates/{templateId}/standard-answers/import`
 
@@ -416,18 +416,19 @@
 现状：
 
 - 前端调用 `POST /api/tasks/{taskId}/answers`。
-- 后端真实 Controller 缺失该接口。
+- 后端已补齐真实核心接口 `/api/questions/{questionId}/standard-answers` 和 `/api/standard-answers/{id}`。
 - 数据库已有 `standard_answer`，且它通过 `question_definition_id` 关联题目。
+- `/api/tasks/{taskId}/answers` 仍是前端原型适配接口，不应继续作为真实主线写路径。
 
 策略：
 
 1. 不把 `/api/tasks/{taskId}/answers` 作为真实写入主线。
-2. 后端先补核心标准答案接口，建议围绕 `questionId` 或 `templateId`：
+2. 后端标准答案核心接口已经围绕 `questionId` 补齐：
    - `POST /api/questions/{questionId}/standard-answers`
    - `GET /api/questions/{questionId}/standard-answers`
    - `GET /api/standard-answers/{id}`
-   - 可选：`POST /api/templates/{templateId}/standard-answers/import`
-3. 若前端短期仍使用 taskId，则 Phase 2 在前端或适配层把 `taskId -> assessmentId -> active templateId -> questionId` 映射清楚。
+3. 可选后续能力：`POST /api/templates/{templateId}/standard-answers/import`
+4. 若前端短期仍使用 taskId，则 Phase 2 在前端或适配层把 `taskId -> assessmentId -> active templateId -> questionId` 映射清楚。
 
 推荐第一个后端任务：
 
@@ -489,7 +490,7 @@
 
 建议任务：
 
-1. 补标准答案核心接口。
+1. 标准答案核心接口已补齐；下一步稳定其联调用例和错误返回。
 2. 稳定 assessment/template/question/rubric 创建顺序和返回结构。
 3. 稳定 submission 上传与 asset 下载。
 4. 稳定 `/api/assessments/{id}/grading/start` 和 progress 返回结构。
@@ -551,7 +552,7 @@
 
 | 优先级 | 任务 | 推荐阶段 | 说明 |
 | --- | --- | --- | --- |
-| P0 | 补标准答案核心接口 | Phase 1 | 阻塞任务配置闭环。 |
+| P0 | 补标准答案核心接口 | Phase 1 | 已补齐真实核心接口；后续需前端迁移和联调。 |
 | P0 | 统一阅卷启动和进度主线到 `/api/assessments/{id}/grading/*` | Phase 1 | 阻塞后端主流程闭环。 |
 | P0 | 稳定 final results 查询、confirm、adjust、publish | Phase 1 | 阻塞教师复核和可审计成绩闭环。 |
 | P0 | 稳定 assessment export 和 latest report download | Phase 1 | 阻塞真实导出闭环。 |
@@ -589,20 +590,18 @@
 
 ## 推荐优先修复的第一个后端任务
 
-优先做“标准答案核心接口补齐”。
+“标准答案核心接口补齐”已完成，下一步优先做后端主流程阅卷接口稳定。
 
 理由：
 
-- 它是任务配置闭环的第一个 P0 缺口。
-- 数据库表 `standard_answer` 已存在，`CrudJdbcRepository` 也已 allowlist 该表，改动边界较小。
-- 补齐后可以自然串起 `assessment_template -> question_definition -> standard_answer -> grading`。
-- 比直接改前端 `/api/batch/*` 更靠前，因为没有标准答案配置，真实阅卷结果缺少稳定评分依据。
+- 标准答案接口已经可以串起 `assessment_template -> question_definition -> standard_answer -> grading`。
+- 当前下一个后端 P0 是稳定 `/api/assessments/{id}/grading/start` 与 `/api/assessments/{id}/grading/progress` 的真实返回结构。
+- 这样可以让后端在不依赖 `/api/batch/*` 的情况下跑通真实阅卷主流程。
 
 建议第一个任务范围：
 
-- 新增 `POST /api/questions/{questionId}/standard-answers`
-- 新增 `GET /api/questions/{questionId}/standard-answers`
-- 新增 `GET /api/standard-answers/{id}`
-- 使用现有 `ApiResponse` 和 `CrudJdbcRepository`
+- 规范 grading start/progress 返回结构
+- 保持使用 `GradingWorkflowService`
+- 保持 `PythonScriptClient` 和 `grader.python.*`
 - 不改 SQL schema
 - 不动 Python 脚本

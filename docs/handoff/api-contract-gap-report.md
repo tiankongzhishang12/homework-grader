@@ -81,10 +81,10 @@
 | 指标 | 数量 | 说明 |
 | --- | ---: | --- |
 | 前端 API client 调用 | 33 | 统计自 `src/api/services.ts` 的 `apiRequest` 调用。 |
-| 后端 Controller 接口 | 53 | 统计自当前 `controller/` 注解；包含通用后端接口和 `FrontendViewController` 原型适配接口。 |
+| 后端 Controller 接口 | 56 | 统计自当前 `controller/` 注解；包含通用后端接口、标准答案核心接口和 `FrontendViewController` 原型适配接口。 |
 | 已对齐接口 | 23 | 路径和方法在前后端均存在。 |
 | 前端调用但后端缺失 | 10 | 主要集中在标准答案上传/详情、Rubric 写操作、导出模板写操作。 |
-| 后端已有但前端未使用 | 30 | 主要是组织人员、课程教学、考核任务、学生提交、成绩确认发布和核心阅卷 API。 |
+| 后端已有但前端未使用 | 33 | 主要是组织人员、课程教学、考核任务、标准答案核心接口、学生提交、成绩确认发布和核心阅卷 API。 |
 | 契约不一致或高风险接口 | 8 | 路径存在但仅支持 demo task、返回静态/聚合结构，或前端走原型接口而非核心后端流程。 |
 
 ## 前端 API 调用清单
@@ -148,6 +148,9 @@
 | 考核任务 | `AssessmentController` | `createTemplate` | POST | `/api/assessments/{id}/templates` |
 | 考核任务 | `AssessmentController` | `createQuestion` | POST | `/api/templates/{id}/questions` |
 | Rubric | `AssessmentController` | `createRubric` | POST | `/api/templates/{id}/rubrics` |
+| 标准答案 | `StandardAnswerController` | `create` | POST | `/api/questions/{questionId}/standard-answers` |
+| 标准答案 | `StandardAnswerController` | `listByQuestion` | GET | `/api/questions/{questionId}/standard-answers` |
+| 标准答案 | `StandardAnswerController` | `get` | GET | `/api/standard-answers/{id}` |
 | 学生提交 | `SubmissionController` | `upload` | POST | `/api/assessments/{id}/submissions/upload` |
 | 学生提交 | `SubmissionController` | `submissions` | GET | `/api/assessments/{id}/submissions` |
 | 学生提交 | `SubmissionController` | `submission` | GET | `/api/submissions/{id}` |
@@ -215,7 +218,7 @@
 
 | 优先级 | 模块 | 前端函数 | 方法 | 路径 | 建议 |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 标准答案 | `answerApi.upload` | POST | `/api/tasks/{taskId}/answers` | 当前配置页可上传标准答案，但真实后端没有对应接口。需决定映射到 `assessment_template`、`question_definition`、`standard_answer` 还是保留任务级适配接口。 |
+| P0 | 标准答案 | `answerApi.upload` | POST | `/api/tasks/{taskId}/answers` | 标准答案真实核心接口已补齐为 `/api/questions/{questionId}/standard-answers`；当前前端 task-level 上传路径仍未接入真实主线，不应继续扩展为长期写路径。 |
 | P1 | 标准答案 | `answerApi.get` | GET | `/api/tasks/{taskId}/answers/{versionId}` | 详情页/版本查看需要后端返回单个标准答案版本。 |
 | P1 | Rubric | `rubricApi.generate` | POST | `/api/rubrics/generate` | 前端 Rubric 生成依赖 mock；后端未实现模型生成或草稿接口。 |
 | P1 | Rubric | `rubricApi.create` | POST | `/api/rubrics` | 前端创建的是 `Rubric` 聚合对象；后端当前只有 `/api/templates/{id}/rubrics` 写 `rubric_definition`。 |
@@ -246,6 +249,9 @@
 | P1 | 考核任务 | POST | `/api/assessments/{id}/templates` | 前端没有 assessment template 创建 API client。 |
 | P1 | 考核任务 | POST | `/api/templates/{id}/questions` | 前端没有题目定义 API client。 |
 | P1 | Rubric | POST | `/api/templates/{id}/rubrics` | 前端使用 `/api/rubrics` 聚合路径，不使用模板下 rubric_definition 写入路径。 |
+| P1 | 标准答案 | POST | `/api/questions/{questionId}/standard-answers` | 后端已提供真实标准答案创建接口，前端仍使用 `/api/tasks/{taskId}/answers` 原型路径。 |
+| P1 | 标准答案 | GET | `/api/questions/{questionId}/standard-answers` | 后端已提供按 question_definition 查询标准答案列表，前端尚未接入。 |
+| P1 | 标准答案 | GET | `/api/standard-answers/{id}` | 后端已提供单个 standard_answer 查询接口，前端尚未接入。 |
 | P1 | 学生提交 | POST | `/api/assessments/{id}/submissions/upload` | 前端没有学生提交上传 API client；配置页的标准答案上传不是同一业务。 |
 | P1 | 学生提交 | GET | `/api/assessments/{id}/submissions` | 前端没有真实提交列表 API client。 |
 | P1 | 学生提交 | GET | `/api/submissions/{id}` | 前端没有提交详情 API client。 |
@@ -315,9 +321,9 @@
 
 ### 标准答案
 
-- 已有：列表、激活。
-- 缺失：上传、单版本详情。
-- P0：上传缺失会阻塞从前端完成任务配置。
+- 原型适配已有：`GET /api/tasks/{taskId}/answers`、`POST /api/tasks/{taskId}/answers/{versionId}/activate`。
+- 真实核心接口已补齐：`POST /api/questions/{questionId}/standard-answers`、`GET /api/questions/{questionId}/standard-answers`、`GET /api/standard-answers/{id}`。
+- 仍需前端联调：前端 `answerApi.upload` 仍指向 `/api/tasks/{taskId}/answers`，需要在后续改为 question/template/assessment 主线。
 
 ### Rubric
 
@@ -393,7 +399,7 @@
 
 | 编号 | 问题 | 影响 | 建议 |
 | --- | --- | --- | --- |
-| P0-1 | `POST /api/tasks/{taskId}/answers` 后端缺失。 | 教师无法通过真实后端完成标准答案上传，任务配置主流程不闭合。 | 明确 taskId 到 assessment/template 的映射，补标准答案上传和解析结果契约。 |
+| P0-1 | 标准答案真实核心接口已补齐，但前端 `POST /api/tasks/{taskId}/answers` 仍未接入真实主线。 | 后端已可按 question_definition 维护 `standard_answer`，但前端配置页仍需迁移。 | 后续将前端标准答案写入改为 `/api/questions/{questionId}/standard-answers`，并明确 taskId 到 assessment/template/question 的映射。 |
 | P0-2 | 前端批量阅卷使用 `/api/batch/*`，后端核心阅卷使用 `/api/assessments/{id}/grading/*`。 | 前端无法验证真实 `GradingWorkflowService` 和 `PythonScriptClient` 主流程。 | 统一路由，或在前端 service 增加 assessment grading API 并建立 taskId/assessmentId 映射。 |
 | P0-3 | 前端未使用 `final_result` 确认、调整、发布接口。 | 教师复核、最终成绩确认和发布的可审计闭环无法在前端完成。 | 增加 `finalResultApi` / `gradePublishApi`，在学生详情或结果列表接入 confirm/adjust/publish。 |
 | P0-4 | 前端导出使用 `/api/batch/export` 原型接口，未接入 `/api/assessments/{id}/grades/export` 和 `/api/reports/latest/download`。 | 导出中心无法触发真实 Python 导出脚本，也无法下载最新 xlsx 报表。 | 将导出中心接入核心导出接口，并补下载 API client。 |

@@ -41,6 +41,14 @@ Base path: `/api`
 - `POST /templates/{id}/questions`
 - `POST /templates/{id}/rubrics`
 
+## StandardAnswerController
+
+Base path: `/api`
+
+- `POST /questions/{questionId}/standard-answers`
+- `GET /questions/{questionId}/standard-answers`
+- `GET /standard-answers/{id}`
+
 ## SubmissionController
 
 Base path: `/api`
@@ -99,4 +107,6 @@ These APIs adapt backend or mock-like data for the Vue prototype:
 
 ## Frontend Client Mismatch Watch
 
-`frontend-prototype/src/api/services.ts` defines additional client calls such as answer upload, rubric create/update/delete/bind, export template create/update/bind. Verify backend implementation before relying on those calls in UI work.
+`frontend-prototype/src/api/services.ts` defines additional client calls such as task-level answer upload, rubric create/update/delete/bind, export template create/update/bind. Verify backend implementation before relying on those calls in UI work.
+
+The real standard-answer core path is now `/api/questions/{questionId}/standard-answers` and `/api/standard-answers/{id}`. `/api/tasks/{taskId}/answers` remains a frontend prototype adapter path and should not become the long-term write path.
