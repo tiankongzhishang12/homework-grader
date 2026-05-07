@@ -26,7 +26,7 @@
 
 ## 技术栈
 
-- 后端：Spring Boot 3、Java 17、Spring JDBC、MySQL
+- 后端：Spring Boot 2.7.18、Java 8、Spring JDBC、MySQL
 - 前端：Vue 3、TypeScript、Vite、Pinia
 - 数据库：MySQL，数据库设计文档和 SQL 位于 `database/`
 - 辅助脚本：Python，用于文档预处理、批量评分、答题卡处理、Excel 导出和验证报告
@@ -54,7 +54,7 @@ homework-grader/
 
 ## 环境要求
 
-- Java 17
+- Java 8
 - Maven
 - Node.js 和 npm
 - Python 3.10 或更高版本

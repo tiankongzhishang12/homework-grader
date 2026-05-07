@@ -6,8 +6,8 @@
 
 ## 技术栈
 
-- Spring Boot 3
-- Java 17
+- Spring Boot 2.7.18
+- Java 8
 - Spring JDBC
 - MySQL
 - Springdoc OpenAPI
