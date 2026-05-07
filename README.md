@@ -1,351 +1,161 @@
-# Homework Grader
+# 智能阅卷系统 Homework Grader
 
-A Rubric-driven AI grading system built as a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Skill. Score student submissions against structured rubrics with Chain-of-Thought reasoning, built-in bias mitigation, and a PDCA quality cycle.
+本项目是一个面向课程作业、实训报告和答题卡场景的智能阅卷系统。当前项目重点是用 ChatGPT / OpenAI-compatible 模型、Codex 协作开发能力、Spring Boot 后端、Vue 前端、MySQL 数据库和 Python 辅助脚本，支撑从任务配置、材料上传、批量阅卷、教师复核到成绩导出的完整流程。
 
-## What It Does
+本仓库过去曾以旧 Skill 体系组织过一部分评分方法和脚本说明。当前文档已改为项目级说明：不再把仓库定位为某个特定助手平台的 Skill，但保留 Rubric、批处理、质量控制和 Python 辅助脚本等仍在使用的能力。
 
-- **Rubric-driven scoring**: Define criteria, weights, and anchor descriptions in YAML. The AI scores strictly against your standards — never inventing its own.
-- **Chain-of-Thought**: Every score requires evidence citation → reasoning → score. Research shows this improves reliability by 15-25% vs direct scoring.
-- **Bias mitigation**: Five anti-bias controls (length, authority, verbosity, position, self-enhancement) embedded in every scoring interaction.
-- **Gate checks**: Pre-scoring validation (keyword, structure, length, custom) filters incomplete submissions before they consume API tokens.
-- **Batch processing**: Score hundreds of submissions with progress tracking, checkpoint/resume, and cost control. Supports both real-time (Messages API) and async (Batch API at 50% cost).
-- **Calibration**: Compare AI scores against teacher-scored samples using Cohen's κ, Spearman ρ, and MAD metrics.
-- **Excel export**: Three-sheet workbook with grade table, class statistics, and detailed scoring records.
-- **Multimodal**: Text (docx/pdf), image (jpg/png via Claude Vision), and mixed submissions.
+## 项目目标
 
-## Prerequisites
+- 为教师提供可配置、可追踪、可复核的智能阅卷流程。
+- 支持标准答案、评分规则、Rubric、题目区块和导出模板等配置。
+- 支持批量处理学生提交，并生成分项得分、总分、置信度、风险标记和评语。
+- 支持教师确认、调整、发布成绩，并保留审计记录。
+- 支持通过 OpenAI API 或 OpenAI-compatible 网关接入模型。
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI installed
-- Python ≥ 3.10 (for preprocessing and batch scripts)
-- An OpenAI API key (`OPENAI_API_KEY` environment variable)
-- If you use your own OpenAI-compatible gateway, set `OPENAI_BASE_URL` as well
+## 当前工作流程
 
-You can also put these values in `grader-config.yaml` in the project root:
+1. 创建课程、教学班和阅卷任务。
+2. 配置标准答案、评分规则、Rubric 和导出模板。
+3. 上传或导入学生提交文件。
+4. 后端启动批量阅卷流程，必要时调度 Python 辅助脚本完成预处理、评分或导出。
+5. 教师在前端查看进度、分项结果、风险标记和学生详情。
+6. 教师确认或调整最终成绩。
+7. 导出成绩表和分析结果。
+
+这一轮文档清理不改变以上工作流，也不删除任何脚本或接口。
+
+## 技术栈
+
+- 后端：Spring Boot 3、Java 17、Spring JDBC、MySQL
+- 前端：Vue 3、TypeScript、Vite、Pinia
+- 数据库：MySQL，数据库设计文档和 SQL 位于 `database/`
+- 辅助脚本：Python，用于文档预处理、批量评分、答题卡处理、Excel 导出和验证报告
+- 模型接入：OpenAI API 或 OpenAI-compatible API
+
+## 目录结构
+
+```text
+homework-grader/
+├── README.md                         # 项目入口说明
+├── SKILL.md                          # Codex 项目协作上下文
+├── database/                         # 数据库 SQL 和设计文档
+├── scripts/                          # 通用 Rubric 批处理和导出脚本
+├── templates/                        # Rubric、Prompt、Schema 模板
+├── examples/                         # Rubric 示例
+├── references/                       # 评分方法、质控和批处理参考资料
+├── software-project-practicum/
+│   ├── backend/                      # Spring Boot 后端
+│   ├── frontend-prototype/           # Vue 前端原型
+│   ├── answer-card/                  # 答题卡识别、评分和验证相关材料
+│   ├── scripts/                      # 软件项目实训报告批改辅助脚本
+│   └── README.md                     # 子项目说明
+└── workspace/                        # 本地工作区和批处理产物
+```
+
+## 环境要求
+
+- Java 17
+- Maven
+- Node.js 和 npm
+- Python 3.10 或更高版本
+- MySQL 8 或兼容版本
+- OpenAI API Key，或兼容 OpenAI API 协议的模型网关
+
+常用模型配置：
 
 ```yaml
 openai:
   api_key: "your-api-key"
   base_url: "http://your-host:port/v1"
   model: "gpt-5-mini"
-
-grading:
-  workspace_path: "workspace"
-  rubric_path: "examples/self-select-rubric.yaml"
 ```
 
-## Installation
+如果使用本地或学校内网模型网关，可通过 `OPENAI_BASE_URL` 或项目配置文件指定兼容接口地址。
 
-### As a Claude Code Skill
+## 后端启动
 
-1. Copy the `homework-grader/` directory to your Claude Code skills location:
-
-```bash
-# Example: copy to your project or global skills directory
-cp -r homework-grader/ ~/.claude/skills/homework-grader/
+```powershell
+cd software-project-practicum/backend
+mvn spring-boot:run
 ```
 
-2. Install Python dependencies (needed only for batch processing and Excel export):
+默认服务地址：
 
-```bash
-pip install -r homework-grader/scripts/requirements.txt
+```text
+http://localhost:8080
 ```
 
-### Standalone
+Swagger UI：
 
-Clone this repository and install dependencies:
+```text
+http://localhost:8080/swagger-ui.html
+```
 
-```bash
-git clone https://github.com/your-org/homework-grader.git
-cd homework-grader
+核心配置位于：
+
+```text
+software-project-practicum/backend/src/main/resources/application.yml
+```
+
+其中 `grader.python.*` 仍用于当前后端调度 Python 辅助脚本。该配置属于现有工作流的一部分，不是旧助手平台依赖。
+
+## 前端启动
+
+```powershell
+cd software-project-practicum/frontend-prototype
+npm install
+npm run dev
+```
+
+前端原型包含任务中心、配置页、批量阅卷、学生详情、结果分析、导出中心等页面。
+
+## Python 辅助脚本
+
+仓库中保留两类 Python 脚本：
+
+- 根目录 `scripts/`：通用 Rubric 批量评分、预处理、校准、统计和 Excel 导出脚本。
+- `software-project-practicum/scripts/` 与 `software-project-practicum/answer-card/scripts/`：当前智能阅卷系统相关的实训报告、答题卡处理和验证脚本。
+
+这些脚本不是某个助手平台的专属能力。当前项目可继续通过 ChatGPT / OpenAI-compatible API 调用模型，也可由 Spring Boot 后端按配置调度部分脚本。
+
+安装依赖示例：
+
+```powershell
 pip install -r scripts/requirements.txt
 ```
 
-## Quick Start
+## 评分规则与质量控制
 
-### 1. Create a Rubric
+系统继续沿用 Rubric-driven 的评分思想：
 
-Copy the template and fill in your criteria:
+- 所有评分维度、权重、满分和判分依据应来自 Rubric 或标准答案配置。
+- 模型输出应包含证据、分项得分、扣分原因、置信度和建议。
+- 低置信度、异常分布、解析失败和门禁不通过的结果应进入教师复核。
+- 最终成绩以教师确认或调整后的结果为准。
 
-```bash
-cp templates/rubric.yaml.tmpl my-rubric.yaml
-# Edit my-rubric.yaml with your dimensions, weights, and anchors
-```
+推荐的质控流程：
 
-Or ask Claude to help:
+1. Plan：配置 Rubric、标准答案、样例和任务参数。
+2. Do：批量解析、评分、生成评语。
+3. Check：检查分布、置信度、异常样本和教师抽检结果。
+4. Act：确认成绩、调整规则、导出并沉淀下一轮改进。
 
-```
-> Create a rubric for a marketing strategy report with 4 dimensions
-```
+## 数据库
 
-### 2. Validate
+数据库脚本和说明位于 `database/`。当前后端主要围绕组织结构、课程、教学班、考核任务、提交、评分运行、分项结果、最终成绩和发布记录等表展开。
 
-```
-> VALIDATE my-rubric.yaml
-```
+建议优先查看：
 
-Checks: weights sum to 1.0, all anchors present, thresholds consistent, gates well-formed.
+- `database/grading_schema_v2.sql`
+- `database/organization_schema_v2.sql`
+- `database/homework_grader_schema.html`
 
-### 3. Score a Single Submission
+## 协作说明
 
-```
-> SCORE student-report.docx against my-rubric.yaml
-```
-
-Claude reads the file, runs gate checks, scores each dimension with evidence and reasoning, generates a structured comment, and outputs a JSON result.
-
-### 4. Batch Score
-
-For many submissions, use the Python scripts:
-
-```bash
-# Preprocess submissions to IR format
-python scripts/preprocess.py workspace/raw/ --output workspace/ir/ --rubric my-rubric.yaml
-
-# Score all submissions
-python scripts/batch_score.py workspace/ --rubric my-rubric.yaml
-
-# Or use a custom OpenAI-compatible endpoint
-OPENAI_BASE_URL=https://your-gateway.example.com/v1 \
-python scripts/batch_score.py workspace/ --rubric my-rubric.yaml
-```
-
-### 5. Export to Excel
-
-```bash
-python scripts/export_excel.py workspace/ --mapping workspace/student-mapping.csv
-```
-
-Produces a three-sheet Excel workbook in `workspace/reports/grades.xlsx`.
-
-## How It Works
-
-### PDCA Quality Cycle
-
-Every grading batch follows four phases:
-
-1. **Plan** — Define Rubric, prepare calibration samples, configure gates
-2. **Do** — Preprocess submissions, run AI scoring with CoT, generate comments
-3. **Check** — Calibrate against teacher scores (κ ≥ 0.70), check distributions, detect bias
-4. **Act** — Review flagged items, refine Rubric, export final grades
-
-### Scoring Protocol
-
-For each submission, each Rubric dimension is scored independently:
-
-1. **Evidence**: Quote from the submission or describe observation
-2. **Reasoning**: Compare evidence against anchor descriptions
-3. **Score**: Assign 1-5 based on reasoning (never reversed)
-4. **Improvement**: One actionable suggestion
-5. **Confidence**: 0-1 self-assessment of scoring certainty
-
-Scores are aggregated: `weighted_total = Σ(weight × score)`, then mapped to a percentile (40-100) and grade level.
-
-### Grade Mapping
-
-| Weighted Total | Percentile | Grade |
-|---------------|------------|-------|
-| 5.0 | 100 | 优 (Excellent) |
-| 4.0 | 85 | 良 (Good) |
-| 3.0 | 70 | 中 (Satisfactory) |
-| 2.0 | 55 | 及格 (Pass) |
-| 1.0 | 40 | 不及格 (Fail) |
-
-## Creating Rubrics
-
-A Rubric YAML defines everything the AI needs to score submissions. See `templates/rubric.yaml.tmpl` for the full template.
-
-### Minimal Example
-
-```yaml
-rubric:
-  id: my-course-essay-v1.0
-  name: "Essay Grading Rubric"
-  version: 1.0
-
-  criteria:
-    argument_quality:
-      name: "Argument Quality"
-      weight: 0.40
-      scale: [1, 2, 3, 4, 5]
-      description: "Clarity and strength of the central argument"
-      scoring_guidance: "Look for a clear thesis, logical structure, and evidence"
-      anchors:
-        5: "Clear thesis; logical argument chain; strong evidence; addresses counterarguments"
-        4: "Clear thesis; mostly logical; adequate evidence"
-        3: "Thesis present but underdeveloped; some logical gaps"
-        2: "Thesis unclear; weak logic; minimal evidence"
-        1: "No identifiable thesis or argument"
-      evidence_type: quote
-
-    writing_quality:
-      name: "Writing Quality"
-      weight: 0.30
-      scale: [1, 2, 3, 4, 5]
-      description: "Grammar, style, and clarity of writing"
-      scoring_guidance: "Assess readability, grammar, and academic tone"
-      anchors:
-        5: "Excellent prose; no grammar errors; engaging academic style"
-        4: "Good writing; minor errors; appropriate tone"
-        3: "Adequate writing; some errors; inconsistent tone"
-        2: "Poor writing; many errors; hard to follow"
-        1: "Incomprehensible or extremely poorly written"
-      evidence_type: observation
-
-    research_depth:
-      name: "Research Depth"
-      weight: 0.30
-      scale: [1, 2, 3, 4, 5]
-      description: "Quality and breadth of sources used"
-      scoring_guidance: "Count and evaluate the sources cited"
-      anchors:
-        5: "5+ credible sources; well-integrated; current literature"
-        4: "3-4 credible sources; mostly well-used"
-        3: "1-2 sources; superficial use"
-        2: "Sources present but unreliable or irrelevant"
-        1: "No sources cited"
-      evidence_type: quote
-
-  thresholds:
-    accept: 3.0
-    reject: 1.5
-    review: [1.5, 3.0]
-```
-
-### Tips for Effective Rubrics
-
-- **Make anchors distinguishable**: Adjacent levels (3 vs 4) should have clear, observable differences
-- **Use specific language**: "2+ credible sources" is better than "adequate research"
-- **Include scoring_guidance**: Tell the AI what to look for — this dramatically improves consistency
-- **Weight thoughtfully**: Weights reflect what matters most in the assignment
-- **Keep gates practical**: Use `on_fail: flag` (continue scoring with warning) more often than `on_fail: fail` (skip scoring entirely)
-
-## Batch Processing
-
-### Workspace Structure
-
-```
-workspace/my-batch/
-├── raw/                    # Original submission files
-├── ir/                     # Preprocessed IR files
-├── scores/                 # Scoring results
-├── reports/                # Excel, calibration report
-├── logs/                   # Processing logs
-├── progress.json           # Checkpoint for resume
-└── student-mapping.csv     # Anon ID ↔ real student info
-```
-
-### Keep Batches Separate
-
-When you score different courses or exam types, give each one its own workspace
-and rubric. For example, keep a CQUPT final exam in `workspace/cqupt-final/`
-with its own `raw/`, `reference/`, `ir/`, `scores/`, `reports/`, and `logs/`
-instead of reusing the legacy sample workspace.
-
-Recommended pattern:
-
-```text
-workspace/
-|- raw/                     # Legacy sample homework only
-|- ir/
-|- scores/
-|- reports/
-`- cqupt-final/
-   |- raw/                  # Student final-exam PDFs only
-   |- reference/            # Standard-answer PDF only
-   |- ir/
-   |- scores/
-   |- reports/
-   `- logs/
-```
-
-For a ready-made isolated starter, see `workspace/cqupt-final/README.md`,
-`examples/cqupt-final-exam-rubric.yaml`, and
-`grader-config.cqupt-final.yaml`.
-
-### Cost Estimate
-
-Using Claude Sonnet with Batch API (50% discount):
-
-| Batch Size | Estimated Cost |
-|-----------|---------------|
-| 50 | ~$0.80 |
-| 100 | ~$1.60 |
-| 500 | ~$8.00 |
-
-### Resume After Interruption
-
-```bash
-python scripts/batch_score.py workspace/my-batch/ --rubric my-rubric.yaml --resume
-```
-
-The script reads `progress.json` and continues from where it left off.
-
-## Quality Control
-
-### Calibration
-
-Before trusting AI scores, calibrate against teacher-scored samples:
-
-1. Score 3-5 submissions yourself (covering good/medium/poor quality)
-2. Save as `{student_id}-teacher.json` in a calibration directory
-3. Run calibration:
-
-```bash
-python scripts/calibrate.py workspace/ --rubric my-rubric.yaml --samples calibration-samples/
-```
-
-**Pass criteria**: Cohen's κ ≥ 0.70, Spearman ρ ≥ 0.80 per dimension, MAD ≤ 0.5.
-
-### Distribution & Bias Analysis
-
-After a batch:
-
-```bash
-python scripts/stats.py workspace/
-```
-
-Checks for length bias, position bias, dimension coupling, score concentration, and distributional anomalies.
-
-## Examples
-
-The `examples/` directory contains four complete Rubric YAMLs covering common course types:
-
-| Example | Course | Modality |
-|---------|--------|----------|
-| `research-paper-rubric.yaml` | Research Methods | Text |
-| `video-project-rubric.yaml` | Digital Media Production | Mixed (video + text) |
-| `marketing-plan-rubric.yaml` | Marketing Fundamentals | Mixed (text + images) |
-| `technical-report-rubric.yaml` | Environmental Science | Text |
-
-## FAQ
-
-**Q: Can I use this without the Python scripts?**
-Yes. SKILL.md contains the complete scoring protocol. Claude can read a Rubric YAML and a submission file, then score it directly in conversation. Scripts are accelerators for batch processing and Excel export.
-
-**Q: What model should I use?**
-Claude Sonnet for routine scoring (best cost/quality balance). Claude Opus for calibration verification or when scoring complex submissions that require deeper reasoning.
-
-**Q: How do I handle image submissions?**
-The preprocessing pipeline uses Claude Vision to generate structured descriptions of images. These descriptions become the "submission content" that the scoring engine evaluates. Set `submission_type: image` or `mixed` in your Rubric.
-
-**Q: What if calibration fails?**
-Review the calibration report for which dimensions are misaligned. Usually the fix is to sharpen anchor descriptions — make adjacent levels (e.g., 3 vs 4) more distinguishable. Then re-calibrate.
-
-**Q: Is student data sent to the API?**
-Student names and IDs are never sent. All submissions are anonymized during preprocessing. The `student-mapping.csv` file (linking anonymous IDs to real identities) stays local and is only used during Excel export.
-
-**Q: Can I customize the comment language?**
-Yes. Set `comment_guidelines.language` in your Rubric YAML to any language code (e.g., `zh-CN`, `en`, `ja`). The AI generates comments in that language.
-
-## References
- 
-| Document | Content |
-|----------|---------|
-| `references/evaluation-methodology.md` | Scoring theory, CoT, confidence calibration |
-| `references/bias-mitigation.md` | Five bias types and countermeasures |
-| `references/quality-control-framework.md` | Three-layer QC, calibration protocol |
-| `references/multimodal-pipeline.md` | IR format, processing pipelines |
-| `references/batch-processing-guide.md` | Batch modes, workspace, cost estimation |
+- 使用 Codex 修改项目时，优先阅读 `SKILL.md` 获取项目上下文。
+- 不要把 Python 辅助脚本误判为旧 Skill 体系依赖；只有旧 Skill 安装说明、特定模型平台推荐和供应商绑定叙事属于应清理内容。
+- 修改工作流代码前，需要先确认是否会影响批量阅卷、导出和后端脚本调度。
+- 文档、前端、后端、数据库和脚本可以分阶段演进，避免一次性删除仍在使用的能力。
 
 ## License
 
