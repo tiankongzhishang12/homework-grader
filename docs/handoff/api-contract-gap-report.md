@@ -440,3 +440,18 @@
 - 返回：`assessmentId`、`status`、`message`、`importSummary`。
 - 定位：不替代 `POST /api/assessments/{id}/grading/start`；生产化前应增加权限控制，或只在开发环境开放。
 - 前端影响：本次未新增前端 API client，Vue 原型仍未接入该开发验收入口。
+## 2026-05-08 更新：上传响应 rawWorkspace 字段
+
+`POST /api/assessments/{id}/submissions/upload` 在保留 `submissionId`、`assetId`、`file` 等既有返回字段的基础上，新增：
+
+```json
+{
+  "rawWorkspace": {
+    "synced": true,
+    "path": "raw/2024210001_测试学生/xxx.docx",
+    "message": "Copied to grading raw workspace."
+  }
+}
+```
+
+该字段用于说明上传文件是否已复制到 `grader.workspace-root/raw/{studentNo}_{studentName}/`，供 Python 预处理脚本读取。非 `.doc/.docx/.pdf` 文件仍保存为 `submission_asset`，但 `rawWorkspace.synced=false`。本次未修改前端 API client，前端如接入真实上传结果，可选择展示该字段用于排查 full grading 前置数据准备。

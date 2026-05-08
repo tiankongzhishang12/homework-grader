@@ -3,6 +3,7 @@ package com.homeworkgrader.storage;
 import com.homeworkgrader.config.GraderProperties;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
@@ -31,6 +32,30 @@ public class FileStorageService {
         return new StoredFile(relativePath.toString().replace('\\', '/'), originalName, Files.size(target), sha256(target));
     }
 
+    public RawWorkspaceFile copyToRawWorkspace(String sourceRelativePath, String studentNo, String studentName, String fileName) throws IOException {
+        String safeStudentNo = sanitizePathPart(studentNo);
+        String safeStudentName = sanitizePathPart(isBlank(studentName) ? "student" : studentName);
+        String safeFileName = sanitize(fileName == null ? "submission.bin" : fileName);
+        Path rawRoot = workspaceRoot.resolve("raw").normalize();
+        Path studentDir = rawRoot.resolve(safeStudentNo + "_" + safeStudentName).normalize();
+        if (!rawRoot.startsWith(workspaceRoot) || !studentDir.startsWith(rawRoot)) {
+            throw new IOException("非法 raw workspace 路径");
+        }
+        Path source = resolve(sourceRelativePath);
+        Path target = studentDir.resolve(safeFileName).normalize();
+        if (!target.startsWith(studentDir)) {
+            throw new IOException("非法 raw workspace 文件路径");
+        }
+        Files.createDirectories(studentDir);
+        boolean overwritten = Files.exists(target);
+        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+        String relativePath = workspaceRoot.relativize(target).toString().replace('\\', '/');
+        String message = overwritten
+                ? "Copied to grading raw workspace, overwriting an existing file with the same name."
+                : "Copied to grading raw workspace.";
+        return new RawWorkspaceFile(relativePath, overwritten, message);
+    }
+
     public Path resolve(String relativePath) throws IOException {
         Path resolved = workspaceRoot.resolve(relativePath).normalize();
         if (!resolved.startsWith(workspaceRoot) || !Files.exists(resolved)) {
@@ -47,6 +72,15 @@ public class FileStorageService {
 
     private String sanitize(String name) {
         return name.replaceAll("[\\\\/:*?\"<>|]", "_");
+    }
+
+    private String sanitizePathPart(String value) {
+        String sanitized = sanitize(value == null ? "" : value.trim());
+        return sanitized.isEmpty() ? "student" : sanitized;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private String sha256(Path path) throws IOException {
@@ -100,6 +134,30 @@ public class FileStorageService {
 
         public String getSha256() {
             return sha256;
+        }
+    }
+
+    public static class RawWorkspaceFile {
+        private final String relativePath;
+        private final boolean overwritten;
+        private final String message;
+
+        public RawWorkspaceFile(String relativePath, boolean overwritten, String message) {
+            this.relativePath = relativePath;
+            this.overwritten = overwritten;
+            this.message = message;
+        }
+
+        public String getRelativePath() {
+            return relativePath;
+        }
+
+        public boolean isOverwritten() {
+            return overwritten;
+        }
+
+        public String getMessage() {
+            return message;
         }
     }
 }

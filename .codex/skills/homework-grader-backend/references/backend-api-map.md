@@ -58,6 +58,8 @@ Base path: `/api`
 - `GET /submissions/{id}`
 - `GET /submissions/{id}/assets/{assetId}/download`
 
+`POST /api/assessments/{id}/submissions/upload` stores the original `submission` and `submission_asset`, then attempts to copy supported grading documents into the Python raw workspace at `grader.workspace-root/raw/{studentNo}_{studentName}/{originalFileName}`. Supported raw workspace extensions are `.doc`, `.docx`, and `.pdf`. Unsupported extensions still create `submission` and `submission_asset`, but return `rawWorkspace.synced=false` with a message. The response keeps existing fields and adds `rawWorkspace` with `synced`, `path`, and `message`.
+
 ## GradingController
 
 Base path: `/api`

@@ -156,3 +156,16 @@ python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-
 ```
 
 真实写入验收仍必须显式追加 `--apply`。
+## 2026-05-08 更新：submission_asset 到 Python raw 工作区适配
+
+后端上传接口 `POST /api/assessments/{id}/submissions/upload` 现在会在保存 `submission` 和 `submission_asset` 后，额外尝试复制一份支持的学生提交文件到：
+
+`grader.workspace-root/raw/{studentNo}_{studentName}/{originalFileName}`
+
+- `studentNo` / `studentName` 来自 `student` 表。
+- 目录名需要匹配 `preprocess_student_dirs.py` 使用的 `数字学号_学生姓名` 规则。
+- 支持同步的扩展名为 `.doc`、`.docx`、`.pdf`。
+- 非支持扩展名仍保存 `submission_asset`，但返回 `rawWorkspace.synced=false` 和原因。
+- 原始 `submission_asset.file_path` 不移动、不删除，下载逻辑不受影响。
+
+这是 full grading 小闭环的前置条件。import-only 验收仍用于快速验证 `workspace/scores/*.json` 入库；full grading 验收还依赖 raw workspace、Python 预处理、模型/API 配置和评分脚本。

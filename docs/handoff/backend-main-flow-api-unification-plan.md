@@ -657,3 +657,14 @@
 - 该入口写入或更新 `grading_run`、`score_item_result`、`final_result`。
 - 该入口不执行 `PythonScriptClient.runPreprocess()`，不执行 `PythonScriptClient.runGrading()`，不改变真实 `/api/assessments/{id}/grading/start` 主流程。
 - 该入口只用于开发验收 / demo 调试；生产化前应增加权限控制，或只在开发环境开放。
+## 2026-05-08 更新：submission_asset 到 Python raw 工作区适配
+
+后端上传主线新增 raw workspace 同步：
+
+- `POST /api/assessments/{id}/submissions/upload` 继续保存 `submission` 和 `submission_asset`。
+- 对 `.doc`、`.docx`、`.pdf`，后端会复制一份到 `grader.workspace-root/raw/{studentNo}_{studentName}/`，保留原始文件名。
+- 该目录名适配 `preprocess_student_dirs.py` 的 `数字学号_学生姓名` 解析规则，使 full grading 可以从上传文件进入 Python 预处理。
+- 非支持文件类型不会阻断上传，只在响应 `rawWorkspace` 中标记未同步和原因。
+- 本适配不修改 Python 脚本、不修改数据库表结构、不改变 `/api/batch/*` 原型接口。
+
+定位：这是 full grading 小闭环的前置条件；import-only 验收继续用于快速验证 scores JSON 入库，full grading 验收还依赖 raw workspace、Python 预处理、模型/API 配置和评分脚本。

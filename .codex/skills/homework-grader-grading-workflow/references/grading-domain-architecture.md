@@ -15,6 +15,10 @@
 
 ## Current Backend Orchestration
 
+`SubmissionService.upload` now bridges uploaded `submission_asset` files into the Python raw workspace. After saving the original asset, supported `.doc`, `.docx`, and `.pdf` files are copied to `grader.workspace-root/raw/{studentNo}_{studentName}/{originalFileName}`. This directory name matches `preprocess_student_dirs.py` / `common.parse_student_dir_name`, which expects `数字学号_学生姓名`. The original asset is not moved or deleted, so download behavior remains based on `submission_asset.file_path`.
+
+This raw workspace sync is a prerequisite for the full grading path: uploaded file -> Python preprocessing -> Python scoring -> score JSON import. Import-only acceptance still bypasses Python and only validates `scores/*.json` import.
+
 `GradingWorkflowService` currently runs:
 
 - `PythonScriptClient.runPreprocess()`
