@@ -63,7 +63,15 @@ public class GradingWorkflowService {
                 progress.put(assessmentId, newProgress(assessmentId, "FAILED", "Grading result import failed.", grading, startedAt, importSummary));
                 return;
             }
-            progress.put(assessmentId, newProgress(assessmentId, "COMPLETED", "Grading completed and results imported.", grading, startedAt, importSummary));
+            if (importSummary.getImportedCount() == 0) {
+                progress.put(assessmentId, newProgress(assessmentId, "FAILED", "Grading script succeeded, but no grading results were imported.", grading, startedAt, importSummary));
+                return;
+            }
+            if (importSummary.getSkippedCount() > 0) {
+                progress.put(assessmentId, newProgress(assessmentId, "COMPLETED", "Some grading results were imported; some were skipped.", grading, startedAt, importSummary));
+                return;
+            }
+            progress.put(assessmentId, newProgress(assessmentId, "COMPLETED", "Grading completed and all results imported.", grading, startedAt, importSummary));
         } catch (Exception ex) {
             progress.put(assessmentId, newProgress(assessmentId, "FAILED", ex.getMessage(), null, startedAt, null));
         }

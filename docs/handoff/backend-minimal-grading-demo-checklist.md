@@ -111,3 +111,13 @@
 5. 调用 `POST /api/assessments/{id}/grading/start`。
 6. 调用 `GET /api/assessments/{id}/grading/progress`，检查 `importSummary`。
 7. 调用 `GET /api/assessments/{id}/final-results`，检查是否出现 `final_result`。
+## 2026-05-08 更新：评分结果入库完成判定
+
+为避免“Python 脚本执行成功但没有任何评分结果入库”时误报完成，`GradingWorkflowService` 已强化完成判定：
+
+- `failedCount > 0`：progress 状态为 `FAILED`，message 为 `Grading result import failed.`。
+- `importedCount == 0`：progress 状态为 `FAILED`，message 为 `Grading script succeeded, but no grading results were imported.`。
+- `importedCount > 0 && skippedCount > 0`：progress 状态为 `COMPLETED`，message 为 `Some grading results were imported; some were skipped.`。
+- `importedCount > 0 && skippedCount == 0 && failedCount == 0`：progress 状态为 `COMPLETED`，message 为 `Grading completed and all results imported.`。
+
+`progress` 中继续返回 `importSummary`，用于定位 mapping 缺失、student 缺失、submission 缺失或单文件导入异常。

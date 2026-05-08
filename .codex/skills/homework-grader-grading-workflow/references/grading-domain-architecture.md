@@ -25,6 +25,13 @@
 
 Progress is stored in memory per assessment id and includes `importSummary` after import. Export uses `PythonScriptClient.runExport()` from `ExportController`.
 
+Import completion rules:
+
+- `failedCount > 0`: progress status is `FAILED`.
+- `importedCount == 0`: progress status is `FAILED`, even if the Python grading script succeeded, because no database result was produced.
+- `importedCount > 0` and `skippedCount > 0`: progress status is `COMPLETED`, with a partial-import message.
+- `importedCount > 0`, `skippedCount == 0`, and `failedCount == 0`: progress status is `COMPLETED`.
+
 Current limitations:
 
 - Import skips score files when student mapping, student master data, or submission matching is missing.

@@ -422,3 +422,12 @@
 - `GET /api/assessments/{id}/grading/progress` 返回结构新增 `importSummary`，用于记录 imported / skipped / failed。
 - `GET /api/assessments/{id}/final-results` 现在可以查询由评分 JSON 导入生成的最终结果，前提是 student mapping、student 和 submission 均能匹配。
 - 前端仍未接入 assessment 主线，仍使用 `/api/batch/*` 和 `/api/tasks/*` 原型适配接口；本次不修改前端。
+
+## 2026-05-08 更新：progress 完成判定
+
+`GET /api/assessments/{id}/grading/progress` 的 `status/message/importSummary` 现在遵循更严格的入库完成判定：
+
+- 存在 `failedCount > 0` 时返回 `FAILED`。
+- `importedCount == 0` 时返回 `FAILED`，即使 Python grading 脚本本身成功。
+- `importedCount > 0` 且存在 skipped 时返回 `COMPLETED`，但 message 会说明部分结果被跳过。
+- 全部导入成功时返回 `COMPLETED`。

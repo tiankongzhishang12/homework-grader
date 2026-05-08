@@ -636,3 +636,16 @@
 - `grading progress` 仍是内存态，后续仍应迁移为数据库持久化。
 - `/api/tasks/*` 和 `/api/batch/*` 仍为前端原型适配接口，不作为真实主线。
 - 前端暂不介入；下一步优先做后端手动验收和导出基于 `final_result` 的对齐。
+
+## 2026-05-08 更新：评分结果入库完成判定强化
+
+`GradingWorkflowService` 已修正导入完成判定，避免 Python grading 脚本成功但数据库没有任何评分结果时误报 `COMPLETED`。
+
+当前规则：
+
+- `failedCount > 0`：progress 状态为 `FAILED`。
+- `importedCount == 0`：progress 状态为 `FAILED`，message 说明评分脚本成功但没有任何评分结果入库。
+- `importedCount > 0 && skippedCount > 0`：progress 状态为 `COMPLETED`，message 说明部分入库、部分跳过。
+- `importedCount > 0 && skippedCount == 0 && failedCount == 0`：progress 状态为 `COMPLETED`。
+
+`importSummary` 继续随 progress 返回，作为后端小闭环验收和数据准备排错依据。
