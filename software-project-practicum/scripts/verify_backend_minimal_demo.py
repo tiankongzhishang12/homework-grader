@@ -106,7 +106,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-username", default=os.environ.get("HOMEWORK_GRADER_API_USERNAME"))
     parser.add_argument("--api-password", default=os.environ.get("HOMEWORK_GRADER_API_PASSWORD"))
     parser.add_argument("--poll-interval", type=float, default=1.0)
-    parser.add_argument("--max-polls", type=int, default=30)
+    parser.add_argument("--max-polls", type=int, default=180)
+    parser.add_argument(
+        "--import-only",
+        action="store_true",
+        help="Use POST /api/assessments/{id}/grading/import-scores instead of grading/start. Requires --apply to call backend APIs.",
+    )
     return parser.parse_args()
 
 
@@ -590,21 +595,58 @@ def run_api_flow(args: argparse.Namespace, ids: dict):
         if status != 200:
             return results, None, None, None
 
-    start_status, start_payload = client.request("POST", f"/api/assessments/{ids['assessmentId']}/grading/start")
-    results.append(StepResult("POST grading/start", start_status == 200, f"HTTP {start_status}: {start_payload}"))
-    if start_status != 200:
-        return results, None, None, None
+    if args.import_only:
+        start_status, start_payload = client.request("POST", f"/api/assessments/{ids['assessmentId']}/grading/import-scores")
+        progress_data = unwrap_api(start_payload)
+        results.append(StepResult("POST grading/import-scores", start_status == 200, f"HTTP {start_status}: {start_payload}"))
+        if start_status != 200:
+            return results, progress_data, None, None
+    else:
+        start_status, start_payload = client.request("POST", f"/api/assessments/{ids['assessmentId']}/grading/start")
+        results.append(StepResult("POST grading/start", start_status == 200, f"HTTP {start_status}: {start_payload}"))
+        if start_status != 200:
+            return results, None, None, None
 
-    progress_data = None
-    for _ in range(args.max_polls):
-        status, payload = client.request("GET", f"/api/assessments/{ids['assessmentId']}/grading/progress")
-        progress_data = unwrap_api(payload)
-        results.append(StepResult("GET grading/progress", status == 200, f"HTTP {status}: {payload}"))
-        if status != 200:
-            break
-        if isinstance(progress_data, dict) and progress_data.get("status") in ("COMPLETED", "FAILED"):
-            break
-        time.sleep(args.poll_interval)
+        progress_data = None
+        for _ in range(args.max_polls):
+            status, payload = client.request("GET", f"/api/assessments/{ids['assessmentId']}/grading/progress")
+            progress_data = unwrap_api(payload)
+            results.append(StepResult("GET grading/progress", status == 200, f"HTTP {status}: {payload}"))
+            if status != 200:
+                break
+            if isinstance(progress_data, dict) and progress_data.get("status") in ("COMPLETED", "FAILED"):
+                break
+            time.sleep(args.poll_interval)
+
+        if not isinstance(progress_data, dict) or progress_data.get("status") not in ("COMPLETED", "FAILED"):
+            status = progress_data.get("status") if isinstance(progress_data, dict) else None
+            if status == "QUEUED":
+                timeout_detail = (
+                    "Timed out while progress stayed QUEUED. The backend uses a single-thread grading executor; "
+                    "a previous grading job may still be running. Wait for it to finish or restart the backend before retrying."
+                )
+            elif status == "GRADING":
+                timeout_detail = (
+                    "Timed out while progress stayed GRADING. Inspect workspace progress.json, Python scoring logs, "
+                    "and model/API configuration, or increase --max-polls."
+                )
+            elif status == "PREPROCESSING":
+                timeout_detail = (
+                    "Timed out while progress stayed PREPROCESSING. Inspect preprocessing script logs, raw workspace files, "
+                    "or increase --max-polls."
+                )
+            else:
+                timeout_detail = (
+                    "Timed out before progress reached COMPLETED or FAILED. Increase --max-polls or inspect backend/Python grading logs."
+                )
+            results.append(
+                StepResult(
+                    "wait grading terminal status",
+                    False,
+                    timeout_detail,
+                )
+            )
+            return results, progress_data, None, None
 
     final_status, final_payload = client.request("GET", f"/api/assessments/{ids['assessmentId']}/final-results")
     final_data = unwrap_api(final_payload)
@@ -690,6 +732,7 @@ def write_report(args, dry_run: bool, ids=None, workspace_files=None, api_result
         "",
         f"- 测试时间：{datetime.now().isoformat(timespec='seconds')}",
         f"- 测试模式：{'dry-run' if dry_run else 'apply'}",
+        f"- grading mode: {'import-only' if args.import_only else 'full grading'}",
         f"- 后端地址：`{args.base_url}`",
         f"- 数据库：`{args.db_user}@{args.db_host}:{args.db_port}/{args.db_name}`",
         f"- workspace：`{args.workspace}`",
@@ -731,6 +774,12 @@ def write_report(args, dry_run: bool, ids=None, workspace_files=None, api_result
     lines.extend(
         [
             "",
+            "## 验收模式说明",
+            "",
+            "- import-only 模式：调用 `POST /api/assessments/{id}/grading/import-scores`，不执行 Python 预处理和真实评分，只验证 workspace 评分 JSON 入库链路。",
+            "- full grading 模式：调用 `POST /api/assessments/{id}/grading/start`，执行 Python 预处理和真实评分，评分成功后再导入结果。",
+            "- `grading/import-scores` 是开发验收 / demo 调试入口，生产化前应增加权限控制，或只在开发环境开放。",
+            "",
             "## 后续建议",
             "",
             "- dry-run 通过后，再显式追加 `--apply` 执行真实验收。",
@@ -750,7 +799,10 @@ def print_dry_run_plan(args):
     print("- Check optional MySQL Python driver only when --apply is used.")
     print("- Would upsert/reuse DEMO_* organization, teacher, student, course, class, assessment, and submission data.")
     print(f"- Would write workspace files under: {Path(args.workspace).resolve()}")
-    print("- Would call backend grading/start, poll progress, query final-results and score-items, then confirm final_result.")
+    if args.import_only:
+        print("- Would call backend grading/import-scores, query final-results and score-items, then confirm final_result.")
+    else:
+        print("- Would call backend grading/start, poll progress, query final-results and score-items, then confirm final_result.")
     print(f"- Would write report: {Path(args.report).resolve()}")
 
 

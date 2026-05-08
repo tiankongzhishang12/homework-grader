@@ -21,6 +21,8 @@
 - `PythonScriptClient.runGrading()`
 - `GradingResultImportService.importScores(assessmentId)` after grading succeeds
 
+Development acceptance can bypass the Python steps through `POST /api/assessments/{id}/grading/import-scores`. This endpoint directly imports `grader.workspace-root/student-mapping.csv` and `grader.workspace-root/scores/*.json` into `grading_run`, `score_item_result`, and `final_result`. It is for demo/debug verification of the workspace score JSON import path only; it does not execute preprocessing or real grading, and should be permission-gated or development-only before production use.
+
 `GradingResultImportService` reads `grader.workspace-root/student-mapping.csv` and `grader.workspace-root/scores/*.json`, maps anonymous ids such as `anon-001` to `student.student_no`, finds the latest submission for the assessment/student pair, and writes `grading_run`, `score_item_result`, and `final_result`.
 
 Progress is stored in memory per assessment id and includes `importSummary` after import. Export uses `PythonScriptClient.runExport()` from `ExportController`.

@@ -63,6 +63,7 @@ Base path: `/api`
 Base path: `/api`
 
 - `POST /assessments/{id}/grading/start`
+- `POST /assessments/{id}/grading/import-scores`
 - `GET /assessments/{id}/grading/progress`
 - `GET /grading-runs/{id}`
 - `GET /submissions/{id}/score-items`
@@ -86,6 +87,8 @@ Assessment grading start/progress is the real backend main-flow path. `POST /api
 After `PythonScriptClient.runGrading()` succeeds, `GradingWorkflowService` calls `GradingResultImportService.importScores(assessmentId)`. The import service reads `grader.workspace-root/student-mapping.csv` and `grader.workspace-root/scores/*.json`, then writes matched results into `grading_run`, `score_item_result`, and `final_result`. Unmatched score files are skipped and recorded in `importSummary`; import failures set progress to `FAILED`.
 
 `GET /api/assessments/{id}/grading/progress` returns the same shape. Current progress state is kept in memory by `GradingWorkflowService`; later production hardening should persist grading progress to database-backed run records.
+
+`POST /api/assessments/{id}/grading/import-scores` is a development acceptance / demo debugging endpoint. It directly calls `GradingResultImportService.importScores(assessmentId)` to verify the workspace score JSON database import path. It does not run Python preprocessing and does not run real Python grading. Response data includes `assessmentId`, `status`, `message`, and `importSummary`. Production hardening should add permission control or restrict this endpoint to development environments only.
 
 ## ExportController
 

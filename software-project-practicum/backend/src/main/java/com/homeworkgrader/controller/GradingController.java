@@ -2,8 +2,10 @@ package com.homeworkgrader.controller;
 
 import com.homeworkgrader.api.ApiResponse;
 import com.homeworkgrader.repository.CrudJdbcRepository;
+import com.homeworkgrader.service.GradingResultImportService;
 import com.homeworkgrader.service.GradingWorkflowService;
 import com.homeworkgrader.util.Maps;
+import java.util.HashMap;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,16 +19,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class GradingController {
     private final CrudJdbcRepository repository;
+    private final GradingResultImportService resultImportService;
     private final GradingWorkflowService workflowService;
 
-    public GradingController(CrudJdbcRepository repository, GradingWorkflowService workflowService) {
+    public GradingController(CrudJdbcRepository repository, GradingResultImportService resultImportService, GradingWorkflowService workflowService) {
         this.repository = repository;
+        this.resultImportService = resultImportService;
         this.workflowService = workflowService;
     }
 
     @PostMapping("/assessments/{id}/grading/start")
     public ApiResponse<?> start(@PathVariable Long id) {
         return ApiResponse.ok(workflowService.start(id));
+    }
+
+    @PostMapping("/assessments/{id}/grading/import-scores")
+    public ApiResponse<?> importScores(@PathVariable Long id) {
+        GradingResultImportService.ImportSummary summary = resultImportService.importScores(id);
+        return ApiResponse.ok(importScoresResponse(id, summary));
     }
 
     @GetMapping("/assessments/{id}/grading/progress")
@@ -76,5 +86,25 @@ public class GradingController {
         request.putIfAbsent("publish_scope", "ASSESSMENT");
         request.putIfAbsent("publish_status", "PUBLISHED");
         return ApiResponse.ok(Maps.of("id", repository.insert("grade_publish_record", request)));
+    }
+
+    private Map<String, Object> importScoresResponse(Long assessmentId, GradingResultImportService.ImportSummary summary) {
+        String status = "COMPLETED";
+        String message = "Grading score JSON files were imported.";
+        if (summary.getFailedCount() > 0) {
+            status = "FAILED";
+            message = "Grading score import failed.";
+        } else if (summary.getImportedCount() == 0) {
+            status = "FAILED";
+            message = "No grading results were imported from workspace score JSON files.";
+        } else if (summary.getSkippedCount() > 0) {
+            message = "Some grading results were imported; some were skipped.";
+        }
+        Map<String, Object> response = new HashMap<>();
+        response.put("assessmentId", assessmentId);
+        response.put("status", status);
+        response.put("message", message);
+        response.put("importSummary", summary);
+        return response;
     }
 }

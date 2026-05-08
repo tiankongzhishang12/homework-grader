@@ -431,3 +431,12 @@
 - `importedCount == 0` 时返回 `FAILED`，即使 Python grading 脚本本身成功。
 - `importedCount > 0` 且存在 skipped 时返回 `COMPLETED`，但 message 会说明部分结果被跳过。
 - 全部导入成功时返回 `COMPLETED`。
+## 2026-05-08 更新：评分结果 import-only 开发验收入口
+
+后端新增 `POST /api/assessments/{id}/grading/import-scores`，作为开发验收 / demo 调试入口。
+
+- 用途：直接调用 `GradingResultImportService.importScores(assessmentId)`，验证 workspace 评分 JSON 入库链路。
+- 不执行：Python 预处理、真实 Python 评分、模型 API 调用。
+- 返回：`assessmentId`、`status`、`message`、`importSummary`。
+- 定位：不替代 `POST /api/assessments/{id}/grading/start`；生产化前应增加权限控制，或只在开发环境开放。
+- 前端影响：本次未新增前端 API client，Vue 原型仍未接入该开发验收入口。

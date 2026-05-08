@@ -649,3 +649,11 @@
 - `importedCount > 0 && skippedCount == 0 && failedCount == 0`：progress 状态为 `COMPLETED`。
 
 `importSummary` 继续随 progress 返回，作为后端小闭环验收和数据准备排错依据。
+## 2026-05-08 更新：import-only 开发验收入口
+
+后端新增 `POST /api/assessments/{id}/grading/import-scores`，用于在开发验收和 demo 调试时绕过完整 Python 阅卷流程，直接验证 `GradingResultImportService` 的入库链路。
+
+- 该入口直接读取 `grader.workspace-root/student-mapping.csv` 和 `grader.workspace-root/scores/*.json`。
+- 该入口写入或更新 `grading_run`、`score_item_result`、`final_result`。
+- 该入口不执行 `PythonScriptClient.runPreprocess()`，不执行 `PythonScriptClient.runGrading()`，不改变真实 `/api/assessments/{id}/grading/start` 主流程。
+- 该入口只用于开发验收 / demo 调试；生产化前应增加权限控制，或只在开发环境开放。

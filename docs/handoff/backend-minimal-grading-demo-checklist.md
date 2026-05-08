@@ -139,3 +139,20 @@ python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-
 ```
 
 真实验收必须显式追加 `--apply`，并确保本地后端、MySQL 和认证参数准备好。
+## 2026-05-08 更新：import-only 开发验收入口
+
+后端新增 `POST /api/assessments/{id}/grading/import-scores`，用于开发验收 / demo 调试。
+
+- 直接调用 `GradingResultImportService.importScores(assessmentId)`。
+- 只验证 `workspace/student-mapping.csv` 和 `workspace/scores/*.json` 入库到 `grading_run`、`score_item_result`、`final_result`。
+- 不执行 Python 预处理，不执行真实 Python 评分，不替代 `POST /api/assessments/{id}/grading/start`。
+- 返回 `assessmentId`、`status`、`message`、`importSummary`。
+- 生产化前应增加权限控制，或只在开发环境开放。
+
+脚本新增 `--import-only`：
+
+```bash
+python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-url http://localhost:8080 --workspace software-project-practicum/workspace/practicum-batch --import-only
+```
+
+真实写入验收仍必须显式追加 `--apply`。

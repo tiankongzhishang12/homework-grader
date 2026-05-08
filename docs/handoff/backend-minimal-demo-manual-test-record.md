@@ -1,45 +1,46 @@
 # 后端最小阅卷 Demo 自动验收记录
 
-- 测试时间：2026-05-08T15:02:52
-- 测试模式：apply
+- 测试时间：2026-05-08T16:10:01
+- 测试模式：dry-run
+- grading mode: import-only
 - 后端地址：`http://localhost:8080`
 - 数据库：`root@localhost:3306/homework_grader`
 - workspace：`software-project-practicum/workspace/practicum-batch`
 
 ## Demo 标识
 
-- assessmentId：`4`
-- teacherId：`4`
-- studentId：`10`
-- submissionId：`10`
+- assessmentId：``
+- teacherId：``
+- studentId：``
+- submissionId：``
 - finalResultId：``
 
 ## Workspace 文件
 
-- student-mapping.csv：`software-project-practicum\workspace\practicum-batch\student-mapping.csv`
-- scores/anon-001.json：`software-project-practicum\workspace\practicum-batch\scores\anon-001.json`
+- student-mapping.csv：``
+- scores/anon-001.json：``
 
 ## 接口调用结果
 
-- [FAIL] POST grading/start: HTTP 401: {'success': False, 'message': '未登录或登录已过期。', 'data': None}
+- dry-run 未调用接口。
 
 ## 数据库验证结果
 
-- [FAIL] db final_result exists: count=0
-- [FAIL] db score_item_result count: count=0, expected>=2
+- dry-run 未连接或验证数据库。
 
 ## 结论
 
-FAIL
+DRY-RUN
 
 ## 失败原因
 
-- progress.status is not COMPLETED: None
-- final-results response has no rows.
-- score-items count too low: 0
-- db final_result exists: count=0
-- db score_item_result count: count=0, expected>=2
-- POST grading/start: HTTP 401: {'success': False, 'message': '未登录或登录已过期。', 'data': None}
+- 无。
+
+## 验收模式说明
+
+- import-only 模式：调用 `POST /api/assessments/{id}/grading/import-scores`，不执行 Python 预处理和真实评分，只验证 workspace 评分 JSON 入库链路。
+- full grading 模式：调用 `POST /api/assessments/{id}/grading/start`，执行 Python 预处理和真实评分，评分成功后再导入结果。
+- `grading/import-scores` 是开发验收 / demo 调试入口，生产化前应增加权限控制，或只在开发环境开放。
 
 ## 后续建议
 
