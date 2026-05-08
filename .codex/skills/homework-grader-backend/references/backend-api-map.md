@@ -79,8 +79,11 @@ Assessment grading start/progress is the real backend main-flow path. `POST /api
 - `status`
 - `message`
 - `scriptResult`
+- `importSummary`
 - `startedAt`
 - `updatedAt`
+
+After `PythonScriptClient.runGrading()` succeeds, `GradingWorkflowService` calls `GradingResultImportService.importScores(assessmentId)`. The import service reads `grader.workspace-root/student-mapping.csv` and `grader.workspace-root/scores/*.json`, then writes matched results into `grading_run`, `score_item_result`, and `final_result`. Unmatched score files are skipped and recorded in `importSummary`; import failures set progress to `FAILED`.
 
 `GET /api/assessments/{id}/grading/progress` returns the same shape. Current progress state is kept in memory by `GradingWorkflowService`; later production hardening should persist grading progress to database-backed run records.
 

@@ -413,3 +413,12 @@
 3. 第二阶段补 P1：Rubric 写操作、导出模板写操作、真实提交列表/详情/资产下载。
 4. 保留 `FrontendViewController` 作为短期适配层时，需明确它只服务 demo 任务还是要泛化为生产聚合 API。
 5. 联调前在前端环境中设置 `VITE_USE_MOCK_API=false`，否则所有差距会被 mock server 掩盖。
+# 2026-05-08 更新：后端评分结果入库链路
+
+后端 assessment 主线已新增 `GradingResultImportService`：
+
+- `POST /api/assessments/{id}/grading/start` 在 Python grading 脚本成功后，会读取 `grader.workspace-root/scores/*.json` 和 `student-mapping.csv`。
+- Java 后端会按 `anon_id -> student_number -> student.student_no -> submission` 映射写入 `grading_run`、`score_item_result`、`final_result`。
+- `GET /api/assessments/{id}/grading/progress` 返回结构新增 `importSummary`，用于记录 imported / skipped / failed。
+- `GET /api/assessments/{id}/final-results` 现在可以查询由评分 JSON 导入生成的最终结果，前提是 student mapping、student 和 submission 均能匹配。
+- 前端仍未接入 assessment 主线，仍使用 `/api/batch/*` 和 `/api/tasks/*` 原型适配接口；本次不修改前端。

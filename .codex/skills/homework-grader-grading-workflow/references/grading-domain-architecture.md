@@ -19,8 +19,17 @@
 
 - `PythonScriptClient.runPreprocess()`
 - `PythonScriptClient.runGrading()`
+- `GradingResultImportService.importScores(assessmentId)` after grading succeeds
 
-Progress is stored in memory per assessment id. Export uses `PythonScriptClient.runExport()` from `ExportController`.
+`GradingResultImportService` reads `grader.workspace-root/student-mapping.csv` and `grader.workspace-root/scores/*.json`, maps anonymous ids such as `anon-001` to `student.student_no`, finds the latest submission for the assessment/student pair, and writes `grading_run`, `score_item_result`, and `final_result`.
+
+Progress is stored in memory per assessment id and includes `importSummary` after import. Export uses `PythonScriptClient.runExport()` from `ExportController`.
+
+Current limitations:
+
+- Import skips score files when student mapping, student master data, or submission matching is missing.
+- `score_item_result` currently stores rubric/question foreign keys as null unless a stable mapping is added later.
+- Export still reads workspace score files through Python, rather than exporting directly from MySQL `final_result`.
 
 ## Data Model Anchors
 

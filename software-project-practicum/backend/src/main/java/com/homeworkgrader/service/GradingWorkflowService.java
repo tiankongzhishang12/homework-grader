@@ -16,16 +16,18 @@ import org.springframework.stereotype.Service;
 public class GradingWorkflowService {
     private final PythonScriptClient pythonScriptClient;
     private final CrudJdbcRepository repository;
+    private final GradingResultImportService resultImportService;
     private final Map<Long, Map<String, Object>> progress = new ConcurrentHashMap<>();
     private final ExecutorService gradingExecutor = Executors.newSingleThreadExecutor();
 
-    public GradingWorkflowService(PythonScriptClient pythonScriptClient, CrudJdbcRepository repository) {
+    public GradingWorkflowService(PythonScriptClient pythonScriptClient, CrudJdbcRepository repository, GradingResultImportService resultImportService) {
         this.pythonScriptClient = pythonScriptClient;
         this.repository = repository;
+        this.resultImportService = resultImportService;
     }
 
     public Map<String, Object> start(Long assessmentId) {
-        Map<String, Object> queued = newProgress(assessmentId, "QUEUED", "评分任务已排队", null, null);
+        Map<String, Object> queued = newProgress(assessmentId, "QUEUED", "Grading task queued.", null, null, null);
         progress.put(assessmentId, queued);
         gradingExecutor.submit(new Runnable() {
             @Override
@@ -43,22 +45,27 @@ public class GradingWorkflowService {
     private void runWorkflow(Long assessmentId) {
         Map<String, Object> current = progress.get(assessmentId);
         Object startedAt = current == null ? null : current.get("startedAt");
-        progress.put(assessmentId, newProgress(assessmentId, "PREPROCESSING", "正在执行内容抽取", null, startedAt));
+        progress.put(assessmentId, newProgress(assessmentId, "PREPROCESSING", "Running submission preprocessing.", null, startedAt, null));
         try {
             ScriptResult preprocess = pythonScriptClient.runPreprocess();
             if (!preprocess.success()) {
-                progress.put(assessmentId, newProgress(assessmentId, "FAILED", "内容抽取失败", preprocess, startedAt));
+                progress.put(assessmentId, newProgress(assessmentId, "FAILED", "Submission preprocessing failed.", preprocess, startedAt, null));
                 return;
             }
-            progress.put(assessmentId, newProgress(assessmentId, "GRADING", "正在执行自动评分", preprocess, startedAt));
+            progress.put(assessmentId, newProgress(assessmentId, "GRADING", "Running automatic grading.", preprocess, startedAt, null));
             ScriptResult grading = pythonScriptClient.runGrading();
             if (!grading.success()) {
-                progress.put(assessmentId, newProgress(assessmentId, "FAILED", "自动评分失败", grading, startedAt));
+                progress.put(assessmentId, newProgress(assessmentId, "FAILED", "Automatic grading failed.", grading, startedAt, null));
                 return;
             }
-            progress.put(assessmentId, newProgress(assessmentId, "COMPLETED", "评分完成", grading, startedAt));
+            GradingResultImportService.ImportSummary importSummary = resultImportService.importScores(assessmentId);
+            if (importSummary.getFailedCount() > 0) {
+                progress.put(assessmentId, newProgress(assessmentId, "FAILED", "Grading result import failed.", grading, startedAt, importSummary));
+                return;
+            }
+            progress.put(assessmentId, newProgress(assessmentId, "COMPLETED", "Grading completed and results imported.", grading, startedAt, importSummary));
         } catch (Exception ex) {
-            progress.put(assessmentId, newProgress(assessmentId, "FAILED", ex.getMessage(), null, startedAt));
+            progress.put(assessmentId, newProgress(assessmentId, "FAILED", ex.getMessage(), null, startedAt, null));
         }
     }
 
@@ -88,18 +95,19 @@ public class GradingWorkflowService {
     }
 
     private Map<String, Object> idleProgress(Long assessmentId) {
-        Map<String, Object> map = newProgress(assessmentId, "IDLE", "暂无运行中的评分任务", null, null);
+        Map<String, Object> map = newProgress(assessmentId, "IDLE", "No running grading task.", null, null, null);
         map.put("startedAt", null);
         return map;
     }
 
-    private Map<String, Object> newProgress(Long assessmentId, String status, String message, ScriptResult result, Object startedAt) {
+    private Map<String, Object> newProgress(Long assessmentId, String status, String message, ScriptResult result, Object startedAt, Object importSummary) {
         Map<String, Object> map = new HashMap<>();
         Object started = startedAt == null ? java.time.Instant.now() : startedAt;
         map.put("assessmentId", assessmentId);
         map.put("status", status);
         map.put("message", message);
         map.put("scriptResult", result);
+        map.put("importSummary", importSummary);
         map.put("startedAt", started);
         map.put("updatedAt", java.time.Instant.now());
         return map;

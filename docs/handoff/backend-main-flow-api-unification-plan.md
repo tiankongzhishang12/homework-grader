@@ -1,5 +1,4 @@
 # 后端主流程 API 统一方案
-
 ## 任务名
 
 设计后端主流程 API 统一方案
@@ -610,3 +609,30 @@
 - 保持 final result 与 raw grading run 区分
 - 不改 SQL schema
 - 不动 Python 脚本
+## 2026-05-08 更新：评分结果入库适配器已实现
+
+本次已在后端主流程中新增 Java 侧评分结果入库适配器：
+
+- 新增 `GradingResultImportService`。
+- `GradingWorkflowService` 在 `PythonScriptClient.runGrading()` 成功后调用 `importScores(assessmentId)`。
+- 导入源为 `grader.workspace-root/student-mapping.csv` 和 `grader.workspace-root/scores/*.json`。
+- 导入目标为 `grading_run`、`score_item_result`、`final_result`。
+- `progress` 返回结构新增 `importSummary`，包含 `importedCount`、`skippedCount`、`failedCount` 及明细。
+
+当前匹配链路：
+
+`scores.student_id -> student-mapping.csv.anon_id -> student_number -> student.student_no -> student.id -> assessmentId + student.id 最新 submission`
+
+处理规则：
+
+- 找不到 student mapping、student 或 submission 时跳过该 score JSON，不中断整个批次。
+- 单个文件解析或写库失败会记录到 failed；存在 failed 时本次 progress 状态为 `FAILED`，message 为 `Grading result import failed.`。
+- `final_result` 按 `submission_id` 唯一约束执行插入或更新，避免重复插入。
+
+主流程结论同步调整：
+
+- `grading_run`、`score_item_result`、`final_result` 的生成链路已补齐基础适配。
+- 当前仍需用真实 workspace 样例和数据库 submission 数据验证端到端导入。
+- `grading progress` 仍是内存态，后续仍应迁移为数据库持久化。
+- `/api/tasks/*` 和 `/api/batch/*` 仍为前端原型适配接口，不作为真实主线。
+- 前端暂不介入；下一步优先做后端手动验收和导出基于 `final_result` 的对齐。
