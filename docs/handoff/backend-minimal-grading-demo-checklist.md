@@ -121,3 +121,20 @@
 - `importedCount > 0 && skippedCount == 0 && failedCount == 0`：progress 状态为 `COMPLETED`，message 为 `Grading completed and all results imported.`。
 
 `progress` 中继续返回 `importSummary`，用于定位 mapping 缺失、student 缺失、submission 缺失或单文件导入异常。
+## 2026-05-08 更新：自动验收脚本
+
+已新增 `software-project-practicum/scripts/verify_backend_minimal_demo.py`，用于验证后端最小阅卷 demo：
+
+- 默认 dry-run，不写数据库、不写 workspace、不调用后端业务接口。
+- 只有传入 `--apply` 时，才写入或复用 `DEMO_*` 标识的本地测试数据。
+- 脚本会准备 `student-mapping.csv` 和 `scores/anon-001.json`，调用 assessment 主线阅卷接口，检查 `final_result`、`score_item_result`，并调用 confirm 验证 `confirmed_at`。
+- 脚本会生成 `docs/handoff/backend-minimal-demo-manual-test-record.md`。
+- 脚本不删除真实数据，不清空表，不修改 schema，不修改 Python 评分脚本。
+
+推荐 dry-run：
+
+```bash
+python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-url http://localhost:8080 --workspace software-project-practicum/workspace/practicum-batch
+```
+
+真实验收必须显式追加 `--apply`，并确保本地后端、MySQL 和认证参数准备好。
