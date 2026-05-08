@@ -256,8 +256,8 @@
 | P1 | 学生提交 | GET | `/api/assessments/{id}/submissions` | 前端没有真实提交列表 API client。 |
 | P1 | 学生提交 | GET | `/api/submissions/{id}` | 前端没有提交详情 API client。 |
 | P1 | 学生提交 | GET | `/api/submissions/{id}/assets/{assetId}/download` | 前端没有原始提交/资产下载 API client。 |
-| P0 | 批量阅卷 | POST | `/api/assessments/{id}/grading/start` | 前端使用 `/api/batch/start`，未接入核心 assessment grading API。 |
-| P0 | 批量阅卷 | GET | `/api/assessments/{id}/grading/progress` | 前端使用 `/api/batch/progress?taskId=...`，未接入核心 assessment grading API。 |
+| P0 | 批量阅卷 | POST | `/api/assessments/{id}/grading/start` | 后端真实主线接口已稳定返回 `assessmentId`、`status`、`message`、`scriptResult`、`startedAt`、`updatedAt`；前端仍使用 `/api/batch/start`。 |
+| P0 | 批量阅卷 | GET | `/api/assessments/{id}/grading/progress` | 后端真实主线接口已稳定同形状进度返回；当前进度仍为内存态，后续应迁移数据库持久化；前端仍使用 `/api/batch/progress?taskId=...`。 |
 | P1 | 批量阅卷 | GET | `/api/grading-runs/{id}` | 前端没有评分运行详情 API client。 |
 | P1 | 学生详情 | GET | `/api/submissions/{id}/score-items` | 前端使用聚合的学生详情接口，未直接读取 score item。 |
 | P0 | 成绩确认与发布 | GET | `/api/assessments/{id}/final-results` | 前端没有最终成绩列表 API client，影响教师复核闭环。 |
@@ -346,8 +346,9 @@
 ### 批量阅卷
 
 - 前端使用 `/api/batch/*` 原型接口。
-- 后端核心接口是 `/api/assessments/{id}/grading/*`。
-- P0：必须统一 taskId/assessmentId 和真实进度状态，否则后端主流程闭环无法通过前端验证。
+- 后端核心接口是 `/api/assessments/{id}/grading/*`，并已稳定 start/progress 返回字段：`assessmentId`、`status`、`message`、`scriptResult`、`startedAt`、`updatedAt`。
+- 当前 progress 仍由 `GradingWorkflowService` 内存 Map 保存，后续需要迁移为数据库持久化。
+- P0 剩余问题：前端尚未从 `/api/batch/*` 切换到 assessment 主线，且 taskId/assessmentId 映射仍需统一。
 
 ### 结果分析
 
@@ -400,7 +401,7 @@
 | 编号 | 问题 | 影响 | 建议 |
 | --- | --- | --- | --- |
 | P0-1 | 标准答案真实核心接口已补齐，但前端 `POST /api/tasks/{taskId}/answers` 仍未接入真实主线。 | 后端已可按 question_definition 维护 `standard_answer`，但前端配置页仍需迁移。 | 后续将前端标准答案写入改为 `/api/questions/{questionId}/standard-answers`，并明确 taskId 到 assessment/template/question 的映射。 |
-| P0-2 | 前端批量阅卷使用 `/api/batch/*`，后端核心阅卷使用 `/api/assessments/{id}/grading/*`。 | 前端无法验证真实 `GradingWorkflowService` 和 `PythonScriptClient` 主流程。 | 统一路由，或在前端 service 增加 assessment grading API 并建立 taskId/assessmentId 映射。 |
+| P0-2 | 后端 `/api/assessments/{id}/grading/start` 和 `/progress` 已稳定真实返回结构，但前端仍使用 `/api/batch/*`。 | 后端小闭环已可脱离 `/api/batch/*`；前端联调仍无法验证真实 `GradingWorkflowService` 和 `PythonScriptClient` 主流程。 | Phase 2 在前端 service 增加 assessment grading API，并建立 taskId/assessmentId 映射；当前 progress 内存态后续迁移为数据库持久化。 |
 | P0-3 | 前端未使用 `final_result` 确认、调整、发布接口。 | 教师复核、最终成绩确认和发布的可审计闭环无法在前端完成。 | 增加 `finalResultApi` / `gradePublishApi`，在学生详情或结果列表接入 confirm/adjust/publish。 |
 | P0-4 | 前端导出使用 `/api/batch/export` 原型接口，未接入 `/api/assessments/{id}/grades/export` 和 `/api/reports/latest/download`。 | 导出中心无法触发真实 Python 导出脚本，也无法下载最新 xlsx 报表。 | 将导出中心接入核心导出接口，并补下载 API client。 |
 
