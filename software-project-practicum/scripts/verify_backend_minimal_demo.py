@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -98,6 +100,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--db-name", default=os.environ.get("HOMEWORK_GRADER_DB_NAME", "homework_grader"))
     parser.add_argument("--db-user", default=os.environ.get("HOMEWORK_GRADER_DB_USER", "root"))
     parser.add_argument("--db-password", default=os.environ.get("HOMEWORK_GRADER_DB_PASSWORD", ""))
+    parser.add_argument("--mysql-client", default=os.environ.get("HOMEWORK_GRADER_MYSQL_CLIENT"), help="Optional path to mysql client executable.")
     parser.add_argument("--workspace", default=os.environ.get("HOMEWORK_GRADER_WORKSPACE", "software-project-practicum/workspace/practicum-batch"))
     parser.add_argument("--report", default="docs/handoff/backend-minimal-demo-manual-test-record.md")
     parser.add_argument("--api-username", default=os.environ.get("HOMEWORK_GRADER_API_USERNAME"))
@@ -125,10 +128,7 @@ def import_mysql_driver():
 def connect_db(args: argparse.Namespace):
     driver_name, driver = import_mysql_driver()
     if driver is None:
-        raise RuntimeError(
-            "No MySQL Python driver found. Install a small driver such as 'pymysql' or 'mysql-connector-python', "
-            "or run without --apply for dry-run planning."
-        )
+        return MysqlCliConnection(args)
     if driver_name == "pymysql":
         return driver.connect(
             host=args.db_host,
@@ -148,6 +148,114 @@ def connect_db(args: argparse.Namespace):
         database=args.db_name,
         autocommit=False,
     )
+
+
+class MysqlCliConnection:
+    def __init__(self, args: argparse.Namespace):
+        self.args = args
+        self.client = args.mysql_client or shutil.which("mysql")
+        if not self.client:
+            default_windows_client = r"C:\Program Files\MySQL\MySQL Server 9.3\bin\mysql.exe"
+            if Path(default_windows_client).exists():
+                self.client = default_windows_client
+        if not self.client:
+            raise RuntimeError(
+                "No MySQL Python driver or mysql client found. Install 'pymysql'/'mysql-connector-python', "
+                "add mysql to PATH, or pass --mysql-client."
+            )
+
+    def cursor(self):
+        return MysqlCliCursor(self)
+
+    def commit(self):
+        return None
+
+    def close(self):
+        return None
+
+    def run_sql(self, sql: str):
+        command = [
+            self.client,
+            "--protocol=tcp",
+            "-h",
+            self.args.db_host,
+            "-P",
+            str(self.args.db_port),
+            "-u",
+            self.args.db_user,
+            "--default-character-set=utf8mb4",
+            "--batch",
+            "--raw",
+            self.args.db_name,
+            "-e",
+            sql,
+        ]
+        if self.args.db_password:
+            command.insert(8, "--password=" + self.args.db_password)
+        completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if completed.returncode != 0:
+            raise RuntimeError((completed.stderr or completed.stdout).strip())
+        return completed.stdout
+
+
+class MysqlCliCursor:
+    def __init__(self, connection: MysqlCliConnection):
+        self.connection = connection
+        self.description = None
+        self._rows = []
+        self.lastrowid = 0
+
+    def execute(self, sql: str, params=()):
+        formatted = format_sql(sql, params)
+        wants_rows = formatted.lstrip().lower().startswith("select")
+        if wants_rows:
+            stdout = self.connection.run_sql(formatted)
+            self._rows, self.description = parse_mysql_batch(stdout)
+        else:
+            stdout = self.connection.run_sql(formatted + "; select last_insert_id() as id")
+            rows, description = parse_mysql_batch(stdout)
+            self.description = description
+            self._rows = rows
+            self.lastrowid = int(rows[-1][0]) if rows else 0
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
+    def fetchall(self):
+        return self._rows
+
+    def close(self):
+        return None
+
+
+def parse_mysql_batch(stdout: str):
+    lines = [line for line in stdout.splitlines() if line.strip()]
+    if not lines:
+        return [], []
+    headers = lines[0].split("\t")
+    rows = []
+    for line in lines[1:]:
+        values = [None if value == "NULL" else value for value in line.split("\t")]
+        rows.append(tuple(values))
+    return rows, [(header,) for header in headers]
+
+
+def format_sql(sql: str, params=()):
+    formatted = sql
+    for value in params:
+        formatted = formatted.replace("%s", sql_literal(value), 1)
+    return formatted
+
+
+def sql_literal(value):
+    if value is None:
+        return "NULL"
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (int, float, Decimal)):
+        return str(value)
+    text = str(value).replace("\\", "\\\\").replace("'", "''")
+    return "'" + text + "'"
 
 
 def fetch_one(conn, sql: str, params=()):
@@ -667,6 +775,8 @@ def main() -> int:
         api_results.append(backend_check)
         if not backend_check.ok:
             raise RuntimeError(backend_check.detail)
+        if "HTTP 401" in backend_check.detail and not (args.api_username and args.api_password):
+            raise RuntimeError("Backend requires authentication. Re-run with --api-username and --api-password before applying demo writes.")
         conn = connect_db(args)
         ids = ensure_demo_data(conn)
         mapping_path, score_path = prepare_workspace(Path(args.workspace))

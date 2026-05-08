@@ -130,6 +130,7 @@
 - 脚本会准备 `student-mapping.csv` 和 `scores/anon-001.json`，调用 assessment 主线阅卷接口，检查 `final_result`、`score_item_result`，并调用 confirm 验证 `confirmed_at`。
 - 脚本会生成 `docs/handoff/backend-minimal-demo-manual-test-record.md`。
 - 脚本不删除真实数据，不清空表，不修改 schema，不修改 Python 评分脚本。
+- 如果未安装 `pymysql` 或 `mysql-connector-python`，脚本会尝试使用本机 `mysql` 命令行客户端；也可通过 `--mysql-client` 显式传入客户端路径。
 
 推荐 dry-run：
 
