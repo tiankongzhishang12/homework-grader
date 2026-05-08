@@ -71,6 +71,8 @@ Base path: `/api`
 - `PUT /final-results/{id}/adjust`
 - `POST /assessments/{id}/grades/publish`
 
+`PUT /api/final-results/{id}/confirm` updates `review_status = CONFIRMED`, `confirmed_by_teacher_id`, and `confirmed_at`. `PUT /api/final-results/{id}/adjust` is separate and is not changed by confirmation behavior.
+
 Assessment grading start/progress is the real backend main-flow path. `POST /api/assessments/{id}/grading/start` now returns a progress object with:
 
 - `assessmentId`

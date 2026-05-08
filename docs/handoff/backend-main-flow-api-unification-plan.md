@@ -365,8 +365,9 @@
 
 - `{id}` 是 `finalResultId`。
 - `confirm` 请求体当前需要 `teacher_id`。
+- `confirm` 会写入 `review_status = CONFIRMED`、`confirmed_by_teacher_id` 和 `confirmed_at`。
 - `adjust` 请求体当前可包含 `final_score`。
-- 后续实现建议补 `confirmed_at`，并考虑调整原因字段；不改 schema 时可先在现有可用字段范围内做最小闭环。
+- 后续可考虑调整原因字段；不改 schema 时可先在现有可用字段范围内做最小闭环。
 
 ### 12. publish grades
 
@@ -467,7 +468,7 @@
 策略：
 
 1. 后端主线保留当前接口。
-2. Phase 1 后端补强返回结构和审计字段可用性，尤其是 `confirmed_at`。
+2. Phase 1 后端已补强 `confirm` 审计字段：确认时写入 `confirmed_at`。
 3. Phase 2 前端新增 `finalResultApi` 和 `gradePublishApi`。
 4. 教师复核 UI 应围绕 `final_result`，不要只展示 mock 的学生详情分数。
 
@@ -498,7 +499,7 @@
 2. 稳定 assessment/template/question/rubric 创建顺序和返回结构。
 3. 稳定 submission 上传与 asset 下载。
 4. 稳定 `/api/assessments/{id}/grading/start` 和 progress 返回结构。已完成基础稳定：返回 `assessmentId`、`status`、`message`、`scriptResult`、`startedAt`、`updatedAt`，当前仍以内存 Map 保存进度。
-5. 确认 `final_result` 查询、确认、调整、发布接口可用，并尽量补齐 `confirmed_at`。
+5. 确认 `final_result` 查询、确认、调整、发布接口可用；`confirm` 已写入 `confirmed_at`。
 6. 稳定真实导出和 latest report 下载。
 
 验收：
@@ -558,7 +559,7 @@
 | --- | --- | --- | --- |
 | P0 | 补标准答案核心接口 | Phase 1 | 已补齐真实核心接口；后续需前端迁移和联调。 |
 | P0 | 统一阅卷启动和进度主线到 `/api/assessments/{id}/grading/*` | Phase 1 | 已稳定基础返回结构；后续需数据库持久化运行状态。 |
-| P0 | 稳定 final results 查询、confirm、adjust、publish | Phase 1 | 阻塞教师复核和可审计成绩闭环。 |
+| P0 | 稳定 final results 查询、confirm、adjust、publish | Phase 1 | `confirm` 已写入 `confirmed_at`；前端仍需接入教师复核闭环。 |
 | P0 | 稳定 assessment export 和 latest report download | Phase 1 | 阻塞真实导出闭环。 |
 | P1 | 前端新增真实 assessment/grading/finalResult/export API client | Phase 2 | 阻塞前后端联调。 |
 | P1 | 将 `taskId` 映射为 `assessmentId` | Phase 2 | 阻塞路由语义统一。 |
@@ -589,23 +590,23 @@
 需要记录的实现差距：
 
 - `standard_answer` 表存在，但后端缺少真实核心标准答案创建/上传/详情接口。
-- `final_result.confirm` 当前更新 `review_status` 和 `confirmed_by_teacher_id`，未设置 `confirmed_at`。
+- `final_result.confirm` 当前更新 `review_status`、`confirmed_by_teacher_id` 和 `confirmed_at`。
 - `/api/reports/latest/download` 当前使用 POST 返回文件流，前端联调时需要特殊处理。
 
 ## 推荐优先修复的第一个后端任务
 
-“标准答案核心接口补齐”已完成，后端主流程阅卷 start/progress 基础返回结构也已稳定。下一步优先做 final result 复核审计补强。
+“标准答案核心接口补齐”已完成，后端主流程阅卷 start/progress 基础返回结构也已稳定，`final_result.confirm` 已写入 `confirmed_at`。下一步优先做前端接入 final result 复核闭环。
 
 理由：
 
 - 标准答案接口已经可以串起 `assessment_template -> question_definition -> standard_answer -> grading`。
-- 当前下一个后端 P0 是补强 `final_result` 确认/调整/发布的审计闭环，尤其是 `confirm` 设置 `confirmed_at`。
+- 当前下一个 P0 是前端接入 `final_result` 确认、调整和发布接口。
 - start/progress 仍需要后续数据库持久化，但基础接口形状已经可供前端联调。
 
 建议第一个任务范围：
 
-- 修复 `confirm` 未设置 `confirmed_at`
-- 梳理 `final_result` 调整原因和教师身份字段
+- 新增前端 `finalResultApi` / `gradePublishApi`
+- 梳理 `final_result` 调整原因字段是否需要后续扩展
 - 保持 final result 与 raw grading run 区分
 - 不改 SQL schema
 - 不动 Python 脚本

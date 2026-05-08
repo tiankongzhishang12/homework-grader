@@ -3,6 +3,7 @@ package com.homeworkgrader.service;
 import com.homeworkgrader.client.python.PythonScriptClient;
 import com.homeworkgrader.client.python.PythonScriptClient.ScriptResult;
 import com.homeworkgrader.repository.CrudJdbcRepository;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +66,7 @@ public class GradingWorkflowService {
         Map<String, Object> values = new HashMap<>();
         values.put("review_status", "CONFIRMED");
         values.put("confirmed_by_teacher_id", teacherId);
+        values.put("confirmed_at", LocalDateTime.now());
         repository.update("final_result", finalResultId, values);
         return finalResultId;
     }

@@ -261,7 +261,7 @@
 | P1 | 批量阅卷 | GET | `/api/grading-runs/{id}` | 前端没有评分运行详情 API client。 |
 | P1 | 学生详情 | GET | `/api/submissions/{id}/score-items` | 前端使用聚合的学生详情接口，未直接读取 score item。 |
 | P0 | 成绩确认与发布 | GET | `/api/assessments/{id}/final-results` | 前端没有最终成绩列表 API client，影响教师复核闭环。 |
-| P0 | 成绩确认与发布 | PUT | `/api/final-results/{id}/confirm` | 前端没有成绩确认 API client，影响最终成绩审计闭环。 |
+| P0 | 成绩确认与发布 | PUT | `/api/final-results/{id}/confirm` | 后端确认接口已写入 `review_status`、`confirmed_by_teacher_id`、`confirmed_at`；前端没有成绩确认 API client，影响联调闭环。 |
 | P0 | 成绩确认与发布 | PUT | `/api/final-results/{id}/adjust` | 前端没有成绩调整 API client，影响教师复核闭环。 |
 | P0 | 成绩确认与发布 | POST | `/api/assessments/{id}/grades/publish` | 前端没有成绩发布 API client。 |
 | P0 | 导出 | POST | `/api/assessments/{id}/grades/export` | 前端使用 `/api/batch/export` 原型导出，未接入核心导出脚本接口。 |
@@ -365,8 +365,9 @@
 ### 成绩确认与发布
 
 - 后端已有 final results、confirm、adjust、publish。
+- `confirm` 已写入 `review_status = CONFIRMED`、`confirmed_by_teacher_id` 和 `confirmed_at`。
 - 前端完全没有对应 API client。
-- P0：这会阻塞“教师复核 -> 最终成绩确认/调整 -> 发布”的可审计闭环。
+- P0 剩余问题：前端尚未接入“教师复核 -> 最终成绩确认/调整 -> 发布”的可审计闭环。
 
 ### 导出
 
@@ -402,13 +403,13 @@
 | --- | --- | --- | --- |
 | P0-1 | 标准答案真实核心接口已补齐，但前端 `POST /api/tasks/{taskId}/answers` 仍未接入真实主线。 | 后端已可按 question_definition 维护 `standard_answer`，但前端配置页仍需迁移。 | 后续将前端标准答案写入改为 `/api/questions/{questionId}/standard-answers`，并明确 taskId 到 assessment/template/question 的映射。 |
 | P0-2 | 后端 `/api/assessments/{id}/grading/start` 和 `/progress` 已稳定真实返回结构，但前端仍使用 `/api/batch/*`。 | 后端小闭环已可脱离 `/api/batch/*`；前端联调仍无法验证真实 `GradingWorkflowService` 和 `PythonScriptClient` 主流程。 | Phase 2 在前端 service 增加 assessment grading API，并建立 taskId/assessmentId 映射；当前 progress 内存态后续迁移为数据库持久化。 |
-| P0-3 | 前端未使用 `final_result` 确认、调整、发布接口。 | 教师复核、最终成绩确认和发布的可审计闭环无法在前端完成。 | 增加 `finalResultApi` / `gradePublishApi`，在学生详情或结果列表接入 confirm/adjust/publish。 |
+| P0-3 | 后端 `confirm` 已写入 `confirmed_at`，但前端未使用 `final_result` 确认、调整、发布接口。 | 后端审计字段已补强；教师复核、最终成绩确认和发布仍无法在前端完成联调。 | 增加 `finalResultApi` / `gradePublishApi`，在学生详情或结果列表接入 confirm/adjust/publish。 |
 | P0-4 | 前端导出使用 `/api/batch/export` 原型接口，未接入 `/api/assessments/{id}/grades/export` 和 `/api/reports/latest/download`。 | 导出中心无法触发真实 Python 导出脚本，也无法下载最新 xlsx 报表。 | 将导出中心接入核心导出接口，并补下载 API client。 |
 
 ## 后续建议
 
 1. 先统一任务 id 语义：决定前端 `taskId` 是否直接等于后端 `assessment.id`，或提供映射字段。
-2. 优先补 P0：标准答案上传、核心阅卷启动/进度、final result confirm/adjust/publish、真实导出和下载。
+2. 优先补 P0：前端接入核心阅卷启动/进度、final result confirm/adjust/publish、真实导出和下载。
 3. 第二阶段补 P1：Rubric 写操作、导出模板写操作、真实提交列表/详情/资产下载。
 4. 保留 `FrontendViewController` 作为短期适配层时，需明确它只服务 demo 任务还是要泛化为生产聚合 API。
 5. 联调前在前端环境中设置 `VITE_USE_MOCK_API=false`，否则所有差距会被 mock server 掩盖。
