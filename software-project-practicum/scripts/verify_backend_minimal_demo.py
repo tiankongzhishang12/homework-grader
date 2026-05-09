@@ -112,6 +112,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Use POST /api/assessments/{id}/grading/import-scores instead of grading/start. Requires --apply to call backend APIs.",
     )
+    parser.add_argument(
+        "--use-existing-workspace",
+        action="store_true",
+        help="Reuse existing student-mapping.csv and scores/*.json under --workspace instead of writing synthetic demo artifacts.",
+    )
     return parser.parse_args()
 
 
@@ -541,6 +546,35 @@ def prepare_workspace(workspace: Path):
     return mapping_path, score_path
 
 
+def collect_existing_workspace_files(workspace: Path):
+    mapping_path = workspace / "student-mapping.csv"
+    scores_dir = workspace / "scores"
+    if not mapping_path.is_file():
+        raise RuntimeError(f"Missing required workspace file: {mapping_path}")
+    if not scores_dir.is_dir():
+        raise RuntimeError(f"Missing required scores directory: {scores_dir}")
+
+    score_files = sorted(scores_dir.glob("*.json"))
+    if not score_files:
+        raise RuntimeError(f"No score JSON files found under: {scores_dir}")
+
+    preferred_score = scores_dir / "anon-001.json"
+    primary_score = preferred_score if preferred_score.is_file() else score_files[0]
+    return {
+        "mapping": mapping_path,
+        "score": primary_score,
+        "score_files": score_files,
+    }
+
+
+def load_expected_score_payload(args: argparse.Namespace, workspace_files: dict):
+    if args.use_existing_workspace:
+        score_path = Path(workspace_files["score"])
+        with open(score_path, encoding="utf-8") as f:
+            return json.load(f)
+    return SCORE_PAYLOAD
+
+
 class ApiClient:
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/")
@@ -673,7 +707,7 @@ def run_api_flow(args: argparse.Namespace, ids: dict):
     return results, progress_data, final_data, score_data
 
 
-def verify_database(conn, ids: dict):
+def verify_database(conn, ids: dict, expected_score_payload: dict):
     final_rows = fetch_all(
         conn,
         "select * from final_result where submission_id = %s order by id desc",
@@ -690,9 +724,9 @@ def verify_database(conn, ids: dict):
         final_score = float(final_rows[0]["final_score"])
         checks.append(
             StepResult(
-                "db final_score matches demo score",
-                abs(final_score - float(SCORE_PAYLOAD["raw_total_score"])) < 0.01,
-                f"final_score={final_score}, expected={SCORE_PAYLOAD['raw_total_score']}",
+                "db final_score matches expected score",
+                abs(final_score - float(expected_score_payload["raw_total_score"])) < 0.01,
+                f"final_score={final_score}, expected={expected_score_payload['raw_total_score']}",
             )
         )
         checks.append(
@@ -712,8 +746,8 @@ def verify_database(conn, ids: dict):
     checks.append(
         StepResult(
             "db score_item_result count",
-            len(score_rows) >= len(SCORE_PAYLOAD["dimension_scores"]),
-            f"count={len(score_rows)}, expected>={len(SCORE_PAYLOAD['dimension_scores'])}",
+            len(score_rows) >= len(expected_score_payload["dimension_scores"]),
+            f"count={len(score_rows)}, expected>={len(expected_score_payload['dimension_scores'])}",
         )
     )
     return checks, final_rows, score_rows
@@ -733,6 +767,7 @@ def write_report(args, dry_run: bool, ids=None, workspace_files=None, api_result
         f"- 测试时间：{datetime.now().isoformat(timespec='seconds')}",
         f"- 测试模式：{'dry-run' if dry_run else 'apply'}",
         f"- grading mode: {'import-only' if args.import_only else 'full grading'}",
+        f"- use-existing-workspace: {'yes' if args.use_existing_workspace else 'no'}",
         f"- 后端地址：`{args.base_url}`",
         f"- 数据库：`{args.db_user}@{args.db_host}:{args.db_port}/{args.db_name}`",
         f"- workspace：`{args.workspace}`",
@@ -791,6 +826,91 @@ def write_report(args, dry_run: bool, ids=None, workspace_files=None, api_result
     return report_path
 
 
+def print_existing_workspace_banner():
+    print("Using existing workspace artifacts.")
+    print("student-mapping.csv will not be overwritten.")
+    print("scores/*.json will not be overwritten.")
+
+
+def write_report_v2(args, dry_run: bool, ids=None, workspace_files=None, api_results=None, db_checks=None, conclusion=False, failures=None):
+    report_path = Path(args.report)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    failures = failures or []
+    ids = ids or {}
+    workspace_files = workspace_files or {}
+    api_results = api_results or []
+    db_checks = db_checks or []
+    score_files = workspace_files.get("score_files", [])
+    if isinstance(score_files, str):
+        score_files = [score_files]
+    score_file_text = ", ".join(score_files)
+    lines = [
+        "# Backend Minimal Demo Manual Test Record",
+        "",
+        f"- Timestamp: {datetime.now().isoformat(timespec='seconds')}",
+        f"- Mode: {'dry-run' if dry_run else 'apply'}",
+        f"- Grading mode: {'import-only' if args.import_only else 'full grading'}",
+        f"- Use existing workspace: {'yes' if args.use_existing_workspace else 'no'}",
+        f"- Base URL: `{args.base_url}`",
+        f"- Database: `{args.db_user}@{args.db_host}:{args.db_port}/{args.db_name}`",
+        f"- Workspace: `{args.workspace}`",
+        "",
+        "## Demo IDs",
+        "",
+        f"- assessmentId: `{ids.get('assessmentId', '')}`",
+        f"- teacherId: `{ids.get('teacherId', '')}`",
+        f"- studentId: `{ids.get('studentId', '')}`",
+        f"- submissionId: `{ids.get('submissionId', '')}`",
+        f"- finalResultId: `{ids.get('finalResultId', '')}`",
+        "",
+        "## Workspace Files",
+        "",
+        f"- student-mapping.csv: `{workspace_files.get('mapping', '')}`",
+        f"- primary score file: `{workspace_files.get('score', '')}`",
+        f"- detected score files: `{score_file_text}`",
+        "",
+        "## API Results",
+        "",
+    ]
+    if api_results:
+        for result in api_results:
+            lines.append(f"- [{'PASS' if result.ok else 'FAIL'}] {result.name}: {result.detail}")
+    else:
+        lines.append("- No API calls were made in this run.")
+    lines.extend(["", "## Database Checks", ""])
+    if db_checks:
+        for result in db_checks:
+            lines.append(f"- [{'PASS' if result.ok else 'FAIL'}] {result.name}: {result.detail}")
+    else:
+        lines.append("- No database checks were run in this mode.")
+    lines.extend(["", "## Conclusion", "", "PASS" if conclusion else "FAIL" if not dry_run else "DRY-RUN"])
+    lines.extend(["", "## Failures", ""])
+    if failures:
+        for failure in failures:
+            lines.append(f"- {failure}")
+    else:
+        lines.append("- None.")
+    lines.extend(
+        [
+            "",
+            "## Mode Notes",
+            "",
+            "- `--apply`: prepares or reuses DEMO_* database rows and calls backend APIs.",
+            "- `--apply` without `--use-existing-workspace`: writes synthetic `student-mapping.csv` and `scores/anon-001.json` under `--workspace`.",
+            "- `--apply --import-only --use-existing-workspace`: reuses existing `student-mapping.csv` and `scores/*.json` and does not overwrite them.",
+            "- `--use-existing-workspace` is the recommended mode for validating real full grading artifacts imported from Python output.",
+            "",
+            "## Follow-up",
+            "",
+            "- Use dry-run first, then add `--apply` only when backend and database are ready.",
+            "- If the backend returns `401`, pass `--api-username` and `--api-password`.",
+            "- This script does not delete real data and does not change schema.",
+        ]
+    )
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return report_path
+
+
 def print_dry_run_plan(args):
     print("本脚本会向本地 homework_grader 数据库写入 demo 数据。")
     print("默认不执行写入，除非传入 --apply。")
@@ -806,20 +926,57 @@ def print_dry_run_plan(args):
     print(f"- Would write report: {Path(args.report).resolve()}")
 
 
+def print_dry_run_plan_v2(args):
+    print("This script prepares local demo verification steps for homework_grader.")
+    print("By default it does not write data unless --apply is passed.")
+    print("")
+    print("Dry-run plan:")
+    print("- Check optional MySQL Python driver only when --apply is used.")
+    print("- Would upsert/reuse DEMO_* organization, teacher, student, course, class, assessment, and submission data.")
+    if args.use_existing_workspace:
+        workspace_info = collect_existing_workspace_files(Path(args.workspace))
+        print_existing_workspace_banner()
+        print(f"- Would reuse workspace files under: {Path(args.workspace).resolve()}")
+        print(f"- student-mapping.csv: {workspace_info['mapping']}")
+        print(f"- primary score file: {workspace_info['score']}")
+        print(f"- detected score files: {', '.join(str(path) for path in workspace_info['score_files'])}")
+        workspace_files = {
+            "mapping": str(workspace_info["mapping"]),
+            "score": str(workspace_info["score"]),
+            "score_files": [str(path) for path in workspace_info["score_files"]],
+        }
+    else:
+        print(f"- Would write workspace files under: {Path(args.workspace).resolve()}")
+        workspace_files = {}
+    if args.import_only:
+        print("- Would call backend grading/import-scores, query final-results and score-items, then confirm final_result.")
+    else:
+        print("- Would call backend grading/start, poll progress, query final-results and score-items, then confirm final_result.")
+    print(f"- Would write report: {Path(args.report).resolve()}")
+    write_report_v2(args, dry_run=True, workspace_files=workspace_files)
+
+
 def main() -> int:
     args = parse_args()
     if not args.apply:
-        print_dry_run_plan(args)
-        write_report(args, dry_run=True)
-        return 0
+        try:
+            print_dry_run_plan_v2(args)
+            return 0
+        except Exception as exc:  # noqa: BLE001
+            write_report_v2(args, dry_run=True, failures=[str(exc)])
+            print(f"FAIL: {exc}")
+            return 1
 
     print("本脚本会向本地 homework_grader 数据库写入 demo 数据。")
     print("--apply detected: executing demo writes and backend verification.")
+    if args.use_existing_workspace:
+        print_existing_workspace_banner()
 
     failures = []
     conn = None
     ids = {}
     workspace_files = {}
+    expected_score_payload = SCORE_PAYLOAD
     api_results = []
     db_checks = []
     try:
@@ -831,8 +988,21 @@ def main() -> int:
             raise RuntimeError("Backend requires authentication. Re-run with --api-username and --api-password before applying demo writes.")
         conn = connect_db(args)
         ids = ensure_demo_data(conn)
-        mapping_path, score_path = prepare_workspace(Path(args.workspace))
-        workspace_files = {"mapping": str(mapping_path), "score": str(score_path)}
+        if args.use_existing_workspace:
+            workspace_info = collect_existing_workspace_files(Path(args.workspace))
+            workspace_files = {
+                "mapping": str(workspace_info["mapping"]),
+                "score": str(workspace_info["score"]),
+                "score_files": [str(path) for path in workspace_info["score_files"]],
+            }
+        else:
+            mapping_path, score_path = prepare_workspace(Path(args.workspace))
+            workspace_files = {
+                "mapping": str(mapping_path),
+                "score": str(score_path),
+                "score_files": [str(score_path)],
+            }
+        expected_score_payload = load_expected_score_payload(args, workspace_files)
         api_results, progress_data, final_data, score_data = run_api_flow(args, ids)
 
         if not isinstance(progress_data, dict) or progress_data.get("status") != "COMPLETED":
@@ -847,13 +1017,13 @@ def main() -> int:
         else:
             ids["finalResultId"] = final_data[0].get("id")
             final_score = float(final_data[0].get("final_score") or final_data[0].get("finalScore") or 0)
-            if abs(final_score - float(SCORE_PAYLOAD["raw_total_score"])) >= 0.01:
+            if abs(final_score - float(expected_score_payload["raw_total_score"])) >= 0.01:
                 failures.append(f"final_result.final_score mismatch: {final_score}")
 
-        if not isinstance(score_data, list) or len(score_data) < len(SCORE_PAYLOAD["dimension_scores"]):
+        if not isinstance(score_data, list) or len(score_data) < len(expected_score_payload["dimension_scores"]):
             failures.append(f"score-items count too low: {0 if not isinstance(score_data, list) else len(score_data)}")
 
-        db_checks, _final_rows, _score_rows = verify_database(conn, ids)
+        db_checks, _final_rows, _score_rows = verify_database(conn, ids, expected_score_payload)
         for check in db_checks:
             if not check.ok:
                 failures.append(f"{check.name}: {check.detail}")
@@ -863,13 +1033,13 @@ def main() -> int:
                 failures.append(f"{result.name}: {result.detail}")
 
         conclusion = not failures
-        report_path = write_report(args, False, ids, workspace_files, api_results, db_checks, conclusion, failures)
+        report_path = write_report_v2(args, False, ids, workspace_files, api_results, db_checks, conclusion, failures)
         print(f"Report written: {report_path}")
         print("PASS" if conclusion else "FAIL")
         return 0 if conclusion else 1
     except Exception as exc:  # noqa: BLE001
         failures.append(str(exc))
-        report_path = write_report(args, False, ids, workspace_files, api_results, db_checks, False, failures)
+        report_path = write_report_v2(args, False, ids, workspace_files, api_results, db_checks, False, failures)
         print(f"FAIL: {exc}")
         print(f"Report written: {report_path}")
         return 1

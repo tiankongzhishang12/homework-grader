@@ -156,6 +156,28 @@ python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-
 ```
 
 真实写入验收仍必须显式追加 `--apply`。
+
+## 2026-05-09 更新：复用现有 workspace 评分产物
+
+当前 `verify_backend_minimal_demo.py` 已支持：
+
+```powershell
+.\.venv\Scripts\python.exe software-project-practicum/scripts/verify_backend_minimal_demo.py --apply --import-only --use-existing-workspace --workspace software-project-practicum/workspace/practicum-batch --base-url http://localhost:8080 --db-host localhost --db-port 3306 --db-name homework_grader --db-user root --db-password 123456 --api-username teacher --api-password 123456
+```
+
+说明：
+
+- 该模式会继续准备或复用 `DEMO_*` 数据库样例数据。
+- 该模式不会重写 `workspace/student-mapping.csv`。
+- 该模式不会重写 `workspace/scores/*.json`。
+- 该模式适合验证真实 full grading 产物入库。
+- 普通 `--apply` 仍适合生成 synthetic demo 数据并验证最小链路。
+
+执行前检查：
+
+- `{workspace}/student-mapping.csv` 必须存在。
+- `{workspace}/scores/` 必须存在且至少有一个 `.json`。
+- 若 `scores/anon-001.json` 存在，优先使用它；否则脚本会回退到其他 `.json`，并在报告中写明实际检测到的 score 文件。
 ## 2026-05-08 更新：submission_asset 到 Python raw 工作区适配
 
 后端上传接口 `POST /api/assessments/{id}/submissions/upload` 现在会在保存 `submission` 和 `submission_asset` 后，额外尝试复制一份支持的学生提交文件到：
