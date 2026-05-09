@@ -73,7 +73,7 @@
             </span>
           </div>
           <RouterLink
-            :to="{ name: 'task-student-detail', params: { taskId: taskStore.currentTask.id, studentId: student.id }, query: { keyword } }"
+            :to="studentDetailRoute(student)"
             class="action-button action-button--ghost"
           >
             查看解释
@@ -120,7 +120,7 @@
               </td>
               <td>
                 <RouterLink
-                  :to="{ name: 'task-student-detail', params: { taskId: taskStore.currentTask.id, studentId: student.id }, query: { keyword } }"
+                  :to="studentDetailRoute(student)"
                   class="text-link"
                 >
                   查看解释
@@ -244,4 +244,14 @@ const clearFilters = () => {
   keyword.value = "";
   attentionOnly.value = false;
 };
+
+const studentDetailRoute = (student: StudentRow) => ({
+  name: "task-student-detail",
+  params: { taskId: taskStore.currentTask?.id ?? "", studentId: student.id },
+  query: {
+    keyword: keyword.value,
+    submissionId: student.submissionId ?? "",
+    finalResultId: student.finalResultId ?? "",
+  },
+});
 </script>

@@ -25,6 +25,14 @@
         >
           返回结果列表
         </RouterLink>
+        <button
+          class="action-button"
+          type="button"
+          :disabled="batchStore.loading || !batchStore.currentStudent.finalResultId"
+          @click="confirmCurrentStudent"
+        >
+          教师确认
+        </button>
       </div>
     </article>
 
@@ -225,14 +233,23 @@ const taskStore = useTaskContextStore();
 const batchStore = useBatchStore();
 
 watch(
-  () => [taskStore.currentTask?.id, route.params.studentId] as const,
-  async ([taskId, studentId]) => {
+  () => [taskStore.currentTask?.id, route.params.studentId, route.query.submissionId, route.query.finalResultId] as const,
+  async ([taskId, studentId, submissionId, finalResultId]) => {
     if (taskId && studentId) {
-      await batchStore.loadStudent(String(studentId), taskId);
+      await batchStore.loadStudent(
+        String(studentId),
+        taskId,
+        typeof submissionId === "string" ? submissionId : undefined,
+        typeof finalResultId === "string" ? finalResultId : undefined,
+      );
     }
   },
   { immediate: true },
 );
+
+const confirmCurrentStudent = async () => {
+  await batchStore.confirmCurrentStudent();
+};
 
 const improvementHighlights = computed(() => batchStore.currentStudent?.dimensions.slice(0, 3) ?? []);
 const uncoveredCount = computed(() => batchStore.currentStudent?.traceability.uncoveredRequirements.length ?? 0);

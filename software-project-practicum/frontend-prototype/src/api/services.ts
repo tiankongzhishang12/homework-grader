@@ -7,8 +7,11 @@ import type {
   ConfigBlocker,
   ExportRecord,
   ExportTemplate,
+  FinalResultRecord,
+  GradingProgressResponse,
   Rubric,
   RubricDraft,
+  ScoreItemRecord,
   StudentDetail,
   StudentRow,
   TaskDetail,
@@ -27,6 +30,11 @@ export const taskApi = {
   list: () => apiRequest<TaskDetail[]>("/api/tasks"),
   get: (taskId: string) => apiRequest<TaskDetail>(`/api/tasks/${taskId}`),
   blockers: (taskId: string) => apiRequest<{ blockers: ConfigBlocker[] }>(`/api/tasks/${taskId}/config-status`),
+};
+
+export const assessmentApi = {
+  list: () => apiRequest<unknown[]>("/api/assessments"),
+  get: (assessmentId: string) => apiRequest<unknown>(`/api/assessments/${assessmentId}`),
 };
 
 export const answerApi = {
@@ -82,6 +90,32 @@ export const batchApi = {
     apiRequest<{ success: boolean }>("/api/batch/start", { method: "POST", body: JSON.stringify({ taskId }) }),
   progress: (taskId: string) => apiRequest<BatchProgress>(`/api/batch/progress?taskId=${taskId}`),
   logs: (taskId: string) => apiRequest<BatchLog[]>(`/api/batch/logs?taskId=${taskId}`),
+};
+
+export const gradingApi = {
+  start: (assessmentId: string) =>
+    apiRequest<GradingProgressResponse>(`/api/assessments/${assessmentId}/grading/start`, { method: "POST" }),
+  progress: (assessmentId: string) => apiRequest<GradingProgressResponse>(`/api/assessments/${assessmentId}/grading/progress`),
+};
+
+export const finalResultApi = {
+  list: (assessmentId: string) => apiRequest<FinalResultRecord[]>(`/api/assessments/${assessmentId}/final-results`),
+  confirm: (finalResultId: string, teacherId: string | number) =>
+    apiRequest<unknown>(`/api/final-results/${finalResultId}/confirm`, {
+      method: "PUT",
+      body: JSON.stringify({ teacher_id: teacherId }),
+    }),
+  adjust: (finalResultId: string, payload: { finalScore: number; teacherId?: string | number; reason?: string }) =>
+    apiRequest<unknown>(`/api/final-results/${finalResultId}/adjust`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  publish: (assessmentId: string) =>
+    apiRequest<unknown>(`/api/assessments/${assessmentId}/grades/publish`, { method: "POST" }),
+};
+
+export const submissionApi = {
+  scoreItems: (submissionId: string) => apiRequest<ScoreItemRecord[]>(`/api/submissions/${submissionId}/score-items`),
 };
 
 export const resultApi = {

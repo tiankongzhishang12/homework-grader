@@ -15,6 +15,7 @@ export type User = {
   id: string;
   name: string;
   username: string;
+  teacherId?: string | number;
 };
 
 export type TaskSummary = {
@@ -32,6 +33,7 @@ export type TaskSummary = {
 };
 
 export type TaskDetail = TaskSummary & {
+  assessmentId?: string;
   courseCode: string;
   term: string;
   score: number;
@@ -168,6 +170,22 @@ export type BatchProgress = {
   qualityFlags: Array<{ flag: QualityFlag; count: number; label: string }>;
 };
 
+export type RealGradingStatus = "QUEUED" | "PREPROCESSING" | "GRADING" | "COMPLETED" | "FAILED";
+
+export type GradingProgressResponse = {
+  assessmentId: string | number;
+  status: RealGradingStatus;
+  message?: string;
+  scriptResult?: unknown;
+  importSummary?: {
+    importedCount?: number;
+    skippedCount?: number;
+    failedCount?: number;
+  };
+  startedAt?: string;
+  updatedAt?: string;
+};
+
 export type BatchLog = {
   time: string;
   level: "info" | "warn" | "error";
@@ -176,6 +194,10 @@ export type BatchLog = {
 
 export type StudentRow = {
   id: string;
+  assessmentId?: string;
+  submissionId?: string;
+  finalResultId?: string;
+  studentId?: string;
   studentNumber: string;
   name: string;
   anonymousId: string;
@@ -183,9 +205,34 @@ export type StudentRow = {
   grade: string;
   confidence: number;
   gateStatus: string;
+  reviewStatus?: string;
+  confirmedAt?: string;
   traceabilityGapCount: number;
   consistencyIssueCount: number;
   riskTags: string[];
+};
+
+export type FinalResultRecord = {
+  id: string | number;
+  submissionId?: string | number;
+  submission_id?: string | number;
+  studentId?: string | number;
+  student_id?: string | number;
+  studentNo?: string;
+  student_no?: string;
+  studentName?: string;
+  student_name?: string;
+  finalScore?: number;
+  final_score?: number;
+  percentileScore?: number;
+  percentile_score?: number;
+  grade?: string;
+  overallConfidence?: number;
+  overall_confidence?: number;
+  reviewStatus?: string;
+  review_status?: string;
+  confirmedAt?: string;
+  confirmed_at?: string;
 };
 
 export type AnalysisSummary = {
@@ -200,6 +247,10 @@ export type AnalysisSummary = {
 
 export type StudentDetail = {
   id: string;
+  assessmentId?: string;
+  submissionId?: string;
+  finalResultId?: string;
+  studentId?: string;
   name: string;
   studentNumber: string;
   anonymousId: string;
@@ -207,6 +258,8 @@ export type StudentDetail = {
   percentileScore: number;
   grade: string;
   confidence: number;
+  reviewStatus?: string;
+  confirmedAt?: string;
   summary: string;
   qualityFindings: string[];
   dimensions: Array<{
@@ -235,6 +288,24 @@ export type StudentDetail = {
     roles: string[];
     logs: string[];
   };
+};
+
+export type ScoreItemRecord = {
+  id: string | number;
+  criterionCode?: string;
+  criterion_code?: string;
+  criterionName?: string;
+  criterion_name?: string;
+  rubricDefinitionId?: string | number;
+  rubric_definition_id?: string | number;
+  score?: number;
+  maxScore?: number;
+  max_score?: number;
+  confidence?: number;
+  evidence?: string;
+  evidenceJson?: string;
+  evidence_json?: string;
+  comment?: string;
 };
 
 export type ExportRecord = {
