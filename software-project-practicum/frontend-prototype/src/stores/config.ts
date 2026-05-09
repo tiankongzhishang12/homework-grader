@@ -1,12 +1,36 @@
 import { defineStore } from "pinia";
-import { answerApi, exportTemplateApi, rubricApi, workspaceApi } from "../api/services";
-import type { AnswerVersion, ExportTemplate, Rubric, RubricDraft, WorkspaceConfig } from "../types";
+import {
+  answerApi,
+  assessmentApi,
+  exportTemplateApi,
+  gradeExportApi,
+  rubricApi,
+  standardAnswerApi,
+  submissionApi,
+  templateApi,
+  workspaceApi,
+} from "../api/services";
+import type {
+  AnswerVersion,
+  ExportStartResult,
+  ExportTemplate,
+  Rubric,
+  RubricDraft,
+  StandardAnswerRecord,
+  SubmissionRecord,
+  SubmissionUploadResult,
+  WorkspaceConfig,
+} from "../types";
 import { useTaskContextStore } from "./task-context";
 import { useUiStore } from "./ui";
+
+const toText = (value: unknown, fallback = "") => (value === null || value === undefined ? fallback : String(value));
 
 export const useConfigStore = defineStore("config", {
   state: () => ({
     answers: [] as AnswerVersion[],
+    standardAnswers: [] as StandardAnswerRecord[],
+    standardAnswerDraft: "",
     rubrics: [] as Rubric[],
     currentRubric: null as Rubric | null,
     generatedDraft: null as RubricDraft | null,
@@ -14,29 +38,106 @@ export const useConfigStore = defineStore("config", {
     templates: [] as ExportTemplate[],
     currentTemplate: null as ExportTemplate | null,
     workspace: null as WorkspaceConfig | null,
+    submissions: [] as SubmissionRecord[],
+    lastUploadResult: null as SubmissionUploadResult | null,
+    lastExportResult: null as ExportStartResult | null,
     loading: false,
     saving: false,
   }),
+  getters: {
+    hasStandardAnswer(state) {
+      return state.standardAnswers.length > 0;
+    },
+    hasRubric(state) {
+      return Boolean(state.currentRubric);
+    },
+    hasSubmission(state) {
+      return state.submissions.length > 0;
+    },
+  },
   actions: {
     async loadTaskConfig(taskId: string) {
       this.loading = true;
       try {
-        const [answers, rubrics, currentRubric, templates, currentTemplate, workspace] = await Promise.all([
-          answerApi.list(taskId),
-          rubricApi.list(),
+        const taskStore = useTaskContextStore();
+        const task = taskStore.currentTask ?? (await taskStore.loadTask(taskId), taskStore.currentTask);
+        const assessmentId = task?.assessmentId ?? null;
+        const questionId = task?.questionId ?? null;
+
+        const [answers, rubrics, currentRubric, templates, currentTemplate, workspace, standardAnswers, submissions] = await Promise.all([
+          answerApi.list(taskId).catch(() => []),
+          rubricApi.list().catch(() => []),
           rubricApi.binding(taskId).catch(() => null),
-          exportTemplateApi.list(),
+          exportTemplateApi.list().catch(() => []),
           exportTemplateApi.current(taskId).catch(() => null),
           workspaceApi.get(taskId).catch(() => null),
+          questionId ? standardAnswerApi.list(questionId).catch(() => []) : Promise.resolve([]),
+          assessmentId ? submissionApi.list(assessmentId).catch(() => []) : Promise.resolve([]),
         ]);
+
         this.answers = answers;
         this.rubrics = rubrics;
         this.currentRubric = currentRubric;
         this.templates = templates;
         this.currentTemplate = currentTemplate;
         this.workspace = workspace;
+        this.standardAnswers = standardAnswers;
+        this.submissions = submissions;
+        this.standardAnswerDraft = standardAnswers[0]?.answer_text ?? "";
       } finally {
         this.loading = false;
+      }
+    },
+    async initializeTemplateAndQuestion(taskId: string) {
+      const taskStore = useTaskContextStore();
+      const task = taskStore.currentTask;
+      if (!task?.assessmentId) {
+        useUiStore().pushToast("当前任务缺少 assessmentId，无法初始化题目定义。", "risk");
+        return;
+      }
+
+      this.saving = true;
+      try {
+        const templateRes = await assessmentApi.createTemplate(task.assessmentId, {
+          template_name: `${task.taskName} Template`,
+          version_no: 1,
+          status: 1,
+        });
+        await templateApi.createQuestion(String(templateRes.id), {
+          question_no: "Q1",
+          section_name: `${task.taskName} Main Question`,
+          question_text: `${task.taskName} standard answer prompt`,
+          sort_order: 1,
+          status: 1,
+        });
+        await taskStore.loadTask(taskId);
+        await this.loadTaskConfig(taskId);
+        useUiStore().pushToast("assessment template 和 question definition 已初始化。");
+      } finally {
+        this.saving = false;
+      }
+    },
+    async saveStandardAnswer(taskId: string) {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.questionId) {
+        useUiStore().pushToast("请先初始化题目定义。", "risk");
+        return;
+      }
+      if (!this.standardAnswerDraft.trim()) {
+        useUiStore().pushToast("请先输入标准答案文本。", "risk");
+        return;
+      }
+
+      this.saving = true;
+      try {
+        await standardAnswerApi.create(task.questionId, {
+          answer_text: this.standardAnswerDraft.trim(),
+        });
+        this.standardAnswers = await standardAnswerApi.list(task.questionId);
+        useUiStore().pushToast("标准答案已保存。");
+        await useTaskContextStore().refreshBlockers(taskId);
+      } finally {
+        this.saving = false;
       }
     },
     async uploadAnswer(taskId: string, file: File) {
@@ -61,81 +162,61 @@ export const useConfigStore = defineStore("config", {
         this.saving = false;
       }
     },
-    async generateRubric(prompt: string, baseRubric?: Rubric | null) {
-      this.saving = true;
-      try {
-        const normalizedPrompt = [
-          prompt,
-          /100/.test(prompt) ? "" : "总分 100 分。",
-          /门禁/.test(prompt) ? "" : "请补充明确的门禁规则。",
-        ]
-          .filter(Boolean)
-          .join("\n");
-        this.generatedDraft = await rubricApi.generate({ prompt: normalizedPrompt, baseRubricId: baseRubric?.id ?? null });
-        this.generatedDraftMeta = baseRubric
-          ? { source: "rubric_copy", copiedFromName: `${baseRubric.name} ${baseRubric.version}` }
-          : { source: "text_generated" };
-      } finally {
-        this.saving = false;
+    async saveRubricDefinition(taskId: string, payloadText: string) {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.templateId) {
+        useUiStore().pushToast("请先初始化 assessment template。", "risk");
+        return;
       }
-    },
-    resetGeneratedDraft() {
-      this.generatedDraft = null;
-      this.generatedDraftMeta = null;
-    },
-    async saveGeneratedRubric(taskId: string, bindable = false) {
-      if (!this.generatedDraft) return null;
+      if (!payloadText.trim()) {
+        useUiStore().pushToast("请先输入 Rubric JSON 或 YAML。", "risk");
+        return;
+      }
+
       this.saving = true;
       try {
-        const created = await rubricApi.create({
-          id: "",
-          name: this.generatedDraft.name,
-          version: "v0.1",
-          source: this.generatedDraftMeta?.source ?? "text_generated",
-          status: bindable ? "confirmed" : "draft",
-          updatedAt: "",
-          description: this.generatedDraft.description,
-          warnings: this.generatedDraft.warnings,
-          totalScore: this.generatedDraft.totalScore,
-          dimensions: this.generatedDraft.dimensions,
-          yaml: this.generatedDraft.yaml,
-          createdAt: new Date().toLocaleString("zh-CN", { hour12: false }).replace(/\//g, "-"),
-          copiedFromName: this.generatedDraftMeta?.copiedFromName,
-          editCount: 0,
+        await templateApi.createRubric(task.templateId, {
+          rubric_name: `${task.taskName} Rubric`,
+          rubric_json: payloadText.trim(),
+          status: 1,
         });
-        this.rubrics = await rubricApi.list();
-        this.currentRubric = created;
-        this.resetGeneratedDraft();
-        useUiStore().pushToast(
-          created.source === "rubric_copy" ? "已基于现有标准生成草稿副本。" : "文本生成的 Rubric 已保存为草稿。",
-        );
-        await useTaskContextStore().refreshBlockers(taskId);
-        return created;
-      } finally {
-        this.saving = false;
-      }
-    },
-    async bindRubric(taskId: string, rubricId: string) {
-      this.saving = true;
-      try {
-        await rubricApi.bind(taskId, rubricId);
-        this.currentRubric = await rubricApi.binding(taskId);
-        this.rubrics = await rubricApi.list();
-        useUiStore().pushToast("评分标准已绑定到当前任务。");
+        this.currentRubric = {
+          id: `template-${task.templateId}-rubric`,
+          name: `${task.taskName} Rubric`,
+          version: "v1.0",
+          source: "manual",
+          status: "confirmed",
+          updatedAt: new Date().toISOString(),
+          description: "Saved through real template rubric API.",
+          warnings: [],
+          totalScore: task.score,
+          dimensions: [],
+          yaml: payloadText.trim(),
+        };
+        useUiStore().pushToast("Rubric 已保存到真实后端接口。");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
       }
     },
-    async deleteRubricCopy(rubricId: string) {
+    async uploadSubmission(taskId: string, studentId: string, file: File) {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.assessmentId) {
+        useUiStore().pushToast("当前任务缺少 assessmentId，无法上传学生作业。", "risk");
+        return;
+      }
+      if (!studentId.trim()) {
+        useUiStore().pushToast("请先输入 studentId。", "risk");
+        return;
+      }
+
       this.saving = true;
       try {
-        await rubricApi.remove(rubricId);
-        this.rubrics = await rubricApi.list();
-        if (this.currentRubric?.id === rubricId) {
-          this.currentRubric = null;
-        }
-        useUiStore().pushToast("评分标准副本已删除。");
+        this.lastUploadResult = await submissionApi.upload(task.assessmentId, studentId.trim(), file);
+        this.submissions = await submissionApi.list(task.assessmentId);
+        const rawMessage = this.lastUploadResult.rawWorkspace?.message ?? "学生作业已上传。";
+        useUiStore().pushToast(rawMessage, this.lastUploadResult.rawWorkspace?.synced ? "good" : "warn");
+        await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
       }
@@ -186,6 +267,73 @@ export const useConfigStore = defineStore("config", {
       } finally {
         this.saving = false;
       }
+    },
+    async startGradeExport() {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.assessmentId) {
+        useUiStore().pushToast("当前任务缺少 assessmentId，无法导出成绩。", "risk");
+        return null;
+      }
+
+      this.saving = true;
+      try {
+        this.lastExportResult = await gradeExportApi.start(task.assessmentId);
+        useUiStore().pushToast(
+          this.lastExportResult.report ? `成绩导出已触发：${this.lastExportResult.report}` : "成绩导出已触发。",
+        );
+        return this.lastExportResult;
+      } finally {
+        this.saving = false;
+      }
+    },
+    async downloadLatestReport() {
+      this.saving = true;
+      try {
+        const blob = await gradeExportApi.downloadLatest();
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "latest-report.xlsx";
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+        useUiStore().pushToast("最新报表下载已开始。");
+      } finally {
+        this.saving = false;
+      }
+    },
+    configChecklist(taskId: string) {
+      const taskStore = useTaskContextStore();
+      const task = taskStore.currentTask;
+      const items = [
+        { id: "assessment", ok: Boolean(task?.assessmentId), label: "assessmentId" },
+        { id: "template", ok: Boolean(task?.templateId), label: "templateId" },
+        { id: "question", ok: Boolean(task?.questionId), label: "questionId" },
+        { id: "answer", ok: this.standardAnswers.length > 0 || this.answers.length > 0, label: "标准答案" },
+        { id: "rubric", ok: Boolean(this.currentRubric), label: "Rubric" },
+        { id: "submission", ok: this.submissions.length > 0, label: "学生提交" },
+      ];
+      const missing = items.filter((item) => !item.ok).map((item) => item.label);
+      return {
+        ready: missing.length === 0,
+        missing,
+        message: missing.length === 0 ? "配置已满足开始阅卷条件。" : `开始阅卷前仍缺少：${missing.join("、")}`,
+        taskId,
+      };
+    },
+    summarizeLatestUpload() {
+      if (!this.lastUploadResult) return "";
+      const raw = this.lastUploadResult.rawWorkspace;
+      if (!raw) return "";
+      return [raw.synced ? "raw workspace synced" : "raw workspace not synced", raw.path, raw.message]
+        .filter(Boolean)
+        .join(" | ");
+    },
+    summarizeStandardAnswer() {
+      if (this.standardAnswers.length > 0) {
+        const item = this.standardAnswers[0];
+        return item.answer_text ? `${toText(item.answer_text).slice(0, 120)}` : `标准答案记录 ${item.id}`;
+      }
+      return "暂无真实标准答案记录。";
     },
   },
 });

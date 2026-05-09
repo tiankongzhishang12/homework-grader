@@ -57,6 +57,10 @@
         <h4>当前步骤</h4>
         <p>{{ batchStore.progress?.currentStepLabel ?? "等待开始阅卷" }}</p>
       </article>
+
+      <div class="inline-alert" :class="checklist.ready ? 'inline-alert--good' : 'inline-alert--warn'">
+        {{ checklist.message }}
+      </div>
     </section>
 
     <div class="content-grid content-grid--two">
@@ -88,10 +92,12 @@
 import { computed, onUnmounted, watch } from "vue";
 import { RouterLink } from "vue-router";
 import { useBatchStore } from "../stores/batch";
+import { useConfigStore } from "../stores/config";
 import { useTaskContextStore } from "../stores/task-context";
 
 const taskStore = useTaskContextStore();
 const batchStore = useBatchStore();
+const configStore = useConfigStore();
 
 const progressLabel = computed(() => {
   const map: Record<string, string> = {
@@ -107,6 +113,7 @@ const progressLabel = computed(() => {
 
 const qualityCount = computed(() => (batchStore.progress?.qualityFlags ?? []).reduce((sum, item) => sum + item.count, 0));
 const isRunning = computed(() => ["preprocessing", "scoring", "aggregating"].includes(batchStore.progress?.status ?? ""));
+const checklist = computed(() => configStore.configChecklist(taskStore.currentTask?.id ?? ""));
 
 const syncVisibility = async () => {
   if (!taskStore.currentTask) return;
@@ -121,6 +128,7 @@ watch(
   () => taskStore.currentTask?.id,
   async (taskId) => {
     if (taskId) {
+      await configStore.loadTaskConfig(taskId);
       await batchStore.loadProgress(taskId, true);
       await batchStore.loadLogs(taskId);
     }
@@ -137,6 +145,10 @@ onUnmounted(() => {
 
 const startBatch = async () => {
   if (!taskStore.currentTask) return;
+  if (!checklist.value.ready) {
+    window.alert(checklist.value.message);
+    return;
+  }
   await batchStore.startBatch(taskStore.currentTask.id);
 };
 

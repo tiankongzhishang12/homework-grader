@@ -95,6 +95,8 @@ export const useTaskContextStore = defineStore("task-context", {
   getters: {
     currentTaskId: (state) => state.currentTask?.id ?? null,
     currentAssessmentId: (state) => state.currentTask?.assessmentId ?? state.currentTask?.id ?? null,
+    currentTemplateId: (state) => state.currentTask?.templateId ?? null,
+    currentQuestionId: (state) => state.currentTask?.questionId ?? null,
     canStartBatch: (state) => state.blockers.length === 0,
     groupedTasks: (state): TaskCourseGroup[] => groupTasksByCourse(state.tasks),
     courseGroups(): TaskCourseGroup[] {

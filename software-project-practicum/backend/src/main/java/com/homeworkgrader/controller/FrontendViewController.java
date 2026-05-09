@@ -232,13 +232,15 @@ public class FrontendViewController {
 
     private List<Map<String, Object>> queryTaskRows() {
         return jdbc.queryForList(
-                "select a.id assessment_id, a.title task_name, a.assessment_type, a.total_score, a.due_at, " +
+                "select a.id assessment_id, min(at.id) template_id, min(qd.id) question_id, a.title task_name, a.assessment_type, a.total_score, a.due_at, " +
                         "co.course_code, co.course_name, cofr.academic_year, cofr.term, tc.class_name, " +
                         "count(distinct s.id) submitted_count, count(distinct tcs.student_id) student_count, " +
                         "count(distinct fr.id) result_count " +
                         "from assessment a " +
                         "join course_offering cofr on cofr.id = a.course_offering_id " +
                         "join course co on co.id = cofr.course_id " +
+                        "left join assessment_template at on at.assessment_id = a.id " +
+                        "left join question_definition qd on qd.template_id = at.id " +
                         "left join teaching_class tc on tc.course_offering_id = cofr.id " +
                         "left join teaching_class_student tcs on tcs.teaching_class_id = tc.id " +
                         "left join submission s on s.assessment_id = a.id " +
@@ -262,6 +264,8 @@ public class FrontendViewController {
         return map(
                 "id", DEMO_TASK_ID,
                 "assessmentId", row.get("assessment_id") == null ? null : String.valueOf(row.get("assessment_id")),
+                "templateId", row.get("template_id") == null ? null : String.valueOf(row.get("template_id")),
+                "questionId", row.get("question_id") == null ? null : String.valueOf(row.get("question_id")),
                 "courseName", row.get("course_name"),
                 "className", row.get("class_name"),
                 "taskName", row.get("task_name"),

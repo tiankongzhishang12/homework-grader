@@ -34,6 +34,8 @@ export type TaskSummary = {
 
 export type TaskDetail = TaskSummary & {
   assessmentId?: string;
+  templateId?: string | null;
+  questionId?: string | null;
   courseCode: string;
   term: string;
   score: number;
@@ -97,6 +99,17 @@ export type AnswerVersion = {
   parseMessage?: string;
 };
 
+export type StandardAnswerRecord = {
+  id: string | number;
+  question_definition_id?: string | number;
+  version_no?: number;
+  answer_text?: string;
+  answer_json?: string;
+  status?: number | string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type RubricDimension = {
   id: string;
   name: string;
@@ -157,6 +170,32 @@ export type WorkspaceConfig = {
   status: WorkspaceStatus;
   lastCheckedAt?: string;
   lastMessage?: string;
+};
+
+export type SubmissionRecord = {
+  id: string | number;
+  assessment_id?: string | number;
+  student_id?: string | number;
+  source_submission_id?: string;
+  submit_status?: string;
+  submitted_at?: string;
+};
+
+export type SubmissionUploadResult = {
+  submissionId?: string | number;
+  assetId?: string | number;
+  file?: string;
+  rawWorkspace?: {
+    synced?: boolean;
+    path?: string;
+    message?: string;
+  };
+};
+
+export type ExportStartResult = {
+  assessmentId?: string | number;
+  scriptResult?: unknown;
+  report?: string | null;
 };
 
 export type BatchProgress = {

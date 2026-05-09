@@ -455,3 +455,56 @@
 ```
 
 该字段用于说明上传文件是否已复制到 `grader.workspace-root/raw/{studentNo}_{studentName}/`，供 Python 预处理脚本读取。非 `.doc/.docx/.pdf` 文件仍保存为 `submission_asset`，但 `rawWorkspace.synced=false`。本次未修改前端 API client，前端如接入真实上传结果，可选择展示该字段用于排查 full grading 前置数据准备。
+
+## 2026-05-09 更新：P1 阅卷前配置闭环最小改造
+
+本轮前后端联调重点转向“阅卷前配置闭环”：
+
+- `FrontendViewController.toTaskDetail()` 继续保留 `id = answer-card-demo`
+- 同时新增返回：
+  - `assessmentId`
+  - `templateId`
+  - `questionId`
+- 若 `templateId` / `questionId` 暂时缺失，前端允许老师先执行初始化，再继续保存标准答案或 Rubric
+
+前端当前新增的真实主线路径包括：
+
+- `POST /api/assessments/{id}/templates`
+- `POST /api/templates/{id}/questions`
+- `POST /api/templates/{id}/rubrics`
+- `GET /api/questions/{questionId}/standard-answers`
+- `POST /api/questions/{questionId}/standard-answers`
+- `GET /api/assessments/{id}/submissions`
+- `POST /api/assessments/{id}/submissions/upload?studentId=...`
+- `POST /api/assessments/{id}/grades/export`
+- `POST /api/reports/latest/download`
+
+当前最小闭环能力：
+
+1. 初始化 assessment template / question definition
+2. 前端直接粘贴并保存标准答案文本
+3. 单学生单文件上传学生作业，并显示 `rawWorkspace.synced / path / message`
+4. 手动粘贴 Rubric JSON / YAML 并保存到真实 template rubric 接口
+5. 触发真实成绩导出并下载最新报表
+6. 开始阅卷前检查：
+   - `assessmentId`
+   - `templateId`
+   - `questionId`
+   - 标准答案记录
+   - Rubric
+   - 学生提交
+
+仍保留的原型接口与限制：
+
+- `answerApi` / `rubricApi` / `exportTemplateApi`
+- `/api/tasks/*`
+- `/api/batch/*`
+- mock-server
+
+当前仍未进入本轮主线的内容：
+
+- 复杂学生详情
+- 深度结果解释
+- Rubric 模型生成
+- 批量学生上传
+- 导出模板完整 CRUD

@@ -1,103 +1,73 @@
 <template>
-  <section class="view" v-if="taskStore.currentTask && workingTemplate">
+  <section class="view" v-if="taskStore.currentTask">
     <div class="hero-card hero-card--dense">
       <div>
-        <div class="eyebrow">导出模板</div>
-        <h2 class="hero-card__title">先保存模板，再绑定到当前任务</h2>
+        <div class="eyebrow">导出模板与成绩导出</div>
+        <h2 class="hero-card__title">模板展示先保留，真实主线先打通导出与下载</h2>
         <p class="hero-card__text">
-          首发版本只开放 Excel 结果表配置。模板围绕“成绩总表、统计分析、评分明细”三个 sheet 展开，可配置字段开关和命名规则。
+          第一版不做完整模板 CRUD。当前页面继续展示原型模板，同时增加真实 `/api/assessments/{assessmentId}/grades/export` 和 `/api/reports/latest/download` 操作。
         </p>
       </div>
       <div class="hero-card__meta hero-card__meta--summary">
-        <span class="pill pill--good">{{ workingTemplate.name }}</span>
-        <span class="pill">{{ workingTemplate.version }}</span>
+        <span class="pill pill--good">{{ configStore.currentTemplate?.name ?? "原型模板" }}</span>
+        <span class="pill">{{ taskStore.currentTask.assessmentId ?? "缺少 assessmentId" }}</span>
       </div>
     </div>
 
     <div class="config-subpage-grid">
       <section class="panel">
-        <div class="panel__header">
-          <div>
-            <h3>模板基础信息</h3>
-            <p class="panel__description">这里决定模板名称和最终导出文件的命名规则。</p>
-          </div>
-        </div>
-
-        <div class="config-form-grid">
-          <label class="field">
-            <span>模板名称</span>
-            <input v-model="workingTemplate.name" class="field__input" type="text" />
-          </label>
-          <label class="field">
-            <span>文件命名规则</span>
-            <input v-model="workingTemplate.fileNameRule" class="field__input" type="text" />
-          </label>
-        </div>
-
-        <div class="inline-alert inline-alert--warn">当前仅支持 Excel 导出，其他格式入口暂不开放。</div>
-      </section>
-
-      <aside class="panel config-side-panel">
         <div class="panel__header panel__header--stack">
           <div>
-            <h3>模板动作</h3>
-            <p class="panel__description">保存后再决定是否立即绑定到当前任务。</p>
+            <h3>真实导出操作</h3>
+            <p class="panel__description">先触发导出，再下载最新报表。</p>
           </div>
-          <div class="toolbar__actions toolbar__actions--column">
-            <button class="action-button" :disabled="configStore.saving" @click="saveTemplate">保存模板</button>
-            <button class="action-button action-button--ghost" :disabled="configStore.saving" @click="bindTemplate">绑定当前任务</button>
-            <button class="action-button action-button--ghost" @click="previewFields">
-              {{ showPreview ? "收起字段预览" : "预览字段" }}
+          <div class="toolbar__actions">
+            <button class="action-button" :disabled="configStore.saving || !taskStore.currentTask.assessmentId" @click="startExport">
+              {{ configStore.saving ? "处理中..." : "导出成绩" }}
+            </button>
+            <button class="action-button action-button--ghost" :disabled="configStore.saving" @click="downloadLatest">
+              下载最新报表
             </button>
           </div>
         </div>
+
+        <article class="detail-block detail-block--highlight">
+          <h4>最近一次导出</h4>
+          <p>{{ exportSummary }}</p>
+        </article>
+      </section>
+
+      <aside class="panel config-side-panel">
+        <div class="panel__header">
+          <h3>当前模板展示</h3>
+        </div>
+        <div v-if="configStore.currentTemplate" class="config-summary-stack">
+          <article class="detail-block detail-block--highlight">
+            <h4>{{ configStore.currentTemplate.name }}</h4>
+            <p>{{ configStore.currentTemplate.version }} | {{ configStore.currentTemplate.fileNameRule }}</p>
+          </article>
+        </div>
+        <div v-else class="empty-state empty-state--small">当前仍沿用原型模板展示。</div>
       </aside>
     </div>
 
-    <section v-if="showPreview" class="panel">
+    <section class="panel" v-if="configStore.currentTemplate">
       <div class="panel__header">
         <div>
-          <h3>字段预览</h3>
-          <p class="panel__description">按 sheet 查看当前启用的导出字段，便于快速确认模板结构。</p>
+          <h3>原型模板字段</h3>
+          <p class="panel__description">这部分仍保留现有展示，不作为真实主链路阻断项。</p>
         </div>
       </div>
       <div class="config-card-stack">
-        <article v-for="group in previewGroups" :key="group.sheetName" class="config-record-card">
+        <article v-for="sheet in configStore.currentTemplate.sheets" :key="sheet.id" class="config-record-card">
           <div class="config-record-card__top">
             <div>
-              <div class="rubric-card__title">{{ group.sheetName }}</div>
-              <div class="rubric-card__meta">{{ group.enabledColumns.length }} / {{ group.totalColumns }} 个字段已启用</div>
+              <div class="rubric-card__title">{{ sheet.name }}</div>
+              <div class="rubric-card__meta">{{ sheet.columns.filter((item) => item.enabled).length }} / {{ sheet.columns.length }} 已启用</div>
             </div>
           </div>
-          <div v-if="group.enabledColumns.length > 0" class="tag-row">
-            <span v-for="column in group.enabledColumns" :key="column" class="tag">{{ column }}</span>
-          </div>
-          <div v-else class="empty-state empty-state--small">当前 sheet 暂未启用字段。</div>
-        </article>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel__header">
-        <div>
-          <h3>Sheet 配置</h3>
-          <p class="panel__description">按 sheet 打开或关闭需要导出的字段。</p>
-        </div>
-      </div>
-      <div class="config-card-stack">
-        <article v-for="sheet in workingTemplate.sheets" :key="sheet.id" class="config-record-card">
-          <div class="config-record-card__top">
-            <label class="field field--inline">
-              <span>Sheet 名称</span>
-              <input v-model="sheet.name" class="field__input" type="text" />
-            </label>
-            <span class="pill">{{ sheet.columns.filter((item) => item.enabled).length }} / {{ sheet.columns.length }} 已启用</span>
-          </div>
-          <div class="sheet-column-list">
-            <label v-for="column in sheet.columns" :key="column.id" class="check-item">
-              <input v-model="column.enabled" type="checkbox" />
-              <span>{{ column.label }}</span>
-            </label>
+          <div class="tag-row">
+            <span v-for="column in sheet.columns.filter((item) => item.enabled)" :key="column.id" class="tag">{{ column.label }}</span>
           </div>
         </article>
       </div>
@@ -106,15 +76,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { useConfigStore } from "../stores/config";
 import { useTaskContextStore } from "../stores/task-context";
-import type { ExportTemplate } from "../types";
 
 const taskStore = useTaskContextStore();
 const configStore = useConfigStore();
-const showPreview = ref(false);
-const workingTemplate = ref<ExportTemplate | null>(null);
 
 watch(
   () => taskStore.currentTask?.id,
@@ -126,33 +93,18 @@ watch(
   { immediate: true },
 );
 
-watch(
-  () => configStore.currentTemplate,
-  (value) => {
-    workingTemplate.value = value ? (JSON.parse(JSON.stringify(value)) as ExportTemplate) : null;
-  },
-  { immediate: true },
-);
+const exportSummary = computed(() => {
+  if (!configStore.lastExportResult) return "还没有触发真实导出。";
+  return configStore.lastExportResult.report
+    ? `最近一次生成报表：${configStore.lastExportResult.report}`
+    : "最近一次导出已触发，但后端未返回报表文件名。";
+});
 
-const previewGroups = computed(() =>
-  workingTemplate.value?.sheets.map((sheet) => ({
-    sheetName: sheet.name,
-    totalColumns: sheet.columns.length,
-    enabledColumns: sheet.columns.filter((item) => item.enabled).map((item) => item.label),
-  })) ?? [],
-);
-
-const saveTemplate = async () => {
-  if (!taskStore.currentTask || !workingTemplate.value) return;
-  await configStore.saveTemplate(taskStore.currentTask.id, workingTemplate.value);
+const startExport = async () => {
+  await configStore.startGradeExport();
 };
 
-const bindTemplate = async () => {
-  if (!taskStore.currentTask || !workingTemplate.value?.id) return;
-  await configStore.bindTemplate(taskStore.currentTask.id, workingTemplate.value.id);
-};
-
-const previewFields = () => {
-  showPreview.value = !showPreview.value;
+const downloadLatest = async () => {
+  await configStore.downloadLatestReport();
 };
 </script>

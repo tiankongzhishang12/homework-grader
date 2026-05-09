@@ -135,6 +135,18 @@
             <strong>{{ taskStore.currentTask.taskType }}</strong>
           </div>
           <div class="summary-item">
+            <span>assessmentId</span>
+            <strong>{{ taskStore.currentTask.assessmentId ?? "缺失" }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>templateId</span>
+            <strong>{{ taskStore.currentTask.templateId ?? "缺失" }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>questionId</span>
+            <strong>{{ taskStore.currentTask.questionId ?? "缺失" }}</strong>
+          </div>
+          <div class="summary-item">
             <span>批次状态</span>
             <strong>{{ batchStatusLabel }}</strong>
           </div>

@@ -6,14 +6,18 @@ import type {
   BatchProgress,
   ConfigBlocker,
   ExportRecord,
+  ExportStartResult,
   ExportTemplate,
   FinalResultRecord,
   GradingProgressResponse,
   Rubric,
   RubricDraft,
   ScoreItemRecord,
+  StandardAnswerRecord,
   StudentDetail,
   StudentRow,
+  SubmissionRecord,
+  SubmissionUploadResult,
   TaskDetail,
   User,
   WorkspaceConfig,
@@ -35,6 +39,33 @@ export const taskApi = {
 export const assessmentApi = {
   list: () => apiRequest<unknown[]>("/api/assessments"),
   get: (assessmentId: string) => apiRequest<unknown>(`/api/assessments/${assessmentId}`),
+  createTemplate: (assessmentId: string, payload: Record<string, unknown>) =>
+    apiRequest<{ id: string | number }>(`/api/assessments/${assessmentId}/templates`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const templateApi = {
+  createQuestion: (templateId: string, payload: Record<string, unknown>) =>
+    apiRequest<{ id: string | number }>(`/api/templates/${templateId}/questions`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  createRubric: (templateId: string, payload: Record<string, unknown>) =>
+    apiRequest<{ id: string | number }>(`/api/templates/${templateId}/rubrics`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const standardAnswerApi = {
+  create: (questionId: string, payload: Record<string, unknown>) =>
+    apiRequest<{ id: string | number }>(`/api/questions/${questionId}/standard-answers`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  list: (questionId: string) => apiRequest<StandardAnswerRecord[]>(`/api/questions/${questionId}/standard-answers`),
 };
 
 export const answerApi = {
@@ -116,6 +147,16 @@ export const finalResultApi = {
 
 export const submissionApi = {
   scoreItems: (submissionId: string) => apiRequest<ScoreItemRecord[]>(`/api/submissions/${submissionId}/score-items`),
+  upload: (assessmentId: string, studentId: string, file: File) => {
+    const form = new FormData();
+    form.append("studentId", studentId);
+    form.append("file", file);
+    return apiRequest<SubmissionUploadResult>(`/api/assessments/${assessmentId}/submissions/upload`, {
+      method: "POST",
+      body: form,
+    });
+  },
+  list: (assessmentId: string) => apiRequest<SubmissionRecord[]>(`/api/assessments/${assessmentId}/submissions`),
 };
 
 export const resultApi = {
@@ -128,4 +169,21 @@ export const exportApi = {
   start: (taskId: string) =>
     apiRequest<ExportRecord>("/api/batch/export", { method: "POST", body: JSON.stringify({ taskId }) }),
   history: (taskId: string) => apiRequest<ExportRecord[]>(`/api/exports?taskId=${taskId}`),
+};
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
+export const gradeExportApi = {
+  start: (assessmentId: string) =>
+    apiRequest<ExportStartResult>(`/api/assessments/${assessmentId}/grades/export`, { method: "POST" }),
+  downloadLatest: async () => {
+    const response = await fetch(`${API_BASE}/api/reports/latest/download`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new Error("Failed to download latest report.");
+    }
+    return response.blob();
+  },
 };
