@@ -318,3 +318,30 @@ $env:GRADER_CONFIG_PATH="grader-config.minimal-demo.yaml"
 - 未运行 full grading，未调用模型，未运行 `batch_score_reports.py`。
 
 下一步 full grading 验收应使用 minimal-demo 工作区，确保 `student-mapping.csv` 中目标学生稳定为 `anon-001`。
+
+## 2026-05-09 Update: Full grading expected score payload alignment
+
+We have now confirmed that the minimal-demo config switch and `workspace-root` switch are effective:
+
+- Python preprocess can write to `software-project-practicum/workspace/minimal-demo`
+- full grading can continue far enough to produce a `finalResultId`
+
+That means the current failure is no longer a workspace routing problem.
+
+The new failure cause was in `software-project-practicum/scripts/verify_backend_minimal_demo.py`:
+
+- `import-only` verification is allowed to compare database results against the built-in synthetic `SCORE_PAYLOAD`
+- but `full grading` verification must not keep using that synthetic payload
+- `grading/start` runs real Python scoring and should validate database results against the actual generated `workspace/scores/anon-001.json`
+
+After this fix:
+
+- `import-only` without `--use-existing-workspace` still uses the built-in synthetic `SCORE_PAYLOAD`
+- `full grading` uses the actual score JSON found under `workspace/scores`
+- if full grading reaches `COMPLETED` but no score JSON exists under `workspace/scores`, the verification script fails explicitly with:
+  - `full grading completed but no score JSON found under workspace/scores`
+
+Next full grading acceptance should therefore check two things in order:
+
+1. backend logs show preprocess/scoring output under `workspace/minimal-demo`
+2. verification compares `final_result.final_score` and `score_item_result` against the real generated score JSON, not the synthetic `88.0` demo payload

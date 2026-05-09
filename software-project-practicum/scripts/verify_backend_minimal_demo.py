@@ -568,11 +568,23 @@ def collect_existing_workspace_files(workspace: Path):
 
 
 def load_expected_score_payload(args: argparse.Namespace, workspace_files: dict):
+    if not args.import_only:
+        score_path = Path(workspace_files["score"])
+        with open(score_path, encoding="utf-8") as f:
+            return json.load(f)
     if args.use_existing_workspace:
         score_path = Path(workspace_files["score"])
         with open(score_path, encoding="utf-8") as f:
             return json.load(f)
     return SCORE_PAYLOAD
+
+
+def workspace_files_from_info(workspace_info: dict):
+    return {
+        "mapping": str(workspace_info["mapping"]),
+        "score": str(workspace_info["score"]),
+        "score_files": [str(path) for path in workspace_info["score_files"]],
+    }
 
 
 class ApiClient:
@@ -990,11 +1002,7 @@ def main() -> int:
         ids = ensure_demo_data(conn)
         if args.use_existing_workspace:
             workspace_info = collect_existing_workspace_files(Path(args.workspace))
-            workspace_files = {
-                "mapping": str(workspace_info["mapping"]),
-                "score": str(workspace_info["score"]),
-                "score_files": [str(path) for path in workspace_info["score_files"]],
-            }
+            workspace_files = workspace_files_from_info(workspace_info)
         else:
             mapping_path, score_path = prepare_workspace(Path(args.workspace))
             workspace_files = {
@@ -1002,12 +1010,20 @@ def main() -> int:
                 "score": str(score_path),
                 "score_files": [str(score_path)],
             }
-        expected_score_payload = load_expected_score_payload(args, workspace_files)
+        if args.import_only:
+            expected_score_payload = load_expected_score_payload(args, workspace_files)
         api_results, progress_data, final_data, score_data = run_api_flow(args, ids)
 
         if not isinstance(progress_data, dict) or progress_data.get("status") != "COMPLETED":
             failures.append(f"progress.status is not COMPLETED: {progress_data}")
         else:
+            if not args.import_only:
+                try:
+                    workspace_info = collect_existing_workspace_files(Path(args.workspace))
+                except RuntimeError as exc:
+                    raise RuntimeError("full grading completed but no score JSON found under workspace/scores") from exc
+                workspace_files = workspace_files_from_info(workspace_info)
+                expected_score_payload = load_expected_score_payload(args, workspace_files)
             summary = progress_data.get("importSummary") or {}
             if int(summary.get("importedCount", 0) or 0) < 1:
                 failures.append(f"importSummary.importedCount < 1: {summary}")
