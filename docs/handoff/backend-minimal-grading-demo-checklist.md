@@ -208,6 +208,44 @@ python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-
 
 - 后端日志中的 preprocess 输出路径是 `workspace/minimal-demo`
 - 不再出现 `Wrote ... to ...workspace/practicum-batch/...`
+
+## 2026-05-09 更新：Java / Python 配置一致性
+
+本次确认：
+
+- `config-path` 修复已生效
+- preprocess 已经可以写入 `workspace/minimal-demo`
+
+同时发现新的配置一致性问题：
+
+- Java 侧 `grader.workspace-root`
+- Python 侧 `grader-config*.yaml` 中的 `grading.workspace_path`
+
+这两者在 full grading 验收时必须保持一致，否则会出现：
+
+- Python 把 `ir` / `scores` 写到一个 workspace
+- Java 的 `GradingResultImportService` 却从另一个 workspace 导入
+
+当前后端已改为环境变量可切换：
+
+```yaml
+grader:
+  workspace-root: ${GRADER_WORKSPACE_ROOT:../workspace/practicum-batch}
+  python:
+    config-path: ${GRADER_CONFIG_PATH:grader-config.yaml}
+```
+
+minimal-demo full grading 验收时应设置：
+
+```powershell
+$env:GRADER_WORKSPACE_ROOT="../workspace/minimal-demo"
+$env:GRADER_CONFIG_PATH="grader-config.minimal-demo.yaml"
+```
+
+正式 `practicum-batch` 模式不设置环境变量，默认回到：
+
+- `grader-config.yaml`
+- `../workspace/practicum-batch`
 ## 2026-05-08 更新：submission_asset 到 Python raw 工作区适配
 
 后端上传接口 `POST /api/assessments/{id}/submissions/upload` 现在会在保存 `submission` 和 `submission_asset` 后，额外尝试复制一份支持的学生提交文件到：
