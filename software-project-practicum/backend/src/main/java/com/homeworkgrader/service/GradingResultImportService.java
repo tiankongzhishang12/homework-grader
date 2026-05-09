@@ -190,6 +190,7 @@ public class GradingResultImportService {
             return;
         }
         String reviewFlag = normalizedReviewFlag(score);
+        Long rubricDefinitionId = parseRubricDefinitionId(score);
         List<Object> dimensions = (List<Object>) dimensionsValue;
         for (Object value : dimensions) {
             if (!(value instanceof Map)) {
@@ -201,7 +202,7 @@ public class GradingResultImportService {
             item.put("grading_run_id", gradingRunId);
             item.put("item_type", "RUBRIC");
             item.put("question_definition_id", null);
-            item.put("rubric_definition_id", null);
+            item.put("rubric_definition_id", rubricDefinitionId);
             item.put("score", decimalOrZero(dimension.get("score")));
             item.put("max_score", maxScore(dimension));
             item.put("is_correct", null);
@@ -211,6 +212,18 @@ public class GradingResultImportService {
             item.put("evidence_json", objectMapper.writeValueAsString(dimension));
             item.put("comment_text", commentText(dimension));
             repository.insert("score_item_result", item);
+        }
+    }
+
+    private Long parseRubricDefinitionId(Map<String, Object> score) {
+        String rubricId = asText(score.get("rubric_id"));
+        if (isBlank(rubricId) || !rubricId.startsWith("db-rubric-")) {
+            return null;
+        }
+        try {
+            return Long.valueOf(rubricId.substring("db-rubric-".length()));
+        } catch (NumberFormatException ex) {
+            return null;
         }
     }
 

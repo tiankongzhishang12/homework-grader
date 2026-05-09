@@ -27,17 +27,21 @@ public class GradingWorkflowService {
     private final CrudJdbcRepository repository;
     private final GradingResultImportService resultImportService;
     private final GradingWorkspaceService workspaceService;
+    private final RubricRuntimeExportService rubricRuntimeExportService;
+    private final GraderRuntimeConfigService graderRuntimeConfigService;
     private final FileStorageService storageService;
     private final ObjectMapper objectMapper;
     private final Map<Long, Map<String, Object>> progress = new ConcurrentHashMap<>();
     private final Map<Long, List<Map<String, Object>>> logs = new ConcurrentHashMap<>();
     private final ExecutorService gradingExecutor = Executors.newSingleThreadExecutor();
 
-    public GradingWorkflowService(PythonScriptClient pythonScriptClient, CrudJdbcRepository repository, GradingResultImportService resultImportService, GradingWorkspaceService workspaceService, FileStorageService storageService, ObjectMapper objectMapper) {
+    public GradingWorkflowService(PythonScriptClient pythonScriptClient, CrudJdbcRepository repository, GradingResultImportService resultImportService, GradingWorkspaceService workspaceService, RubricRuntimeExportService rubricRuntimeExportService, GraderRuntimeConfigService graderRuntimeConfigService, FileStorageService storageService, ObjectMapper objectMapper) {
         this.pythonScriptClient = pythonScriptClient;
         this.repository = repository;
         this.resultImportService = resultImportService;
         this.workspaceService = workspaceService;
+        this.rubricRuntimeExportService = rubricRuntimeExportService;
+        this.graderRuntimeConfigService = graderRuntimeConfigService;
         this.storageService = storageService;
         this.objectMapper = objectMapper;
     }
@@ -91,9 +95,14 @@ public class GradingWorkflowService {
         Map<String, Object> current = progress.get(assessmentId);
         Object startedAt = current == null ? null : current.get("startedAt");
         progress.put(assessmentId, newProgress(assessmentId, "PREPROCESSING", "Running submission preprocessing.", null, startedAt, null));
-        appendLog(assessmentId, "info", "Preprocessing script started.");
         try {
-            ScriptResult preprocess = pythonScriptClient.runPreprocess();
+            RubricRuntimeExportService.RuntimeRubric runtimeRubric = rubricRuntimeExportService.exportForAssessment(assessmentId);
+            appendLog(assessmentId, "info", "Runtime rubric exported: " + runtimeRubric.getRubricRuntimeId() + ".");
+            Path runtimeConfigPath = graderRuntimeConfigService.createRuntimeConfig(assessmentId, runtimeRubric.getRubricYamlPath());
+            appendLog(assessmentId, "info", "Runtime grader config created: " + runtimeConfigPath + ".");
+
+            appendLog(assessmentId, "info", "Preprocessing script started.");
+            ScriptResult preprocess = pythonScriptClient.runPreprocess(runtimeConfigPath);
             appendScriptResultLogs(assessmentId, "Preprocessing", preprocess);
             if (!preprocess.success()) {
                 progress.put(assessmentId, newProgress(assessmentId, "FAILED", "Submission preprocessing failed.", preprocess, startedAt, null));
@@ -102,7 +111,7 @@ public class GradingWorkflowService {
             }
             progress.put(assessmentId, newProgress(assessmentId, "GRADING", "Running automatic grading.", preprocess, startedAt, null));
             appendLog(assessmentId, "info", "Automatic grading script started. Model calls may take several minutes.");
-            ScriptResult grading = pythonScriptClient.runGrading();
+            ScriptResult grading = pythonScriptClient.runGrading(runtimeConfigPath);
             appendScriptResultLogs(assessmentId, "Automatic grading", grading);
             if (!grading.success()) {
                 progress.put(assessmentId, newProgress(assessmentId, "FAILED", "Automatic grading failed.", grading, startedAt, null));
