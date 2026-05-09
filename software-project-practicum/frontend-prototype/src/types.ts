@@ -303,9 +303,13 @@ export type ScoreItemRecord = {
   max_score?: number;
   confidence?: number;
   evidence?: string;
+  evidenceText?: string;
+  evidence_text?: string;
   evidenceJson?: string;
   evidence_json?: string;
   comment?: string;
+  commentText?: string;
+  comment_text?: string;
 };
 
 export type ExportRecord = {

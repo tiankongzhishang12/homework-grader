@@ -196,19 +196,34 @@ watch(
   { immediate: true },
 );
 
-const hasAttention = (student: StudentRow) =>
-  student.confidence < 0.8 || student.traceabilityGapCount > 0 || student.consistencyIssueCount > 1 || student.gateStatus !== "通过";
+const hasAttention = (student: StudentRow) => {
+  const status = student.reviewStatus ?? student.gateStatus;
+  return (
+    status === "NEEDS_REVIEW" ||
+    status === "AI_GENERATED" ||
+    status === "ADJUSTED" ||
+    student.confidence < 0.8 ||
+    student.traceabilityGapCount > 0 ||
+    student.consistencyIssueCount > 1
+  );
+};
 
 const riskTone = (student: StudentRow) => {
-  if (student.gateStatus !== "通过" || student.consistencyIssueCount > 1) return "status-badge--risk";
-  if (student.confidence < 0.8 || student.traceabilityGapCount > 0 || student.consistencyIssueCount > 0) return "status-badge--warn";
-  return "status-badge--good";
+  const status = student.reviewStatus ?? student.gateStatus;
+  if (status === "NEEDS_REVIEW") return "status-badge--risk";
+  if (status === "ADJUSTED") return "status-badge--warn";
+  if (status === "AI_GENERATED") return "status-badge--warn";
+  if (status === "CONFIRMED") return "status-badge--good";
+  return "status-badge--warn";
 };
 
 const riskLabel = (student: StudentRow) => {
-  if (student.gateStatus !== "通过" || student.consistencyIssueCount > 1) return "必须复核";
-  if (student.confidence < 0.8 || student.traceabilityGapCount > 0 || student.consistencyIssueCount > 0) return "建议抽查";
-  return "可直接通过";
+  const status = student.reviewStatus ?? student.gateStatus;
+  if (status === "CONFIRMED") return "可直接通过";
+  if (status === "AI_GENERATED") return "待确认";
+  if (status === "NEEDS_REVIEW") return "必须复核";
+  if (status === "ADJUSTED") return "已调整";
+  return "建议复核";
 };
 
 const analysisVerdict = computed(() => {

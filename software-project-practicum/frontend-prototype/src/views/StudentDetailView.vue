@@ -28,10 +28,10 @@
         <button
           class="action-button"
           type="button"
-          :disabled="batchStore.loading || !batchStore.currentStudent.finalResultId"
+          :disabled="batchStore.loading || !batchStore.currentStudent.finalResultId || batchStore.currentStudent.reviewStatus === 'CONFIRMED'"
           @click="confirmCurrentStudent"
         >
-          教师确认
+          {{ batchStore.currentStudent.reviewStatus === "CONFIRMED" ? "已确认" : "教师确认" }}
         </button>
       </div>
     </article>

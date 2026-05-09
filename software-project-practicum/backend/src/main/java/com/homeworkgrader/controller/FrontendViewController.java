@@ -261,6 +261,7 @@ public class FrontendViewController {
         String batchStatus = resultCount >= submittedCount && submittedCount > 0 ? "completed" : "idle";
         return map(
                 "id", DEMO_TASK_ID,
+                "assessmentId", row.get("assessment_id") == null ? null : String.valueOf(row.get("assessment_id")),
                 "courseName", row.get("course_name"),
                 "className", row.get("class_name"),
                 "taskName", row.get("task_name"),

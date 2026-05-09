@@ -20,6 +20,14 @@ import { useUiStore } from "./ui";
 
 let pollTimer: number | null = null;
 
+type ScoreItemEvidencePayload = {
+  criterion_name?: string;
+  reasoning?: string;
+  improvement?: string;
+  missing_points?: string[];
+  matched_core_points?: string[];
+};
+
 const toText = (value: unknown, fallback = "") => (value === null || value === undefined ? fallback : String(value));
 
 const toNumber = (value: unknown, fallback = 0) => {
@@ -27,10 +35,31 @@ const toNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const parseEvidenceJson = (raw: unknown): ScoreItemEvidencePayload | null => {
+  if (!raw || typeof raw !== "string") return null;
+  try {
+    const parsed = JSON.parse(raw) as ScoreItemEvidencePayload;
+    return typeof parsed === "object" && parsed !== null ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const isNumericId = (value: string | null | undefined) => Boolean(value && /^\d+$/.test(value));
+
 const resolveAssessmentId = (task: TaskDetail | null) => {
   if (!task) return null;
-  // TODO: replace this fallback once /api/tasks explicitly returns assessmentId for every real task row.
-  return task.assessmentId ?? task.id;
+  if (isNumericId(task.assessmentId)) return task.assessmentId as string;
+  // Temporary fallback only for legacy task payloads that still omit assessmentId.
+  // If task.id is a prototype route id like "answer-card-demo", we must not call real assessment APIs with it.
+  if (isNumericId(task.id)) return task.id;
+  return null;
+};
+
+const ensureAssessmentId = (task: TaskDetail | null) => {
+  const assessmentId = resolveAssessmentId(task);
+  if (assessmentId) return assessmentId;
+  throw new ApiError(400, "当前任务缺少真实 assessmentId。");
 };
 
 const resolveTeacherId = (user: User | null) => {
@@ -58,17 +87,17 @@ const toStepLabel = (progress: GradingProgressResponse) => {
   if (progress.message) return progress.message;
   switch (progress.status) {
     case "QUEUED":
-      return "任务已排队，等待进入预处理。";
+      return "Task queued and waiting for preprocessing.";
     case "PREPROCESSING":
-      return "正在执行预处理。";
+      return "Preprocessing is running.";
     case "GRADING":
-      return "正在执行评分与结果导入。";
+      return "Scoring and score import are running.";
     case "COMPLETED":
-      return "评分与结果导入已完成。";
+      return "Scoring and score import completed.";
     case "FAILED":
-      return "评分流程失败，请查看后端日志。";
+      return "Scoring failed. Check backend logs.";
     default:
-      return "等待开始阅卷。";
+      return "Waiting to start grading.";
   }
 };
 
@@ -78,8 +107,8 @@ const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchPr
   const skipped = toNumber(summary.skippedCount);
   const failed = toNumber(summary.failedCount);
   const qualityFlags: BatchProgress["qualityFlags"] = [];
-  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "导入跳过" });
-  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "导入失败" });
+  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "Import skipped" });
+  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "Import failed" });
 
   return {
     taskId,
@@ -97,7 +126,7 @@ const mapFinalResultToStudentRow = (assessmentId: string, row: FinalResultRecord
   const studentId = toText(row.studentId ?? row.student_id, "");
   const submissionId = toText(row.submissionId ?? row.submission_id, "");
   const finalResultId = toText(row.id);
-  const reviewStatus = toText(row.reviewStatus ?? row.review_status, "PENDING");
+  const reviewStatus = toText(row.reviewStatus ?? row.review_status, "AI_GENERATED");
   const confidence = toNumber(row.overallConfidence ?? row.overall_confidence);
   const score = toNumber(row.finalScore ?? row.final_score);
 
@@ -145,7 +174,7 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
 
   const averageScore = Number((students.reduce((sum, item) => sum + item.score, 0) / students.length).toFixed(1));
   const lowConfidenceCount = students.filter((item) => item.confidence > 0 && item.confidence < 0.8).length;
-  const gateWarningCount = students.filter((item) => item.gateStatus !== "CONFIRMED").length;
+  const gateWarningCount = students.filter((item) => item.reviewStatus !== "CONFIRMED").length;
   const reviewStatusCount = new Map<string, number>();
   students.forEach((item) => {
     const key = item.reviewStatus ?? "UNKNOWN";
@@ -168,15 +197,18 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
     topIssues: [...reviewStatusCount.entries()].map(([title, count]) => ({
       title,
       count,
-      detail: `共有 ${count} 条 final_result 处于 ${title} 状态。`,
+      detail: `${count} final_result rows are currently in ${title}.`,
     })),
   };
 };
 
 const normalizeEvidence = (item: ScoreItemRecord) => {
+  const evidenceJsonText = item.evidenceJson ?? item.evidence_json;
+  if (item.evidenceText) return item.evidenceText;
+  if (item.evidence_text) return item.evidence_text;
   if (item.evidence) return item.evidence;
-  if (item.evidenceJson ?? item.evidence_json) return toText(item.evidenceJson ?? item.evidence_json);
-  return "后端当前仅返回 score item 记录，未附带更详细证据摘要。";
+  if (evidenceJsonText) return toText(evidenceJsonText);
+  return "No evidence text was returned by the backend.";
 };
 
 const mapScoreItemsToStudentDetail = (
@@ -198,24 +230,27 @@ const mapScoreItemsToStudentDetail = (
   confidence: student.confidence,
   reviewStatus: student.reviewStatus,
   confirmedAt: student.confirmedAt,
-  summary: `submission ${student.submissionId} 的真实 score-items 已加载。当前 final_result 状态为 ${student.reviewStatus ?? "UNKNOWN"}。`,
+  summary: `submission ${student.submissionId} score-items loaded from the real backend.`,
   qualityFindings: [
     `final_result.review_status = ${student.reviewStatus ?? "UNKNOWN"}`,
     `submission_id = ${student.submissionId ?? "-"}`,
     `final_score = ${student.score}`,
   ],
-  dimensions: scoreItems.map((item, index) => ({
-    id: toText(item.criterionCode ?? item.criterion_code ?? item.id, `score-item-${index + 1}`),
-    name: toText(item.criterionName ?? item.criterion_name, `Score Item ${index + 1}`),
-    score: toNumber(item.score),
-    maxScore: toNumber(item.maxScore ?? item.max_score),
-    confidence: toNumber(item.confidence),
-    evidence: normalizeEvidence(item),
-    reasoning: toText(item.comment, "后端当前未提供更详细的结构化推理字段。"),
-    matched: [],
-    missing: [],
-    improvement: "如需更丰富解释，需要后端继续补充 rubric / traceability 聚合字段。",
-  })),
+  dimensions: scoreItems.map((item, index) => {
+    const evidenceJson = parseEvidenceJson(item.evidenceJson ?? item.evidence_json);
+    return {
+      id: toText(item.criterionCode ?? item.criterion_code ?? item.id, `score-item-${index + 1}`),
+      name: toText(evidenceJson?.criterion_name ?? item.criterionName ?? item.criterion_name ?? item.id, `Score Item ${index + 1}`),
+      score: toNumber(item.score),
+      maxScore: toNumber(item.maxScore ?? item.max_score),
+      confidence: toNumber(item.confidence),
+      evidence: normalizeEvidence(item),
+      reasoning: toText(evidenceJson?.reasoning ?? item.commentText ?? item.comment_text ?? item.comment, "No reasoning text was returned."),
+      matched: Array.isArray(evidenceJson?.matched_core_points) ? evidenceJson.matched_core_points : [],
+      missing: Array.isArray(evidenceJson?.missing_points) ? evidenceJson.missing_points : [],
+      improvement: toText(evidenceJson?.improvement, "No improvement suggestion was returned."),
+    };
+  }),
   traceability: {
     requirements: [],
     hldCoverage: [],
@@ -226,8 +261,8 @@ const mapScoreItemsToStudentDetail = (
     {
       name: "Review Status",
       passed: student.reviewStatus === "CONFIRMED",
-      detail: `当前状态：${student.reviewStatus ?? "UNKNOWN"}`,
-      onFail: "建议教师确认或调整后再发布。",
+      detail: `Current status: ${student.reviewStatus ?? "UNKNOWN"}`,
+      onFail: "Teacher confirmation or adjustment is still required before publish.",
     },
   ],
   materials: {
@@ -235,7 +270,7 @@ const mapScoreItemsToStudentDetail = (
     wordCount: 0,
     imageCount: 0,
     roles: [],
-    logs: ["score-items 接口当前未返回原始材料摘要字段。"],
+    logs: ["score-items does not yet return raw material summary fields."],
   },
 });
 
@@ -266,23 +301,19 @@ export const useBatchStore = defineStore("batch", {
       }, 3000);
     },
     async startBatch(taskId: string) {
-      const task = useTaskContextStore().currentTask;
-      const assessmentId = resolveAssessmentId(task);
-      if (!assessmentId) {
-        useUiStore().pushToast("当前任务缺少 assessmentId，暂时无法切换到真实阅卷主链路。", "risk");
-        return;
-      }
-
       this.loading = true;
       try {
+        const assessmentId = ensureAssessmentId(useTaskContextStore().currentTask);
         await gradingApi.start(assessmentId);
-        useUiStore().pushToast("真实阅卷流程已启动，系统正在进入预处理阶段。");
+        useUiStore().pushToast("Real grading started. The workflow is entering preprocessing.");
         await this.loadProgress(taskId, true);
         await useTaskContextStore().loadTask(taskId);
       } catch (error) {
-        const message = error instanceof ApiError ? error.message : "启动真实阅卷流程失败。";
+        const message = error instanceof ApiError ? error.message : "Failed to start real grading.";
         useUiStore().pushToast(message, "risk");
-        throw error;
+        if (error instanceof ApiError) {
+          throw error;
+        }
       } finally {
         this.loading = false;
       }
@@ -339,13 +370,13 @@ export const useBatchStore = defineStore("batch", {
           this.students.find((item) => item.id === studentId);
 
         if (!selectedRow?.submissionId) {
-          throw new ApiError(400, "未找到 submissionId，暂时无法查询真实 score-items 详情。");
+          throw new ApiError(400, "Current student row is missing submissionId.");
         }
 
         const scoreItems = await submissionApi.scoreItems(selectedRow.submissionId);
         this.currentStudent = mapScoreItemsToStudentDetail(assessmentId, selectedRow, scoreItems);
       } catch (error) {
-        const message = error instanceof ApiError ? error.message : "未能加载学生评分详情。";
+        const message = error instanceof ApiError ? error.message : "Failed to load student detail.";
         useUiStore().pushToast(message, "risk");
       } finally {
         this.loading = false;
@@ -354,36 +385,31 @@ export const useBatchStore = defineStore("batch", {
     async confirmCurrentStudent() {
       const detail = this.currentStudent;
       if (!detail?.finalResultId) {
-        useUiStore().pushToast("当前详情缺少 finalResultId，无法确认成绩。", "risk");
+        useUiStore().pushToast("Current student detail is missing finalResultId.", "risk");
+        return;
+      }
+      if (detail.reviewStatus === "CONFIRMED") {
         return;
       }
 
       const teacherId = resolveTeacherId(useAuthStore().user);
       if (!teacherId) {
-        useUiStore().pushToast("当前登录用户缺少 teacherId，无法调用确认接口。", "risk");
+        useUiStore().pushToast("Current login user is missing teacherId.", "risk");
         return;
       }
 
       this.loading = true;
       try {
         await finalResultApi.confirm(detail.finalResultId, teacherId);
-        detail.reviewStatus = "CONFIRMED";
-        detail.confirmedAt = new Date().toISOString();
-
-        const row = this.students.find((item) => item.finalResultId === detail.finalResultId);
-        if (row) {
-          row.reviewStatus = "CONFIRMED";
-          row.gateStatus = "CONFIRMED";
-          row.confirmedAt = detail.confirmedAt;
-          row.riskTags = row.riskTags.filter((tag) => tag !== "PENDING" && tag !== "ADJUSTED");
-          if (!row.riskTags.includes("CONFIRMED")) {
-            row.riskTags = ["CONFIRMED", ...row.riskTags];
-          }
+        const taskStore = useTaskContextStore();
+        const taskId = taskStore.currentTask?.id;
+        if (taskId) {
+          await this.loadResults(taskId);
+          await this.loadStudent(detail.id, taskId, detail.submissionId, detail.finalResultId);
         }
-
-        useUiStore().pushToast("教师确认已提交到真实后端接口。");
+        useUiStore().pushToast("Teacher confirmation submitted.");
       } catch (error) {
-        const message = error instanceof ApiError ? error.message : "确认成绩失败。";
+        const message = error instanceof ApiError ? error.message : "Failed to confirm final result.";
         useUiStore().pushToast(message, "risk");
       } finally {
         this.loading = false;
@@ -397,7 +423,7 @@ export const useBatchStore = defineStore("batch", {
       try {
         const record = await exportApi.start(taskId);
         this.exports = [record, ...this.exports];
-        useUiStore().pushToast("Excel 导出记录已生成。");
+        useUiStore().pushToast("Export record created.");
       } finally {
         this.loading = false;
       }
