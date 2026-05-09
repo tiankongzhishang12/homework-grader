@@ -216,6 +216,18 @@ export type GradingProgressResponse = {
   status: RealGradingStatus;
   message?: string;
   scriptResult?: unknown;
+  scriptProgress?: {
+    total?: number;
+    completed?: number;
+    failed?: number;
+    pending?: number;
+    last_updated?: string;
+    completed_ids?: string[];
+    failed_ids?: Array<{ id?: string; error?: string }>;
+    pending_ids?: string[];
+  };
+  scriptProgressStaleSeconds?: number;
+  scriptProgressError?: string;
   importSummary?: {
     importedCount?: number;
     skippedCount?: number;

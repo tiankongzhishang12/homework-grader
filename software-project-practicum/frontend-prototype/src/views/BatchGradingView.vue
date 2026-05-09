@@ -46,7 +46,7 @@
             {{ batchStore.loading ? "启动中..." : "开始阅卷" }}
           </button>
           <button class="action-button action-button--ghost" :disabled="batchStore.loading" @click="refreshProgress">刷新进度</button>
-          <button class="action-button action-button--ghost" :disabled="batchStore.loading" @click="loadLogs">查看日志摘要</button>
+          <button class="action-button action-button--ghost" :disabled="batchStore.loading" @click="loadLogs">刷新评分日志</button>
           <RouterLink :to="{ name: 'task-analysis', params: { taskId: taskStore.currentTask.id } }" class="action-button action-button--ghost">
             进入结果分析
           </RouterLink>
@@ -78,7 +78,7 @@
 
       <section class="panel">
         <div class="panel__header">
-          <h3>日志摘要</h3>
+          <h3>评分日志中心</h3>
         </div>
         <ul class="detail-list">
           <li v-for="item in batchStore.logs" :key="`${item.time}-${item.message}`">[{{ item.level }}] {{ item.time }} · {{ item.message }}</li>

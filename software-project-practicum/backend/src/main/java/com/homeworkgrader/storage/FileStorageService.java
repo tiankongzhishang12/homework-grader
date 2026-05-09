@@ -3,6 +3,7 @@ package com.homeworkgrader.storage;
 import com.homeworkgrader.config.GraderProperties;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryStream;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,7 +23,7 @@ public class FileStorageService {
 
     public StoredFile saveSubmissionFile(Long assessmentId, Long studentId, MultipartFile file) throws IOException {
         String originalName = sanitize(file.getOriginalFilename() == null ? "submission.bin" : file.getOriginalFilename());
-        Path relativePath = workspaceRoot.getFileSystem().getPath("raw", "assessment-" + assessmentId, "student-" + studentId, originalName);
+        Path relativePath = workspaceRoot.getFileSystem().getPath("uploads", "assessment-" + assessmentId, "student-" + studentId, originalName);
         Path target = workspaceRoot.resolve(relativePath).normalize();
         if (!target.startsWith(workspaceRoot)) {
             throw new IOException("非法文件路径");
@@ -33,6 +34,10 @@ public class FileStorageService {
     }
 
     public RawWorkspaceFile copyToRawWorkspace(String sourceRelativePath, String studentNo, String studentName, String fileName) throws IOException {
+        return copyFileToRawWorkspace(resolve(sourceRelativePath), studentNo, studentName, fileName);
+    }
+
+    public RawWorkspaceFile copyFileToRawWorkspace(Path source, String studentNo, String studentName, String fileName) throws IOException {
         String safeStudentNo = sanitizePathPart(studentNo);
         String safeStudentName = sanitizePathPart(isBlank(studentName) ? "student" : studentName);
         String safeFileName = sanitize(fileName == null ? "submission.bin" : fileName);
@@ -41,7 +46,6 @@ public class FileStorageService {
         if (!rawRoot.startsWith(workspaceRoot) || !studentDir.startsWith(rawRoot)) {
             throw new IOException("非法 raw workspace 路径");
         }
-        Path source = resolve(sourceRelativePath);
         Path target = studentDir.resolve(safeFileName).normalize();
         if (!target.startsWith(studentDir)) {
             throw new IOException("非法 raw workspace 文件路径");
@@ -54,6 +58,23 @@ public class FileStorageService {
                 ? "Copied to grading raw workspace, overwriting an existing file with the same name."
                 : "Copied to grading raw workspace.";
         return new RawWorkspaceFile(relativePath, overwritten, message);
+    }
+
+    public RawWorkspaceFile copyToRawWorkspaceForRun(String sourceRelativePath, String studentNo, String studentName, String fileName) throws IOException {
+        return copyToRawWorkspace(sourceRelativePath, studentNo, studentName, fileName);
+    }
+
+    public void resetGradingRunWorkspace() throws IOException {
+        deleteChildren(workspaceRoot.resolve("raw").normalize());
+        deleteChildren(workspaceRoot.resolve("ir").normalize());
+        deleteChildren(workspaceRoot.resolve("scores").normalize());
+        deleteChildren(workspaceRoot.resolve("logs").normalize());
+        Files.deleteIfExists(workspaceRoot.resolve("progress.json").normalize());
+        Files.deleteIfExists(workspaceRoot.resolve("student-mapping.csv").normalize());
+        Files.createDirectories(workspaceRoot.resolve("raw").normalize());
+        Files.createDirectories(workspaceRoot.resolve("ir").normalize());
+        Files.createDirectories(workspaceRoot.resolve("scores").normalize());
+        Files.createDirectories(workspaceRoot.resolve("logs").normalize());
     }
 
     public Path resolve(String relativePath) throws IOException {
@@ -70,6 +91,10 @@ public class FileStorageService {
         return reports;
     }
 
+    public Path workspaceRoot() {
+        return workspaceRoot;
+    }
+
     private String sanitize(String name) {
         return name.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
@@ -81,6 +106,35 @@ public class FileStorageService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void deleteChildren(Path directory) throws IOException {
+        if (!directory.startsWith(workspaceRoot)) {
+            throw new IOException("非法 workspace 清理路径");
+        }
+        if (!Files.exists(directory)) {
+            return;
+        }
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
+            for (Path child : stream) {
+                deleteRecursively(child);
+            }
+        }
+    }
+
+    private void deleteRecursively(Path path) throws IOException {
+        Path normalized = path.normalize();
+        if (!normalized.startsWith(workspaceRoot)) {
+            throw new IOException("非法 workspace 清理路径");
+        }
+        if (Files.isDirectory(normalized)) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(normalized)) {
+                for (Path child : stream) {
+                    deleteRecursively(child);
+                }
+            }
+        }
+        Files.deleteIfExists(normalized);
     }
 
     private String sha256(Path path) throws IOException {

@@ -140,6 +140,24 @@ export const useConfigStore = defineStore("config", {
         this.saving = false;
       }
     },
+    async uploadStandardAnswerFile(taskId: string, file: File) {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.questionId) {
+        useUiStore().pushToast("请先初始化题目定义。", "risk");
+        return;
+      }
+
+      this.saving = true;
+      try {
+        await standardAnswerApi.upload(task.questionId, file);
+        this.standardAnswers = await standardAnswerApi.list(task.questionId);
+        this.standardAnswerDraft = this.standardAnswers[0]?.answer_text ?? "";
+        useUiStore().pushToast("标准答案文件已上传并保存为新版本。");
+        await useTaskContextStore().refreshBlockers(taskId);
+      } finally {
+        this.saving = false;
+      }
+    },
     async uploadAnswer(taskId: string, file: File) {
       this.saving = true;
       try {

@@ -3,9 +3,9 @@
     <div class="hero-card hero-card--dense">
       <div>
         <div class="eyebrow">标准答案</div>
-        <h2 class="hero-card__title">先确定题目定义，再直接保存标准答案文本</h2>
+        <h2 class="hero-card__title">上传标准答案文件，系统自动保存为答案版本</h2>
         <p class="hero-card__text">
-          第一版不做文件解析，老师可以先粘贴标准答案正文并保存到真实后端。若当前任务还没有 `questionId`，需要先初始化题目定义。
+          老师优先上传 .docx、.txt、.md、.json、.yaml 或 .csv 标准答案文件；解析后的正文会写入真实标准答案表。
         </p>
       </div>
       <div class="hero-card__meta hero-card__meta--summary">
@@ -18,15 +18,18 @@
       <section class="panel">
         <div class="panel__header panel__header--stack">
           <div>
-            <h3>保存真实标准答案</h3>
-            <p class="panel__description">直接输入或粘贴标准答案文本，然后保存到 `/api/questions/{questionId}/standard-answers`。</p>
+            <h3>上传标准答案</h3>
+            <p class="panel__description">
+              若当前任务还没有 questionId，请先初始化题目定义。上传后端会解析文件正文，并保存到
+              `/api/questions/{questionId}/standard-answers/upload`。
+            </p>
           </div>
           <div class="toolbar__actions">
             <button class="action-button action-button--ghost" :disabled="configStore.saving" @click="initializeQuestion">
               初始化题目定义
             </button>
-            <button class="action-button" :disabled="configStore.saving || !taskStore.currentTask.questionId" @click="saveAnswer">
-              {{ configStore.saving ? "保存中..." : "保存标准答案" }}
+            <button class="action-button" :disabled="configStore.saving || !taskStore.currentTask.questionId || !selectedFile" @click="uploadSelectedAnswer">
+              {{ configStore.saving ? "上传中..." : "上传标准答案" }}
             </button>
           </div>
         </div>
@@ -36,9 +39,24 @@
         </div>
 
         <label class="field">
-          <span>标准答案文本</span>
-          <textarea v-model="configStore.standardAnswerDraft" class="field__input field__input--textarea" rows="12" />
+          <span>标准答案文件</span>
+          <input class="field__input" type="file" accept=".docx,.txt,.md,.json,.yaml,.yml,.csv" @change="selectAnswerFile" />
         </label>
+
+        <div v-if="selectedFile" class="inline-alert inline-alert--good">
+          已选择：{{ selectedFile.name }}
+        </div>
+
+        <details class="detail-block">
+          <summary>临时文本录入</summary>
+          <label class="field">
+            <span>标准答案文本</span>
+            <textarea v-model="configStore.standardAnswerDraft" class="field__input field__input--textarea" rows="12" />
+          </label>
+          <button class="action-button action-button--ghost" :disabled="configStore.saving || !taskStore.currentTask.questionId" @click="saveAnswer">
+            保存文本版本
+          </button>
+        </details>
       </section>
 
       <aside class="panel config-side-panel">
@@ -75,7 +93,7 @@
       <div class="panel__header">
         <div>
           <h3>已保存记录</h3>
-          <p class="panel__description">展示当前 `questionId` 下已存在的标准答案记录。</p>
+          <p class="panel__description">展示当前 questionId 下已经保存的标准答案版本。</p>
         </div>
       </div>
 
@@ -90,18 +108,19 @@
           <p class="rubric-card__summary">{{ item.answer_text ?? item.answer_json ?? "无文本内容" }}</p>
         </article>
       </div>
-      <div v-else class="empty-state">当前题目还没有真实标准答案记录。</div>
+      <div v-else class="empty-state">当前题目还没有标准答案记录。</div>
     </section>
   </section>
 </template>
 
 <script setup lang="ts">
-import { watch } from "vue";
+import { ref, watch } from "vue";
 import { useConfigStore } from "../stores/config";
 import { useTaskContextStore } from "../stores/task-context";
 
 const taskStore = useTaskContextStore();
 const configStore = useConfigStore();
+const selectedFile = ref<File | null>(null);
 
 watch(
   () => taskStore.currentTask?.id,
@@ -121,5 +140,16 @@ const initializeQuestion = async () => {
 const saveAnswer = async () => {
   if (!taskStore.currentTask) return;
   await configStore.saveStandardAnswer(taskStore.currentTask.id);
+};
+
+const selectAnswerFile = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  selectedFile.value = input.files?.[0] ?? null;
+};
+
+const uploadSelectedAnswer = async () => {
+  if (!taskStore.currentTask || !selectedFile.value) return;
+  await configStore.uploadStandardAnswerFile(taskStore.currentTask.id, selectedFile.value);
+  selectedFile.value = null;
 };
 </script>

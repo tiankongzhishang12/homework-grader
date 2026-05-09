@@ -2004,6 +2004,15 @@ def _get_openai_client() -> OpenAI:
         client_kwargs: dict[str, Any] = {"api_key": api_key}
         if base_url:
             client_kwargs["base_url"] = base_url
+        timeout_value = (
+            os.environ.get("OPENAI_TIMEOUT_SECONDS", "").strip()
+            or _config_value("openai", "timeout_seconds")
+        )
+        if timeout_value:
+            client_kwargs["timeout"] = float(timeout_value)
+        else:
+            client_kwargs["timeout"] = 90.0
+        client_kwargs["max_retries"] = 0
         _OPENAI_CLIENT = OpenAI(**client_kwargs)
     return _OPENAI_CLIENT
 

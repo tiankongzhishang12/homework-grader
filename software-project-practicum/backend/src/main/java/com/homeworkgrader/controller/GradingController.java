@@ -44,6 +44,11 @@ public class GradingController {
         return ApiResponse.ok(workflowService.progress(id));
     }
 
+    @GetMapping("/assessments/{id}/grading/logs")
+    public ApiResponse<?> logs(@PathVariable Long id) {
+        return ApiResponse.ok(workflowService.logs(id));
+    }
+
     @GetMapping("/grading-runs/{id}")
     public ApiResponse<?> gradingRun(@PathVariable Long id) {
         return ApiResponse.ok(repository.get("grading_run", id));

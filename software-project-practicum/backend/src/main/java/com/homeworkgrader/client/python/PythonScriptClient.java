@@ -4,10 +4,12 @@ import com.homeworkgrader.config.GraderProperties;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -41,6 +43,9 @@ public class PythonScriptClient {
         }
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(python.getWorkingDirectory().toAbsolutePath().normalize().toFile());
+        Map<String, String> environment = builder.environment();
+        environment.putIfAbsent("PYTHONIOENCODING", "utf-8");
+        environment.putIfAbsent("PYTHONUTF8", "1");
         Process process = builder.start();
         String stdout = readFully(process.getInputStream());
         String stderr = readFully(process.getErrorStream());
@@ -55,7 +60,32 @@ public class PythonScriptClient {
         while ((read = inputStream.read(buffer)) != -1) {
             output.write(buffer, 0, read);
         }
-        return new String(output.toByteArray(), StandardCharsets.UTF_8);
+        return decodeProcessOutput(output.toByteArray());
+    }
+
+    private String decodeProcessOutput(byte[] bytes) {
+        String utf8 = new String(bytes, StandardCharsets.UTF_8);
+        if (!looksLikeMojibake(utf8)) {
+            return utf8;
+        }
+        return new String(bytes, Charset.forName("GB18030"));
+    }
+
+    private boolean looksLikeMojibake(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        if (text.indexOf('\uFFFD') >= 0) {
+            return true;
+        }
+        int suspicious = 0;
+        String markers = "����锟斤拷鐠閺闂";
+        for (int i = 0; i < text.length(); i++) {
+            if (markers.indexOf(text.charAt(i)) >= 0) {
+                suspicious++;
+            }
+        }
+        return suspicious >= 2;
     }
 
     public static class ScriptResult {

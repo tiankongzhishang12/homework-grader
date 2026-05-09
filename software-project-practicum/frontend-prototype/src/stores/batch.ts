@@ -84,6 +84,17 @@ const mapRealStatusToBatchStatus = (status?: string): BatchProgress["status"] =>
 };
 
 const toStepLabel = (progress: GradingProgressResponse) => {
+  const scriptProgress = progress.scriptProgress;
+  if (progress.status === "GRADING" && scriptProgress) {
+    const completed = toNumber(scriptProgress.completed);
+    const failed = toNumber(scriptProgress.failed);
+    const pending = toNumber(scriptProgress.pending);
+    const total = toNumber(scriptProgress.total);
+    const staleSeconds = toNumber(progress.scriptProgressStaleSeconds);
+    const staleText = staleSeconds > 180 ? ` Progress has not updated for ${staleSeconds}s; the model request may be stalled.` : "";
+    return `Scoring progress: ${completed} completed, ${failed} failed, ${pending} pending, ${total} total.${staleText}`;
+  }
+  if (progress.scriptProgressError) return `Scoring is running, but script progress could not be read: ${progress.scriptProgressError}`;
   if (progress.message) return progress.message;
   switch (progress.status) {
     case "QUEUED":
@@ -103,20 +114,26 @@ const toStepLabel = (progress: GradingProgressResponse) => {
 
 const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchProgress => {
   const summary = progress.importSummary ?? {};
+  const scriptProgress = progress.scriptProgress;
   const imported = toNumber(summary.importedCount);
   const skipped = toNumber(summary.skippedCount);
   const failed = toNumber(summary.failedCount);
+  const scriptCompleted = toNumber(scriptProgress?.completed);
+  const scriptFailed = toNumber(scriptProgress?.failed);
+  const scriptTotal = toNumber(scriptProgress?.total);
   const qualityFlags: BatchProgress["qualityFlags"] = [];
   if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "Import skipped" });
   if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "Import failed" });
+  if (scriptFailed > 0) qualityFlags.push({ flag: "gate_warning", count: scriptFailed, label: "Scoring failed" });
+  if (toNumber(progress.scriptProgressStaleSeconds) > 180) qualityFlags.push({ flag: "gate_warning", count: 1, label: "Progress stalled" });
 
   return {
     taskId,
     status: mapRealStatusToBatchStatus(progress.status),
     startedAt: progress.startedAt,
     updatedAt: progress.updatedAt ?? new Date().toISOString(),
-    total: imported + skipped + failed,
-    completed: imported,
+    total: scriptProgress ? scriptTotal : imported + skipped + failed,
+    completed: scriptProgress ? scriptCompleted : imported,
     currentStepLabel: toStepLabel(progress),
     qualityFlags,
   };
@@ -307,6 +324,7 @@ export const useBatchStore = defineStore("batch", {
         await gradingApi.start(assessmentId);
         useUiStore().pushToast("Real grading started. The workflow is entering preprocessing.");
         await this.loadProgress(taskId, true);
+        await this.loadLogs(taskId);
         await useTaskContextStore().loadTask(taskId);
       } catch (error) {
         const message = error instanceof ApiError ? error.message : "Failed to start real grading.";
@@ -322,6 +340,9 @@ export const useBatchStore = defineStore("batch", {
       const task = useTaskContextStore().currentTask;
       const assessmentId = resolveAssessmentId(task);
       this.progress = assessmentId ? mapProgress(taskId, await gradingApi.progress(assessmentId)) : await batchApi.progress(taskId);
+      if (assessmentId) {
+        this.logs = await gradingApi.logs(assessmentId);
+      }
 
       if (this.progress.status === "completed" || this.progress.status === "failed") {
         this.stopPolling();
@@ -332,7 +353,9 @@ export const useBatchStore = defineStore("batch", {
       await useTaskContextStore().loadTask(taskId);
     },
     async loadLogs(taskId: string) {
-      this.logs = await batchApi.logs(taskId);
+      const task = useTaskContextStore().currentTask;
+      const assessmentId = resolveAssessmentId(task);
+      this.logs = assessmentId ? await gradingApi.logs(assessmentId) : await batchApi.logs(taskId);
     },
     async loadResults(taskId: string) {
       this.loading = true;

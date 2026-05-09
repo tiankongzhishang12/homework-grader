@@ -65,6 +65,14 @@ export const standardAnswerApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  upload: (questionId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiRequest<{ id: string | number }>(`/api/questions/${questionId}/standard-answers/upload`, {
+      method: "POST",
+      body: form,
+    });
+  },
   list: (questionId: string) => apiRequest<StandardAnswerRecord[]>(`/api/questions/${questionId}/standard-answers`),
 };
 
@@ -127,6 +135,7 @@ export const gradingApi = {
   start: (assessmentId: string) =>
     apiRequest<GradingProgressResponse>(`/api/assessments/${assessmentId}/grading/start`, { method: "POST" }),
   progress: (assessmentId: string) => apiRequest<GradingProgressResponse>(`/api/assessments/${assessmentId}/grading/progress`),
+  logs: (assessmentId: string) => apiRequest<BatchLog[]>(`/api/assessments/${assessmentId}/grading/logs`),
 };
 
 export const finalResultApi = {

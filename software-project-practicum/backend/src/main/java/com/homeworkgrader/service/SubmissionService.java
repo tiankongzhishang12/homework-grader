@@ -57,7 +57,7 @@ public class SubmissionService {
         response.put("submissionId", submissionId);
         response.put("assetId", assetId);
         response.put("file", stored);
-        response.put("rawWorkspace", syncToRawWorkspace(studentId, stored, ext));
+        response.put("rawWorkspace", rawWorkspace(true, null, "Stored upload file. Grading raw workspace will be rebuilt when grading starts."));
         return response;
     }
 
