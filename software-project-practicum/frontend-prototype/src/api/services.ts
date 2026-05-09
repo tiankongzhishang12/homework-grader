@@ -146,8 +146,11 @@ export const batchApi = {
 };
 
 export const gradingApi = {
-  start: (assessmentId: string) =>
-    apiRequest<GradingProgressResponse>(`/api/assessments/${assessmentId}/grading/start`, { method: "POST" }),
+  start: (assessmentId: string, mode: "INCREMENTAL" | "FULL" = "INCREMENTAL") =>
+    apiRequest<GradingProgressResponse>(`/api/assessments/${assessmentId}/grading/start`, {
+      method: "POST",
+      body: JSON.stringify({ mode }),
+    }),
   progress: (assessmentId: string) => apiRequest<GradingProgressResponse>(`/api/assessments/${assessmentId}/grading/progress`),
   logs: (assessmentId: string) => apiRequest<BatchLog[]>(`/api/assessments/${assessmentId}/grading/logs`),
 };

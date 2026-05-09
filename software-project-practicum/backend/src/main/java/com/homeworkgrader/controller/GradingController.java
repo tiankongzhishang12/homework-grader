@@ -1,6 +1,8 @@
 package com.homeworkgrader.controller;
 
 import com.homeworkgrader.api.ApiResponse;
+import com.homeworkgrader.domain.GradingMode;
+import com.homeworkgrader.dto.GradingStartRequest;
 import com.homeworkgrader.repository.CrudJdbcRepository;
 import com.homeworkgrader.service.GradingResultImportService;
 import com.homeworkgrader.service.GradingWorkflowService;
@@ -29,8 +31,9 @@ public class GradingController {
     }
 
     @PostMapping("/assessments/{id}/grading/start")
-    public ApiResponse<?> start(@PathVariable Long id) {
-        return ApiResponse.ok(workflowService.start(id));
+    public ApiResponse<?> start(@PathVariable Long id, @RequestBody(required = false) GradingStartRequest request) {
+        GradingMode mode = request == null ? GradingMode.INCREMENTAL : request.resolveMode();
+        return ApiResponse.ok(workflowService.start(id, mode));
     }
 
     @PostMapping("/assessments/{id}/grading/import-scores")

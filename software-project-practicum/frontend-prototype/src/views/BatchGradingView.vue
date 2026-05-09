@@ -42,8 +42,11 @@
           <p class="panel__description">进度会自动刷新；页面隐藏时暂停轮询，返回后继续。</p>
         </div>
         <div class="toolbar__actions">
-          <button class="action-button" :disabled="primaryDisabled" @click="startBatch">
+          <button class="action-button" :disabled="primaryDisabled" @click="startIncremental">
             {{ primaryButtonLabel }}
+          </button>
+          <button class="action-button action-button--ghost" :disabled="batchStore.loading || isRunning" @click="startFull">
+            重新批改全部
           </button>
           <button class="action-button action-button--ghost" :disabled="batchStore.refreshingProgress" @click="refreshProgress">
             {{ batchStore.refreshingProgress ? "刷新中..." : "刷新状态" }}
@@ -58,6 +61,7 @@
       </div>
 
       <div class="batch-refresh-meta">
+        <span>本次模式：{{ gradingModeLabel }}</span>
         <span>状态最后刷新：{{ formatRefreshTime(batchStore.lastProgressRefreshedAt) }}</span>
         <span>日志最后刷新：{{ formatRefreshTime(batchStore.lastLogsRefreshedAt) }}</span>
       </div>
@@ -197,11 +201,16 @@ const isFailed = computed(() => batchStore.progress?.status === "failed");
 const checklist = computed(() => configStore.configChecklist(taskStore.currentTask?.id ?? ""));
 const primaryButtonLabel = computed(() => {
   if (isRunning.value) return "阅卷进行中...";
-  if (isCompleted.value || isFailed.value) return "重新阅卷";
-  return "开始阅卷";
+  return "批改新增/更新提交";
 });
 const primaryDisabled = computed(() => !taskStore.canStartBatch || batchStore.loading || isRunning.value);
 const executionSteps = computed(() => batchStore.progress?.executionSteps ?? []);
+const gradingModeLabel = computed(() => {
+  const mode = batchStore.progress?.gradingMode;
+  if (mode === "FULL") return "全量重批";
+  if (mode === "INCREMENTAL") return "增量阅卷";
+  return "尚未开始";
+});
 
 const qualityItems = computed(() => {
   const summary = qualitySummary.value;
@@ -244,17 +253,24 @@ onUnmounted(() => {
   batchStore.stopPolling();
 });
 
-const startBatch = async () => {
+const startIncremental = async () => {
   if (!taskStore.currentTask) return;
   if (!checklist.value.ready) {
     window.alert(checklist.value.message);
     return;
   }
-  if (isCompleted.value) {
-    const confirmed = window.confirm("当前任务已有评分结果。重新阅卷会再次运行大模型评分，并更新当前结果。是否继续？");
-    if (!confirmed) return;
+  await batchStore.startBatch(taskStore.currentTask.id, "INCREMENTAL");
+};
+
+const startFull = async () => {
+  if (!taskStore.currentTask) return;
+  if (!checklist.value.ready) {
+    window.alert(checklist.value.message);
+    return;
   }
-  await batchStore.startBatch(taskStore.currentTask.id);
+  const confirmed = window.confirm("当前任务已有评分结果。重新批改全部会再次调用大模型，并更新已有学生成绩。请确认是否继续？");
+  if (!confirmed) return;
+  await batchStore.startBatch(taskStore.currentTask.id, "FULL");
 };
 
 const refreshProgress = async () => {

@@ -235,6 +235,7 @@ export type ExportStartResult = {
 export type BatchProgress = {
   taskId: string;
   status: BatchStatus;
+  gradingMode?: "INCREMENTAL" | "FULL" | "SELECTED";
   startedAt?: string;
   updatedAt: string;
   total: number;
@@ -244,6 +245,7 @@ export type BatchProgress = {
   runtimeRubric?: RuntimeRubricInfo;
   executionSteps?: ExecutionStep[];
   qualitySummary?: QualitySummary;
+  workspaceSummary?: GradingWorkspaceSummary;
 };
 
 export type RealGradingStatus = "QUEUED" | "PREPROCESSING" | "GRADING" | "COMPLETED" | "FAILED";
@@ -272,9 +274,20 @@ export type QualitySummary = {
   lowConfidenceCount?: number;
 };
 
+export type GradingWorkspaceSummary = {
+  mode?: "INCREMENTAL" | "FULL" | "SELECTED";
+  assetCount?: number;
+  candidateCount?: number;
+  copiedCount?: number;
+  skippedCount?: number;
+  noOp?: boolean;
+  reason?: string;
+};
+
 export type GradingProgressResponse = {
   assessmentId: string | number;
   status: RealGradingStatus;
+  gradingMode?: "INCREMENTAL" | "FULL" | "SELECTED";
   message?: string;
   scriptResult?: unknown;
   scriptProgress?: {
@@ -292,6 +305,7 @@ export type GradingProgressResponse = {
   runtimeRubric?: RuntimeRubricInfo;
   executionSteps?: ExecutionStep[];
   qualitySummary?: QualitySummary;
+  workspaceSummary?: GradingWorkspaceSummary;
   importSummary?: {
     importedCount?: number;
     skippedCount?: number;

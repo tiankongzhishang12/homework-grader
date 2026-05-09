@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+﻿import { defineStore } from "pinia";
 import { ApiError } from "../api/client";
 import { batchApi, exportApi, finalResultApi, gradingApi, resultApi, submissionApi } from "../api/services";
 import type {
@@ -173,14 +173,15 @@ const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchPr
   const scriptFailed = toNumber(scriptProgress?.failed);
   const scriptTotal = toNumber(scriptProgress?.total);
   const qualityFlags: BatchProgress["qualityFlags"] = [];
-  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "结果导入跳过" });
-  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "结果导入失败" });
-  if (scriptFailed > 0) qualityFlags.push({ flag: "gate_warning", count: scriptFailed, label: "评分失败" });
-  if (toNumber(progress.scriptProgressStaleSeconds) > 180) qualityFlags.push({ flag: "gate_warning", count: 1, label: "进度停滞" });
+  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "缁撴灉瀵煎叆璺宠繃" });
+  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "缁撴灉瀵煎叆澶辫触" });
+  if (scriptFailed > 0) qualityFlags.push({ flag: "gate_warning", count: scriptFailed, label: "璇勫垎澶辫触" });
+  if (toNumber(progress.scriptProgressStaleSeconds) > 180) qualityFlags.push({ flag: "gate_warning", count: 1, label: "杩涘害鍋滄粸" });
 
   return {
     taskId,
     status: mapRealStatusToBatchStatus(progress.status),
+    gradingMode: progress.gradingMode,
     startedAt: progress.startedAt,
     updatedAt: progress.updatedAt ?? new Date().toISOString(),
     total: scriptProgress ? scriptTotal : imported + skipped + failed,
@@ -190,6 +191,7 @@ const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchPr
     runtimeRubric: progress.runtimeRubric,
     executionSteps: progress.executionSteps ?? fallbackExecutionSteps(progress),
     qualitySummary: progress.qualitySummary ?? fallbackQualitySummary(progress),
+    workspaceSummary: progress.workspaceSummary,
   };
 };
 
@@ -375,12 +377,12 @@ export const useBatchStore = defineStore("batch", {
         await this.loadProgress(taskId, true);
       }, 3000);
     },
-    async startBatch(taskId: string) {
+    async startBatch(taskId: string, mode: "INCREMENTAL" | "FULL" = "INCREMENTAL") {
       this.loading = true;
       try {
         const assessmentId = ensureAssessmentId(useTaskContextStore().currentTask);
-        await gradingApi.start(assessmentId);
-        useUiStore().pushToast("自动阅卷已启动，系统正在进入预处理。");
+        await gradingApi.start(assessmentId, mode);
+        useUiStore().pushToast(mode === "FULL" ? "已启动全量重新阅卷。" : "已启动增量阅卷。");
         await this.loadProgress(taskId, true);
         await this.loadLogs(taskId);
         await useTaskContextStore().loadTask(taskId);

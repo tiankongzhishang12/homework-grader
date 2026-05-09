@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.homeworkgrader.client.python.PythonScriptClient;
 import com.homeworkgrader.client.python.PythonScriptClient.ScriptResult;
+import com.homeworkgrader.domain.GradingMode;
 import com.homeworkgrader.repository.CrudJdbcRepository;
 import com.homeworkgrader.storage.FileStorageService;
 import java.nio.file.Files;
@@ -47,33 +48,68 @@ public class GradingWorkflowService {
     }
 
     public Map<String, Object> start(Long assessmentId) {
+        return start(assessmentId, GradingMode.INCREMENTAL);
+    }
+
+    public Map<String, Object> start(Long assessmentId, GradingMode mode) {
         List<Map<String, Object>> currentLogs = new ArrayList<>();
         logs.put(assessmentId, currentLogs);
         appendLog(assessmentId, "info", "Preflight started for assessment " + assessmentId + ".");
+        appendLog(assessmentId, "info", "Grading mode: " + mode.name() + ".");
         appendPreflightLogs(assessmentId);
+        RubricRuntimeExportService.RuntimeRubric runtimeRubric;
+        Path runtimeConfigPath;
         try {
-            GradingWorkspaceService.PrepareSummary summary = workspaceService.prepareAssessmentWorkspace(assessmentId);
-            appendLog(assessmentId, summary.getCopiedCount() > 0 ? "info" : "error", "Workspace prepared from current assessment submissions: assets=" + summary.getAssetCount() + ", copied=" + summary.getCopiedCount() + ", skipped=" + summary.getSkippedCount() + ".");
+            runtimeRubric = rubricRuntimeExportService.exportForAssessment(assessmentId);
+            appendLog(assessmentId, "info", "Runtime rubric exported: " + runtimeRubric.getRubricRuntimeId() + ".");
+            runtimeConfigPath = graderRuntimeConfigService.createRuntimeConfig(assessmentId, runtimeRubric.getRubricYamlPath());
+            appendLog(assessmentId, "info", "Runtime grader config created: " + runtimeConfigPath + ".");
+        } catch (Exception ex) {
+            appendLog(assessmentId, "error", "Runtime rubric preparation failed: " + ex.getMessage());
+            Map<String, Object> failed = newProgress(assessmentId, "FAILED", ex.getMessage(), null, null, null);
+            failed.put("gradingMode", mode.name());
+            progress.put(assessmentId, failed);
+            return failed;
+        }
+        GradingWorkspaceService.PrepareSummary prepareSummary;
+        try {
+            GradingWorkspaceService.PrepareSummary summary = workspaceService.prepareAssessmentWorkspace(assessmentId, mode, runtimeRubric.getRubricDefinitionId());
+            prepareSummary = summary;
+            appendLog(assessmentId, summary.getCopiedCount() > 0 || summary.isNoOp() ? "info" : "error", "Workspace prepared from current assessment submissions: assets=" + summary.getAssetCount() + ", candidates=" + summary.getCandidateCount() + ", copied=" + summary.getCopiedCount() + ", skipped=" + summary.getSkippedCount() + ".");
+            if (summary.isNoOp()) {
+                Map<String, Object> done = newProgress(assessmentId, "COMPLETED", summary.getReason(), null, null, null);
+                done.put("gradingMode", mode.name());
+                done.put("runtimeRubric", runtimeRubricInfo(runtimeRubric));
+                done.put("runtimeConfigPath", runtimeConfigPath.toString());
+                done.put("workspaceSummary", workspaceSummary(summary));
+                progress.put(assessmentId, done);
+                appendLog(assessmentId, "info", "Incremental grading no-op: " + summary.getReason());
+                return done;
+            }
             if (summary.getCopiedCount() == 0) {
                 Map<String, Object> failed = newProgress(assessmentId, "FAILED", "No supported submission files were copied into the grading workspace.", null, null, null);
+                failed.put("gradingMode", mode.name());
+                failed.put("runtimeRubric", runtimeRubricInfo(runtimeRubric));
+                failed.put("runtimeConfigPath", runtimeConfigPath.toString());
+                failed.put("workspaceSummary", workspaceSummary(summary));
                 progress.put(assessmentId, failed);
                 return failed;
             }
-            Map<String, Object> workspaceSummary = new HashMap<>();
-            workspaceSummary.put("assetCount", summary.getAssetCount());
-            workspaceSummary.put("copiedCount", summary.getCopiedCount());
-            workspaceSummary.put("skippedCount", summary.getSkippedCount());
-            Map<String, Object> prepared = progress.get(assessmentId);
-            if (prepared != null) {
-                prepared.put("workspaceSummary", workspaceSummary);
-            }
+            // workspaceSummary is attached to the queued progress below.
         } catch (Exception ex) {
             appendLog(assessmentId, "error", "Workspace preparation failed: " + ex.getMessage());
             Map<String, Object> failed = newProgress(assessmentId, "FAILED", "Workspace preparation failed: " + ex.getMessage(), null, null, null);
+            failed.put("gradingMode", mode.name());
+            failed.put("runtimeRubric", runtimeRubricInfo(runtimeRubric));
+            failed.put("runtimeConfigPath", runtimeConfigPath.toString());
             progress.put(assessmentId, failed);
             return failed;
         }
         Map<String, Object> queued = newProgress(assessmentId, "QUEUED", "Grading task queued.", null, null, null);
+        queued.put("gradingMode", mode.name());
+        queued.put("runtimeRubric", runtimeRubricInfo(runtimeRubric));
+        queued.put("runtimeConfigPath", runtimeConfigPath.toString());
+        queued.put("workspaceSummary", workspaceSummary(prepareSummary));
         progress.put(assessmentId, queued);
         appendLog(assessmentId, "info", "Grading task queued. The backend worker will run preprocessing first.");
         gradingExecutor.submit(new Runnable() {
@@ -104,14 +140,11 @@ public class GradingWorkflowService {
         Object startedAt = current == null ? null : current.get("startedAt");
         progress.put(assessmentId, newProgress(assessmentId, "PREPROCESSING", "Running submission preprocessing.", null, startedAt, null));
         try {
-            RubricRuntimeExportService.RuntimeRubric runtimeRubric = rubricRuntimeExportService.exportForAssessment(assessmentId);
-            appendLog(assessmentId, "info", "Runtime rubric exported: " + runtimeRubric.getRubricRuntimeId() + ".");
-            Path runtimeConfigPath = graderRuntimeConfigService.createRuntimeConfig(assessmentId, runtimeRubric.getRubricYamlPath());
-            appendLog(assessmentId, "info", "Runtime grader config created: " + runtimeConfigPath + ".");
-            Map<String, Object> running = progress.get(assessmentId);
-            if (running != null) {
-                running.put("runtimeRubric", runtimeRubricInfo(runtimeRubric));
+            Object runtimeConfigValue = current == null ? null : current.get("runtimeConfigPath");
+            if (runtimeConfigValue == null) {
+                throw new IllegalStateException("Runtime grader config path is missing.");
             }
+            Path runtimeConfigPath = java.nio.file.Paths.get(String.valueOf(runtimeConfigValue)).toAbsolutePath().normalize();
 
             appendLog(assessmentId, "info", "Preprocessing script started.");
             ScriptResult preprocess = pythonScriptClient.runPreprocess(runtimeConfigPath);
@@ -201,8 +234,22 @@ public class GradingWorkflowService {
         if (previous != null) {
             copyIfPresent(previous, map, "runtimeRubric");
             copyIfPresent(previous, map, "workspaceSummary");
+            copyIfPresent(previous, map, "gradingMode");
+            copyIfPresent(previous, map, "runtimeConfigPath");
         }
         return map;
+    }
+
+    private Map<String, Object> workspaceSummary(GradingWorkspaceService.PrepareSummary summary) {
+        Map<String, Object> workspaceSummary = new HashMap<>();
+        workspaceSummary.put("mode", summary.getMode());
+        workspaceSummary.put("assetCount", summary.getAssetCount());
+        workspaceSummary.put("candidateCount", summary.getCandidateCount());
+        workspaceSummary.put("copiedCount", summary.getCopiedCount());
+        workspaceSummary.put("skippedCount", summary.getSkippedCount());
+        workspaceSummary.put("noOp", summary.isNoOp());
+        workspaceSummary.put("reason", summary.getReason());
+        return workspaceSummary;
     }
 
     private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
@@ -297,7 +344,9 @@ public class GradingWorkflowService {
     private String workspaceDetail(Object value) {
         if (!(value instanceof Map)) return "等待准备学生提交工作区";
         Map<String, Object> summary = (Map<String, Object>) value;
-        return "已复制 " + number(summary.get("copiedCount")) + " 个学生提交文件，跳过 " + number(summary.get("skippedCount")) + " 个。";
+        String mode = String.valueOf(summary.get("mode"));
+        String modeLabel = "FULL".equals(mode) ? "全量" : "增量";
+        return "本次" + modeLabel + "选择 " + number(summary.get("candidateCount")) + " 个待评分提交，复制 " + number(summary.get("copiedCount")) + " 个，跳过 " + number(summary.get("skippedCount")) + " 个。";
     }
 
     @SuppressWarnings("unchecked")
