@@ -272,7 +272,7 @@ export const useConfigStore = defineStore("config", {
         return;
       }
       if (!studentId.trim()) {
-        useUiStore().pushToast("请先输入 studentId。", "risk");
+        useUiStore().pushToast("请先输入学生 ID。", "risk");
         return;
       }
 
@@ -344,7 +344,7 @@ export const useConfigStore = defineStore("config", {
     async startGradeExport() {
       const task = useTaskContextStore().currentTask;
       if (!task?.assessmentId) {
-        useUiStore().pushToast("当前任务缺少 assessmentId，无法导出成绩。", "risk");
+        useUiStore().pushToast("当前任务缺少 assessmentId，无法执行真实成绩导出。", "risk");
         return null;
       }
 
@@ -355,6 +355,9 @@ export const useConfigStore = defineStore("config", {
           this.lastExportResult.report ? `成绩导出已触发：${this.lastExportResult.report}` : "成绩导出已触发。",
         );
         return this.lastExportResult;
+      } catch (error) {
+        useUiStore().pushToast("成绩导出失败，请检查后端导出接口或报表生成脚本。", "risk");
+        return null;
       } finally {
         this.saving = false;
       }
@@ -370,6 +373,8 @@ export const useConfigStore = defineStore("config", {
         anchor.click();
         window.URL.revokeObjectURL(url);
         useUiStore().pushToast("最新报表下载已开始。");
+      } catch (error) {
+        useUiStore().pushToast("最新报表下载失败，请先确认后端已生成报表。", "risk");
       } finally {
         this.saving = false;
       }

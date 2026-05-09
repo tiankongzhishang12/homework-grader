@@ -512,9 +512,13 @@ export const useBatchStore = defineStore("batch", {
       }
     },
     async loadExports(taskId: string) {
+      // Legacy demo export path: GET /api/exports?taskId=...
+      // The formal export center now uses gradeExportApi through configStore.
       this.exports = await exportApi.history(taskId);
     },
     async createExport(taskId: string) {
+      // Legacy demo export path: POST /api/batch/export.
+      // Keep for compatibility until a dedicated export store replaces it.
       this.loading = true;
       try {
         const record = await exportApi.start(taskId);

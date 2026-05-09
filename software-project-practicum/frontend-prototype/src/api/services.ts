@@ -204,6 +204,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 export const gradeExportApi = {
   start: (assessmentId: string) =>
     apiRequest<ExportStartResult>(`/api/assessments/${assessmentId}/grades/export`, { method: "POST" }),
+  // Phase 1 temporary compatibility download. Later export phases should replace this with exportId-based downloads.
   downloadLatest: async () => {
     const response = await fetch(`${API_BASE}/api/reports/latest/download`, {
       method: "POST",
