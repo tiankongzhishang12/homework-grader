@@ -8,8 +8,13 @@ import com.homeworkgrader.service.llm.LlmClient;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,9 +31,107 @@ public class RubricCompilerService {
 
     public RubricCompileResponse compile(Long templateId, RubricCompileRequest request) {
         String rawContent = llmClient.generateJson(buildSystemPrompt(), buildUserPrompt(request));
-        Map<String, Object> rubricJson = parseRubricJson(rawContent);
+        Map<String, Object> rubricJson = normalizeRubricJson(parseRubricJson(rawContent));
         RubricJsonValidator.ValidationResult validation = validator.validate(rubricJson, request.getTotalScore());
         return toResponse(rubricJson, validation);
+    }
+
+    private Map<String, Object> normalizeRubricJson(Map<String, Object> raw) {
+        Map<String, Object> normalized = new LinkedHashMap<>(raw);
+        normalized.put("warnings", list(raw.get("warnings")) == null ? new ArrayList<Object>() : new ArrayList<Object>(list(raw.get("warnings"))));
+        normalized.put("dimensions", normalizeDimensions(list(raw.get("dimensions"))));
+        normalized.put("cap_rules", normalizeCapRules(list(raw.get("cap_rules"))));
+        normalized.put("review_flags", normalizeReviewFlags(list(raw.get("review_flags"))));
+        return normalized;
+    }
+
+    private List<Map<String, Object>> normalizeDimensions(List<?> rawDimensions) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (rawDimensions == null) {
+            return result;
+        }
+        Map<String, Integer> codeCounts = new HashMap<>();
+        for (int i = 0; i < rawDimensions.size(); i++) {
+            Object item = rawDimensions.get(i);
+            if (!(item instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> source = (Map<?, ?>) item;
+            Map<String, Object> dimension = new LinkedHashMap<>();
+            String baseCode = safeCode(text(source.get("code")), i + 1);
+            int count = codeCounts.containsKey(baseCode) ? codeCounts.get(baseCode) + 1 : 1;
+            codeCounts.put(baseCode, count);
+            String code = count == 1 ? baseCode : baseCode + "_" + count;
+            dimension.put("code", code);
+            dimension.put("name", text(source.get("name")));
+            dimension.put("max_score", source.get("max_score"));
+            dimension.put("description", text(source.get("description")));
+            dimension.put("evidence_requirements", list(source.get("evidence_requirements")) == null ? new ArrayList<Object>() : new ArrayList<Object>(list(source.get("evidence_requirements"))));
+            dimension.put("levels", list(source.get("levels")) == null ? new ArrayList<Object>() : new ArrayList<Object>(list(source.get("levels"))));
+            dimension.put("deduction_rules", list(source.get("deduction_rules")) == null ? new ArrayList<Object>() : new ArrayList<Object>(list(source.get("deduction_rules"))));
+            result.add(dimension);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> normalizeCapRules(List<?> rawRules) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (rawRules == null) {
+            return result;
+        }
+        for (Object item : rawRules) {
+            if (!(item instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> source = (Map<?, ?>) item;
+            Map<String, Object> rule = new LinkedHashMap<>();
+            rule.put("condition", text(source.get("condition")));
+            Object capScore = source.containsKey("cap_score") ? source.get("cap_score") : source.get("capScore");
+            rule.put("cap_score", capScore);
+            rule.put("reason", text(source.get("reason")));
+            result.add(rule);
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> normalizeReviewFlags(List<?> rawFlags) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        if (rawFlags == null) {
+            return result;
+        }
+        Set<String> seen = new LinkedHashSet<>();
+        for (Object item : rawFlags) {
+            if (!(item instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> source = (Map<?, ?>) item;
+            String condition = text(source.get("condition"));
+            String action = normalizeReviewAction(text(source.get("action")));
+            String key = condition + "::" + action;
+            if (seen.contains(key)) {
+                continue;
+            }
+            seen.add(key);
+            Map<String, Object> flag = new LinkedHashMap<>();
+            flag.put("condition", condition);
+            flag.put("action", action);
+            result.add(flag);
+        }
+        return result;
+    }
+
+    private String normalizeReviewAction(String action) {
+        String value = action == null ? "" : action.trim();
+        String folded = value.toLowerCase().replace("-", "_").replace(" ", "_");
+        Set<String> aliases = new HashSet<>();
+        Collections.addAll(aliases,
+                "manual_review", "manualreview", "review", "need_review", "needs_review", "human_review",
+                "人工复核", "需要人工复核", "教师复核", "需要教师复核", "人工审核", "需要人工审核"
+        );
+        if (aliases.contains(value) || aliases.contains(folded)) {
+            return "manual_review";
+        }
+        return value;
     }
 
     private String buildSystemPrompt() {
@@ -40,13 +143,11 @@ public class RubricCompilerService {
                 + "2. 必须生成 rubric_name、total_score、dimensions、cap_rules、review_flags、warnings 字段。\n"
                 + "3. dimensions 中每个评分项必须包含 code、name、max_score、description、evidence_requirements、levels、deduction_rules。\n"
                 + "4. total_score 必须等于用户提供的任务总分。\n"
-                + "5. 如果教师描述中的分值之和与任务总分不一致，不要强行修正，在 warnings 中说明。\n"
-                + "6. 如果缺少档位描述，可以生成默认 excellent / qualified / weak 三档，但要在 warnings 中说明。\n"
-                + "7. cap_rules 用于表达“最高不超过多少分”“最多多少分”等封顶规则。\n"
-                + "8. review_flags 用于表达“需要人工复核”“证据矛盾”“难以判断”等风险规则。\n"
-                + "9. 输出必须是合法 JSON。\n"
-                + "10. 不允许输出代码块标记。\n"
-                + "11. 不允许输出任何 JSON 以外的文字。";
+                + "5. review_flags.action 必须严格输出 manual_review。\n"
+                + "6. review_flags.condition 不能为空。\n"
+                + "7. cap_rules.cap_score 必须是数字。\n"
+                + "8. 如果缺少档位描述，可以生成默认 excellent / qualified / weak 三档，但要在 warnings 中说明。\n"
+                + "9. 输出必须是合法 JSON，不允许输出代码块标记。";
     }
 
     private String buildUserPrompt(RubricCompileRequest request) {
@@ -85,21 +186,18 @@ public class RubricCompilerService {
         response.setDimensions(mapDimensions(list(rubricJson.get("dimensions"))));
         response.setCapRules(mapCapRules(list(rubricJson.get("cap_rules"))));
         response.setReviewFlags(mapReviewFlags(list(rubricJson.get("review_flags"))));
-        response.setWarnings(mergeWarnings(list(rubricJson.get("warnings")), validation));
-        response.setCanSave(validation.isCanSave());
+        response.setWarnings(mergeWarnings(list(rubricJson.get("warnings")), validation.getWarnings()));
+        response.setErrors(validation.getErrors());
+        response.setCanSave(validation.getErrors().isEmpty());
         response.setRubricJson(rubricJson);
         return response;
     }
 
     private List<RubricCompileResponse.Dimension> mapDimensions(List<?> items) {
-        if (items == null) {
-            return Collections.emptyList();
-        }
+        if (items == null) return Collections.emptyList();
         List<RubricCompileResponse.Dimension> result = new ArrayList<>();
         for (Object item : items) {
-            if (!(item instanceof Map)) {
-                continue;
-            }
+            if (!(item instanceof Map)) continue;
             Map<?, ?> map = (Map<?, ?>) item;
             RubricCompileResponse.Dimension dimension = new RubricCompileResponse.Dimension();
             dimension.setCode(text(map.get("code")));
@@ -115,14 +213,10 @@ public class RubricCompilerService {
     }
 
     private List<RubricCompileResponse.Level> mapLevels(List<?> items) {
-        if (items == null) {
-            return Collections.emptyList();
-        }
+        if (items == null) return Collections.emptyList();
         List<RubricCompileResponse.Level> result = new ArrayList<>();
         for (Object item : items) {
-            if (!(item instanceof Map)) {
-                continue;
-            }
+            if (!(item instanceof Map)) continue;
             Map<?, ?> map = (Map<?, ?>) item;
             RubricCompileResponse.Level level = new RubricCompileResponse.Level();
             level.setLevel(text(map.get("level")));
@@ -134,14 +228,10 @@ public class RubricCompilerService {
     }
 
     private List<RubricCompileResponse.DeductionRule> mapDeductionRules(List<?> items) {
-        if (items == null) {
-            return Collections.emptyList();
-        }
+        if (items == null) return Collections.emptyList();
         List<RubricCompileResponse.DeductionRule> result = new ArrayList<>();
         for (Object item : items) {
-            if (!(item instanceof Map)) {
-                continue;
-            }
+            if (!(item instanceof Map)) continue;
             Map<?, ?> map = (Map<?, ?>) item;
             RubricCompileResponse.DeductionRule rule = new RubricCompileResponse.DeductionRule();
             rule.setCondition(text(map.get("condition")));
@@ -152,14 +242,10 @@ public class RubricCompilerService {
     }
 
     private List<RubricCompileResponse.CapRule> mapCapRules(List<?> items) {
-        if (items == null) {
-            return Collections.emptyList();
-        }
+        if (items == null) return Collections.emptyList();
         List<RubricCompileResponse.CapRule> result = new ArrayList<>();
         for (Object item : items) {
-            if (!(item instanceof Map)) {
-                continue;
-            }
+            if (!(item instanceof Map)) continue;
             Map<?, ?> map = (Map<?, ?>) item;
             RubricCompileResponse.CapRule rule = new RubricCompileResponse.CapRule();
             rule.setCondition(text(map.get("condition")));
@@ -171,14 +257,10 @@ public class RubricCompilerService {
     }
 
     private List<RubricCompileResponse.ReviewFlag> mapReviewFlags(List<?> items) {
-        if (items == null) {
-            return Collections.emptyList();
-        }
+        if (items == null) return Collections.emptyList();
         List<RubricCompileResponse.ReviewFlag> result = new ArrayList<>();
         for (Object item : items) {
-            if (!(item instanceof Map)) {
-                continue;
-            }
+            if (!(item instanceof Map)) continue;
             Map<?, ?> map = (Map<?, ?>) item;
             RubricCompileResponse.ReviewFlag flag = new RubricCompileResponse.ReviewFlag();
             flag.setCondition(text(map.get("condition")));
@@ -188,44 +270,41 @@ public class RubricCompilerService {
         return result;
     }
 
-    private List<String> mergeWarnings(List<?> modelWarnings, RubricJsonValidator.ValidationResult validation) {
+    private List<String> mergeWarnings(List<?> modelWarnings, List<String> validatorWarnings) {
         List<String> result = new ArrayList<>();
         result.addAll(stringList(modelWarnings));
-        result.addAll(validation.getWarnings());
-        result.addAll(validation.getErrors());
+        result.addAll(validatorWarnings);
         return result;
     }
 
     private List<String> stringList(List<?> items) {
-        if (items == null) {
-            return Collections.emptyList();
-        }
+        if (items == null) return Collections.emptyList();
         List<String> result = new ArrayList<>();
         for (Object item : items) {
             String value = text(item);
-            if (!value.isEmpty()) {
-                result.add(value);
-            }
+            if (!value.isEmpty()) result.add(value);
         }
         return result;
     }
 
     private List<BigDecimal> decimalList(List<?> items) {
-        if (items == null) {
-            return Collections.emptyList();
-        }
+        if (items == null) return Collections.emptyList();
         List<BigDecimal> result = new ArrayList<>();
         for (Object item : items) {
             BigDecimal value = decimal(item);
-            if (value != null) {
-                result.add(value);
-            }
+            if (value != null) result.add(value);
         }
         return result;
     }
 
     private List<?> list(Object value) {
         return value instanceof List ? (List<?>) value : null;
+    }
+
+    private String safeCode(String code, int index) {
+        String value = code == null || code.trim().isEmpty() ? "criterion_" + index : code.trim();
+        value = value.replaceAll("[^A-Za-z0-9_\\-]", "_");
+        return value.trim().isEmpty() ? "criterion_" + index : value;
     }
 
     private String text(Object value) {
@@ -237,9 +316,7 @@ public class RubricCompilerService {
     }
 
     private BigDecimal decimal(Object value) {
-        if (value == null) {
-            return null;
-        }
+        if (value == null) return null;
         try {
             return new BigDecimal(String.valueOf(value));
         } catch (NumberFormatException ex) {

@@ -174,6 +174,7 @@ export type RubricCompileResponse = {
     action: string;
   }>;
   warnings: string[];
+  errors: string[];
   canSave: boolean;
   rubricJson: Record<string, unknown>;
 };

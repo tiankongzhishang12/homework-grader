@@ -131,7 +131,22 @@
   color: #854d0e;
 }
 
-.rubric-warning-list ul {
+.rubric-error-list {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(181, 71, 60, 0.28);
+  border-radius: 12px;
+  background: rgba(254, 226, 226, 0.82);
+  color: #991b1b;
+}
+
+.rubric-warning-list p,
+.rubric-error-list p {
+  margin: 6px 0 0;
+}
+
+.rubric-warning-list ul,
+.rubric-error-list ul {
   margin: 8px 0 0;
   padding-left: 18px;
 }

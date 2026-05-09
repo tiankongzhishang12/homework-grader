@@ -122,37 +122,59 @@
             </span>
           </div>
 
+          <div v-if="compiledRubric.errors?.length" class="rubric-error-list">
+            <strong>阻断错误</strong>
+            <p>以下问题会影响评分标准保存，请重新生成或修改：</p>
+            <ul>
+              <li v-for="(error, index) in compiledRubric.errors" :key="`rubric-error-${index}-${error}`">{{ error }}</li>
+            </ul>
+          </div>
+
           <div v-if="compiledRubric.warnings.length" class="rubric-warning-list">
             <strong>风险提示</strong>
+            <p>以下内容请教师确认：</p>
             <ul>
-              <li v-for="warning in compiledRubric.warnings" :key="warning">{{ warning }}</li>
+              <li v-for="(warning, index) in compiledRubric.warnings" :key="`rubric-warning-${index}-${warning}`">{{ warning }}</li>
             </ul>
           </div>
 
           <div class="rubric-dimension-list">
-            <article v-for="dimension in compiledRubric.dimensions" :key="dimension.code || dimension.name" class="rubric-dimension-card">
+            <article
+              v-for="(dimension, index) in compiledRubric.dimensions"
+              :key="`dimension-${index}-${dimension.code || dimension.name || 'unknown'}`"
+              class="rubric-dimension-card"
+            >
               <div class="rubric-dimension-card__title">
-                <strong>{{ dimension.name }}</strong>
+                <strong>{{ dimension.name || "未命名评分维度" }}</strong>
                 <span>{{ dimension.maxScore }} 分</span>
               </div>
-              <p>{{ dimension.description }}</p>
+              <p>{{ dimension.description || "未提供描述" }}</p>
               <div v-if="dimension.evidenceRequirements.length" class="rubric-chip-row">
-                <span v-for="item in dimension.evidenceRequirements" :key="item">{{ item }}</span>
+                <span v-for="(item, itemIndex) in dimension.evidenceRequirements" :key="`evidence-${index}-${itemIndex}-${item}`">
+                  {{ item }}
+                </span>
               </div>
             </article>
           </div>
 
           <div v-if="compiledRubric.capRules.length" class="rubric-rule-block">
             <strong>封顶规则</strong>
-            <p v-for="rule in compiledRubric.capRules" :key="`${rule.condition}-${rule.capScore}`">
-              {{ rule.condition }}：最高 {{ rule.capScore }} 分<span v-if="rule.reason">，{{ rule.reason }}</span>
+            <p
+              v-for="(rule, index) in compiledRubric.capRules"
+              :key="`cap-rule-${index}-${rule.condition || 'empty'}-${rule.capScore ?? 'none'}`"
+            >
+              {{ rule.condition || "未说明封顶条件" }}：最高 {{ formatCapScore(rule.capScore) }}
+              <span v-if="rule.reason">，{{ rule.reason }}</span>
             </p>
           </div>
 
           <div v-if="compiledRubric.reviewFlags.length" class="rubric-rule-block">
             <strong>人工复核规则</strong>
-            <p v-for="flag in compiledRubric.reviewFlags" :key="`${flag.condition}-${flag.action}`">
-              {{ flag.condition }}：{{ flag.action }}
+            <p
+              v-for="(flag, index) in compiledRubric.reviewFlags"
+              :key="`review-flag-${index}-${flag.condition || 'empty'}-${flag.action || 'empty'}`"
+            >
+              {{ flag.condition || "未说明复核条件" }}：{{ formatReviewAction(flag.action) }}
             </p>
           </div>
 
@@ -186,8 +208,8 @@ const defaultTeacherText = `需求规格说明书满分100分。
 3. 业务流程分析20分：给出主要业务流程，可使用文字、流程图或表格说明。
 4. 数据设计20分：说明主要数据对象、字段和关系。
 5. 非功能需求20分：说明安全性、性能、可用性和可维护性。
-如果没有需求规格说明书正文，最高不超过40分。
-如果证据矛盾或无法判断，需要人工复核。`;
+封顶规则：如果没有需求规格说明书正文，则最高不超过40分。
+人工复核规则：如果评分证据明显矛盾、证据不足或无法判断，则需要人工复核。`;
 
 const manualRubricSample = `{
   "rubric_name": "需求规格说明书评分标准",
@@ -254,4 +276,7 @@ const copyJson = async () => {
   await navigator.clipboard.writeText(compiledRubricJson.value);
   uiStore.pushToast("Rubric JSON 已复制。");
 };
+
+const formatReviewAction = (action: string) => (action === "manual_review" ? "人工复核" : action || "未知动作");
+const formatCapScore = (capScore?: number) => (capScore === null || capScore === undefined ? "未设置封顶分数" : `${capScore} 分`);
 </script>

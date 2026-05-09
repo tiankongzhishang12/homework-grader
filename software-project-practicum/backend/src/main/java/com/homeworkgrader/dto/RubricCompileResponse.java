@@ -11,6 +11,7 @@ public class RubricCompileResponse {
     private List<CapRule> capRules;
     private List<ReviewFlag> reviewFlags;
     private List<String> warnings;
+    private List<String> errors;
     private boolean canSave;
     private Map<String, Object> rubricJson;
 
@@ -26,6 +27,8 @@ public class RubricCompileResponse {
     public void setReviewFlags(List<ReviewFlag> reviewFlags) { this.reviewFlags = reviewFlags; }
     public List<String> getWarnings() { return warnings; }
     public void setWarnings(List<String> warnings) { this.warnings = warnings; }
+    public List<String> getErrors() { return errors; }
+    public void setErrors(List<String> errors) { this.errors = errors; }
     public boolean isCanSave() { return canSave; }
     public void setCanSave(boolean canSave) { this.canSave = canSave; }
     public Map<String, Object> getRubricJson() { return rubricJson; }
