@@ -169,3 +169,62 @@ python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-
 - 原始 `submission_asset.file_path` 不移动、不删除，下载逻辑不受影响。
 
 这是 full grading 小闭环的前置条件。import-only 验收仍用于快速验证 `workspace/scores/*.json` 入库；full grading 验收还依赖 raw workspace、Python 预处理、模型/API 配置和评分脚本。
+## 2026-05-09 更新：Python preprocess raw -> IR 验收结果
+
+已在项目根目录执行：
+
+```powershell
+.\\.venv\\Scripts\\python.exe .\\software-project-practicum\\scripts\\preprocess_student_dirs.py
+```
+
+验收结果：
+
+- `student-mapping.csv` 已生成 / 更新。
+- 关键行：`anon-002,2024210001,测试学生`。
+- 目标 IR：`software-project-practicum/workspace/practicum-batch/ir/anon-002.json`。
+- IR 关键字段：`student_id=anon-002`，`metadata.student_number=2024210001`，`metadata.student_name=测试学生`。
+- `source_files` 指向 `raw/2024210001_测试学生/1 校园资料共享项目需求说明.docx`。
+- `content.documents` 数量为 1。
+- `document_roles_present` 包含 `requirements`。
+- `gate_results` 中 requirements 存在检查通过，hld/lld 缺失检查未通过；这是因为当前只上传了一个需求说明书文件，不影响本次 preprocess 读取 raw 并生成 IR 的验收目标。
+- 结论：preprocess 小段链路 PASS。
+
+后续进入 full grading 前，建议清理或隔离 raw 下非 `数字学号_姓名` 的旧目录，避免 `student-mapping.csv` 混入非学生目录。
+## 2026-05-09 更新：minimal-demo 独立工作区
+
+为避免 `workspace/practicum-batch/raw` 中旧目录或非 `数字学号_姓名` 目录影响 full grading 验收，已创建独立最小工作区：
+
+`software-project-practicum/workspace/minimal-demo/`
+
+目录包含：
+
+- `raw`
+- `reference`
+- `ir`
+- `scores`
+- `reports`
+- `logs`
+
+已复制目标学生文件：
+
+`raw/2024210001_测试学生/1 校园资料共享项目需求说明.docx`
+
+新增配置：
+
+`software-project-practicum/grader-config.minimal-demo.yaml`
+
+已执行 preprocess：
+
+```powershell
+.\\.venv\\Scripts\\python.exe .\\software-project-practicum\\scripts\\preprocess_student_dirs.py --config .\\software-project-practicum\\grader-config.minimal-demo.yaml
+```
+
+验收结果：
+
+- `workspace/minimal-demo/student-mapping.csv` 已生成。
+- 关键行：`anon-001,2024210001,测试学生`。
+- `workspace/minimal-demo/ir/anon-001.json` 已生成。
+- IR 中 `document_roles_present=requirements`。
+- 未运行 full grading，未调用模型，未运行 `batch_score_reports.py`。
+
+下一步 full grading 验收应使用 minimal-demo 工作区，确保 `student-mapping.csv` 中目标学生稳定为 `anon-001`。
