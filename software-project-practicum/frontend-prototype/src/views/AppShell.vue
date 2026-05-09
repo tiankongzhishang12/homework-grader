@@ -141,10 +141,10 @@ const mobileNavOpen = ref(false);
 const globalNav = [{ name: "tasks", label: "课程首页", meta: "选择课程与班级" }];
 
 const taskTabs = [
-  { name: "task-config", label: "配置", meta: "Setup" },
-  { name: "task-grading", label: "阅卷", meta: "Batch" },
-  { name: "task-analysis", label: "分析", meta: "Review" },
-  { name: "task-export", label: "导出", meta: "Export" },
+  { name: "task-config", label: "配置", meta: "题目与规则" },
+  { name: "task-grading", label: "阅卷", meta: "批量评分" },
+  { name: "task-analysis", label: "分析", meta: "结果复核" },
+  { name: "task-export", label: "导出", meta: "成绩报表" },
 ];
 
 const taskId = computed(() => String(route.params.taskId ?? ""));

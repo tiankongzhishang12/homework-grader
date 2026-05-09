@@ -25,6 +25,7 @@ import { useTaskContextStore } from "./task-context";
 import { useUiStore } from "./ui";
 
 const toText = (value: unknown, fallback = "") => (value === null || value === undefined ? fallback : String(value));
+const standardAnswerContent = (item: StandardAnswerRecord | null | undefined) => toText(item?.answer_text ?? item?.answer_json, "");
 
 export const useConfigStore = defineStore("config", {
   state: () => ({
@@ -134,7 +135,7 @@ export const useConfigStore = defineStore("config", {
           answer_text: this.standardAnswerDraft.trim(),
         });
         this.standardAnswers = await standardAnswerApi.list(task.questionId);
-        useUiStore().pushToast("标准答案已保存。");
+        useUiStore().pushToast("标准答案文本已保存为新版本。");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -352,6 +353,21 @@ export const useConfigStore = defineStore("config", {
         return item.answer_text ? `${toText(item.answer_text).slice(0, 120)}` : `标准答案记录 ${item.id}`;
       }
       return "暂无真实标准答案记录。";
+    },
+    getLatestStandardAnswer() {
+      return this.standardAnswers[0] ?? null;
+    },
+    formatStandardAnswerSummary(item: StandardAnswerRecord | null | undefined, maxLength = 120) {
+      const text = standardAnswerContent(item).trim() || "无文本内容";
+      return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+    },
+    formatStandardAnswerVersion(item: StandardAnswerRecord | null | undefined) {
+      if (!item) return "暂无";
+      return item.version_no ? `v${item.version_no}` : `#${item.id}`;
+    },
+    formatFileSize(size: number) {
+      if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(2)} MB`;
+      return `${Math.max(size / 1024, 0.01).toFixed(2)} KB`;
     },
   },
 });

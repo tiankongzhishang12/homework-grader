@@ -185,7 +185,17 @@ watch(
 );
 
 const currentAnswer = computed(() => configStore.answers.find((item) => item.current) ?? configStore.answers[0] ?? null);
-const currentAnswerStatus = computed(() => currentAnswer.value?.status ?? "missing");
+const latestStandardAnswer = computed(() => configStore.getLatestStandardAnswer());
+const hasRealStandardAnswer = computed(() => configStore.standardAnswers.length > 0);
+const currentAnswerStatus = computed(() => (hasRealStandardAnswer.value ? "confirmed" : currentAnswer.value?.status ?? "missing"));
+const currentAnswerSummary = computed(() => {
+  if (hasRealStandardAnswer.value) {
+    return `已保存 ${configStore.standardAnswers.length} 个标准答案版本，最新版本 ${configStore.formatStandardAnswerVersion(latestStandardAnswer.value)}`;
+  }
+  return currentAnswer.value
+    ? `${currentAnswer.value.fileName} · ${currentAnswer.value.version} · ${currentAnswer.value.itemCount} 项`
+    : "当前任务尚未上传或保存标准答案。";
+});
 const currentRubricStatus = computed(() => configStore.currentRubric?.status ?? "missing");
 const currentTemplateStatus = computed(() => configStore.currentTemplate?.status ?? "missing");
 
@@ -240,13 +250,11 @@ const setupSteps = computed(() => {
       description: "确认当前启用版本、解析状态和条目数。",
       status: statusText(currentAnswerStatus.value),
       tone: statusTone(currentAnswerStatus.value),
-      summary: currentAnswer.value
-        ? `${currentAnswer.value.fileName} · ${currentAnswer.value.version} · ${currentAnswer.value.itemCount} 项`
-        : "当前任务尚未上传或激活标准答案版本。",
+      summary: currentAnswerSummary.value,
       action: "去配置标准答案",
       to: { name: "task-answers", params: { taskId: taskStore.currentTask.id } },
       hint: currentAnswer.value?.parseMessage ?? "",
-      ready: currentAnswerStatus.value === "confirmed" || currentAnswerStatus.value === "in_use",
+      ready: hasRealStandardAnswer.value || currentAnswerStatus.value === "confirmed" || currentAnswerStatus.value === "in_use",
     },
     {
       id: "rubric",
