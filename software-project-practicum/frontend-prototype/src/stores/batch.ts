@@ -91,25 +91,76 @@ const toStepLabel = (progress: GradingProgressResponse) => {
     const pending = toNumber(scriptProgress.pending);
     const total = toNumber(scriptProgress.total);
     const staleSeconds = toNumber(progress.scriptProgressStaleSeconds);
-    const staleText = staleSeconds > 180 ? ` Progress has not updated for ${staleSeconds}s; the model request may be stalled.` : "";
-    return `Scoring progress: ${completed} completed, ${failed} failed, ${pending} pending, ${total} total.${staleText}`;
+    const staleText = staleSeconds > 180 ? ` 进度已 ${staleSeconds} 秒未更新，模型请求可能停滞。` : "";
+    return `大模型评分中：已完成 ${completed} 份，失败 ${failed} 份，待处理 ${pending} 份，共 ${total} 份。${staleText}`;
   }
-  if (progress.scriptProgressError) return `Scoring is running, but script progress could not be read: ${progress.scriptProgressError}`;
-  if (progress.message) return progress.message;
+  if (progress.scriptProgressError) return `阅卷正在运行，但暂时无法读取脚本进度：${progress.scriptProgressError}`;
+  if (progress.message) return translateProgressMessage(progress.message);
   switch (progress.status) {
     case "QUEUED":
-      return "Task queued and waiting for preprocessing.";
+      return "任务已进入队列，等待预处理。";
     case "PREPROCESSING":
-      return "Preprocessing is running.";
+      return "正在预处理学生提交文件。";
     case "GRADING":
-      return "Scoring and score import are running.";
+      return "正在进行大模型评分和结果导入。";
     case "COMPLETED":
-      return "Scoring and score import completed.";
+      return "阅卷完成，评分结果已导入。";
     case "FAILED":
-      return "Scoring failed. Check backend logs.";
+      return "阅卷失败，请查看技术日志。";
     default:
-      return "Waiting to start grading.";
+      return "等待开始阅卷。";
   }
+};
+
+const translateProgressMessage = (message: string) => {
+  const map: Record<string, string> = {
+    "Grading task queued.": "阅卷任务已进入队列。",
+    "Running submission preprocessing.": "正在预处理学生提交文件。",
+    "Running automatic grading.": "正在进行大模型评分。",
+    "Grading completed and all results imported.": "阅卷完成，评分结果已导入。",
+    "Automatic grading failed.": "自动阅卷失败。",
+    "Submission preprocessing failed.": "学生文件预处理失败。",
+  };
+  return map[message] ?? message;
+};
+
+const fallbackQualitySummary = (progress: GradingProgressResponse) => {
+  const summary = progress.importSummary ?? {};
+  const scriptProgress = progress.scriptProgress;
+  const importSkippedCount = toNumber(summary.skippedCount);
+  const importFailedCount = toNumber(summary.failedCount);
+  const scriptFailedCount = toNumber(scriptProgress?.failed);
+  const progressStalled = toNumber(progress.scriptProgressStaleSeconds) > 180;
+  return {
+    totalIssues: importSkippedCount + importFailedCount + scriptFailedCount + (progressStalled ? 1 : 0),
+    importSkippedCount,
+    importFailedCount,
+    scriptFailedCount,
+    progressStalled,
+    needsReviewCount: 0,
+    lowConfidenceCount: 0,
+  };
+};
+
+const fallbackExecutionSteps = (progress: GradingProgressResponse): BatchProgress["executionSteps"] => {
+  const status = mapRealStatusToBatchStatus(progress.status);
+  const runtimeRubric = progress.runtimeRubric;
+  const gradingRunning = status === "scoring";
+  const completed = status === "completed";
+  const failed = status === "failed";
+  return [
+    { key: "preflight", label: "配置检查", status: status === "idle" ? "pending" : "completed", detail: "已完成基础配置检查" },
+    { key: "workspace", label: "工作区准备", status: status === "idle" ? "pending" : "completed", detail: "已准备学生提交工作区" },
+    {
+      key: "runtime_rubric",
+      label: "评分标准加载",
+      status: runtimeRubric ? "completed" : failed ? "failed" : status === "preprocessing" ? "running" : "pending",
+      detail: runtimeRubric ? `已使用 ${runtimeRubric.rubricRuntimeId}` : "开始阅卷后将加载已保存评分标准",
+    },
+    { key: "preprocess", label: "学生文件预处理", status: status === "preprocessing" ? "running" : completed || gradingRunning ? "completed" : failed ? "failed" : "pending", detail: "生成评分所需中间材料" },
+    { key: "grading", label: "大模型评分", status: gradingRunning ? "running" : completed ? "completed" : failed ? "failed" : "pending", detail: toStepLabel(progress) },
+    { key: "import", label: "结果导入", status: completed ? "completed" : failed && progress.importSummary ? "failed" : "pending", detail: "导入评分结果到系统" },
+  ];
 };
 
 const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchProgress => {
@@ -122,10 +173,10 @@ const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchPr
   const scriptFailed = toNumber(scriptProgress?.failed);
   const scriptTotal = toNumber(scriptProgress?.total);
   const qualityFlags: BatchProgress["qualityFlags"] = [];
-  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "Import skipped" });
-  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "Import failed" });
-  if (scriptFailed > 0) qualityFlags.push({ flag: "gate_warning", count: scriptFailed, label: "Scoring failed" });
-  if (toNumber(progress.scriptProgressStaleSeconds) > 180) qualityFlags.push({ flag: "gate_warning", count: 1, label: "Progress stalled" });
+  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "结果导入跳过" });
+  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "结果导入失败" });
+  if (scriptFailed > 0) qualityFlags.push({ flag: "gate_warning", count: scriptFailed, label: "评分失败" });
+  if (toNumber(progress.scriptProgressStaleSeconds) > 180) qualityFlags.push({ flag: "gate_warning", count: 1, label: "进度停滞" });
 
   return {
     taskId,
@@ -136,6 +187,9 @@ const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchPr
     completed: scriptProgress ? scriptCompleted : imported,
     currentStepLabel: toStepLabel(progress),
     qualityFlags,
+    runtimeRubric: progress.runtimeRubric,
+    executionSteps: progress.executionSteps ?? fallbackExecutionSteps(progress),
+    qualitySummary: progress.qualitySummary ?? fallbackQualitySummary(progress),
   };
 };
 
@@ -301,6 +355,10 @@ export const useBatchStore = defineStore("batch", {
     exports: [] as ExportRecord[],
     loading: false,
     polling: false,
+    refreshingProgress: false,
+    refreshingLogs: false,
+    lastProgressRefreshedAt: null as string | null,
+    lastLogsRefreshedAt: null as string | null,
   }),
   actions: {
     stopPolling() {
@@ -322,12 +380,12 @@ export const useBatchStore = defineStore("batch", {
       try {
         const assessmentId = ensureAssessmentId(useTaskContextStore().currentTask);
         await gradingApi.start(assessmentId);
-        useUiStore().pushToast("Real grading started. The workflow is entering preprocessing.");
+        useUiStore().pushToast("自动阅卷已启动，系统正在进入预处理。");
         await this.loadProgress(taskId, true);
         await this.loadLogs(taskId);
         await useTaskContextStore().loadTask(taskId);
       } catch (error) {
-        const message = error instanceof ApiError ? error.message : "Failed to start real grading.";
+        const message = error instanceof ApiError ? error.message : "启动自动阅卷失败。";
         useUiStore().pushToast(message, "risk");
         if (error instanceof ApiError) {
           throw error;
@@ -337,25 +395,38 @@ export const useBatchStore = defineStore("batch", {
       }
     },
     async loadProgress(taskId: string, continuePolling = false) {
-      const task = useTaskContextStore().currentTask;
-      const assessmentId = resolveAssessmentId(task);
-      this.progress = assessmentId ? mapProgress(taskId, await gradingApi.progress(assessmentId)) : await batchApi.progress(taskId);
-      if (assessmentId) {
-        this.logs = await gradingApi.logs(assessmentId);
-      }
+      this.refreshingProgress = true;
+      try {
+        const task = useTaskContextStore().currentTask;
+        const assessmentId = resolveAssessmentId(task);
+        this.progress = assessmentId ? mapProgress(taskId, await gradingApi.progress(assessmentId)) : await batchApi.progress(taskId);
+        this.lastProgressRefreshedAt = new Date().toISOString();
+        if (assessmentId) {
+          this.logs = await gradingApi.logs(assessmentId);
+          this.lastLogsRefreshedAt = new Date().toISOString();
+        }
 
-      if (this.progress.status === "completed" || this.progress.status === "failed") {
-        this.stopPolling();
-      } else if (continuePolling && document.visibilityState === "visible") {
-        this.schedulePoll(taskId);
-      }
+        if (this.progress.status === "completed" || this.progress.status === "failed") {
+          this.stopPolling();
+        } else if (continuePolling && document.visibilityState === "visible") {
+          this.schedulePoll(taskId);
+        }
 
-      await useTaskContextStore().loadTask(taskId);
+        await useTaskContextStore().loadTask(taskId);
+      } finally {
+        this.refreshingProgress = false;
+      }
     },
     async loadLogs(taskId: string) {
-      const task = useTaskContextStore().currentTask;
-      const assessmentId = resolveAssessmentId(task);
-      this.logs = assessmentId ? await gradingApi.logs(assessmentId) : await batchApi.logs(taskId);
+      this.refreshingLogs = true;
+      try {
+        const task = useTaskContextStore().currentTask;
+        const assessmentId = resolveAssessmentId(task);
+        this.logs = assessmentId ? await gradingApi.logs(assessmentId) : await batchApi.logs(taskId);
+        this.lastLogsRefreshedAt = new Date().toISOString();
+      } finally {
+        this.refreshingLogs = false;
+      }
     },
     async loadResults(taskId: string) {
       this.loading = true;

@@ -59,6 +59,14 @@ public class GradingWorkflowService {
                 progress.put(assessmentId, failed);
                 return failed;
             }
+            Map<String, Object> workspaceSummary = new HashMap<>();
+            workspaceSummary.put("assetCount", summary.getAssetCount());
+            workspaceSummary.put("copiedCount", summary.getCopiedCount());
+            workspaceSummary.put("skippedCount", summary.getSkippedCount());
+            Map<String, Object> prepared = progress.get(assessmentId);
+            if (prepared != null) {
+                prepared.put("workspaceSummary", workspaceSummary);
+            }
         } catch (Exception ex) {
             appendLog(assessmentId, "error", "Workspace preparation failed: " + ex.getMessage());
             Map<String, Object> failed = newProgress(assessmentId, "FAILED", "Workspace preparation failed: " + ex.getMessage(), null, null, null);
@@ -86,9 +94,9 @@ public class GradingWorkflowService {
     public Map<String, Object> progress(Long assessmentId) {
         Map<String, Object> current = progress.getOrDefault(assessmentId, idleProgress(assessmentId));
         if ("GRADING".equals(current.get("status"))) {
-            return withScriptProgress(current);
+            return enrichProgress(withScriptProgress(current));
         }
-        return current;
+        return enrichProgress(current);
     }
 
     private void runWorkflow(Long assessmentId) {
@@ -100,6 +108,10 @@ public class GradingWorkflowService {
             appendLog(assessmentId, "info", "Runtime rubric exported: " + runtimeRubric.getRubricRuntimeId() + ".");
             Path runtimeConfigPath = graderRuntimeConfigService.createRuntimeConfig(assessmentId, runtimeRubric.getRubricYamlPath());
             appendLog(assessmentId, "info", "Runtime grader config created: " + runtimeConfigPath + ".");
+            Map<String, Object> running = progress.get(assessmentId);
+            if (running != null) {
+                running.put("runtimeRubric", runtimeRubricInfo(runtimeRubric));
+            }
 
             appendLog(assessmentId, "info", "Preprocessing script started.");
             ScriptResult preprocess = pythonScriptClient.runPreprocess(runtimeConfigPath);
@@ -177,6 +189,7 @@ public class GradingWorkflowService {
 
     private Map<String, Object> newProgress(Long assessmentId, String status, String message, ScriptResult result, Object startedAt, Object importSummary) {
         Map<String, Object> map = new HashMap<>();
+        Map<String, Object> previous = progress.get(assessmentId);
         Object started = startedAt == null ? java.time.Instant.now() : startedAt;
         map.put("assessmentId", assessmentId);
         map.put("status", status);
@@ -185,7 +198,210 @@ public class GradingWorkflowService {
         map.put("importSummary", importSummary);
         map.put("startedAt", started);
         map.put("updatedAt", java.time.Instant.now());
+        if (previous != null) {
+            copyIfPresent(previous, map, "runtimeRubric");
+            copyIfPresent(previous, map, "workspaceSummary");
+        }
         return map;
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
+    }
+
+    private Map<String, Object> runtimeRubricInfo(RubricRuntimeExportService.RuntimeRubric runtimeRubric) {
+        Map<String, Object> info = new HashMap<>();
+        info.put("rubricDefinitionId", runtimeRubric.getRubricDefinitionId());
+        info.put("rubricRuntimeId", runtimeRubric.getRubricRuntimeId());
+        info.put("rubricName", runtimeRubric.getRubricName());
+        info.put("rubricYamlPath", runtimeRubric.getRubricYamlPath().toString());
+        return info;
+    }
+
+    private Map<String, Object> enrichProgress(Map<String, Object> current) {
+        Map<String, Object> enriched = new HashMap<>(current);
+        enriched.put("executionSteps", executionSteps(enriched));
+        enriched.put("qualitySummary", qualitySummary(enriched));
+        return enriched;
+    }
+
+    private List<Map<String, Object>> executionSteps(Map<String, Object> current) {
+        String status = String.valueOf(current.get("status"));
+        List<Map<String, Object>> steps = new ArrayList<>();
+        steps.add(step("preflight", "配置检查", preflightStepStatus(status), "已完成基础配置检查"));
+        steps.add(step("workspace", "工作区准备", current.containsKey("workspaceSummary") ? "completed" : "pending", workspaceDetail(current.get("workspaceSummary"))));
+        steps.add(step("runtime_rubric", "评分标准加载", runtimeRubricStepStatus(current), runtimeRubricDetail(current.get("runtimeRubric"))));
+        steps.add(step("preprocess", "学生文件预处理", preprocessStepStatus(status), preprocessDetail(current)));
+        steps.add(step("grading", "大模型评分", gradingStepStatus(status, current), gradingDetail(current)));
+        steps.add(step("import", "结果导入", importStepStatus(status, current), importDetail(current.get("importSummary"))));
+        return steps;
+    }
+
+    private Map<String, Object> step(String key, String label, String status, String detail) {
+        Map<String, Object> item = new HashMap<>();
+        item.put("key", key);
+        item.put("label", label);
+        item.put("status", status);
+        item.put("detail", detail);
+        return item;
+    }
+
+    private String preflightStepStatus(String status) {
+        return "IDLE".equals(status) ? "pending" : "completed";
+    }
+
+    private String runtimeRubricStepStatus(Map<String, Object> current) {
+        String status = String.valueOf(current.get("status"));
+        if (current.containsKey("runtimeRubric")) return "completed";
+        if ("FAILED".equals(status)) return "failed";
+        if ("PREPROCESSING".equals(status)) return "running";
+        return "pending";
+    }
+
+    private String preprocessStepStatus(String status) {
+        if ("PREPROCESSING".equals(status)) return "running";
+        if ("GRADING".equals(status) || "COMPLETED".equals(status)) return "completed";
+        if ("FAILED".equals(status)) return "failed";
+        return "pending";
+    }
+
+    private String gradingStepStatus(String status, Map<String, Object> current) {
+        if ("GRADING".equals(status)) return "running";
+        if ("COMPLETED".equals(status)) return "completed";
+        if ("FAILED".equals(status) && current.get("scriptResult") != null) return "failed";
+        return "pending";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String importStepStatus(String status, Map<String, Object> current) {
+        Object summaryValue = current.get("importSummary");
+        if (summaryValue instanceof GradingResultImportService.ImportSummary) {
+            GradingResultImportService.ImportSummary summary = (GradingResultImportService.ImportSummary) summaryValue;
+            if (summary.getFailedCount() > 0) return "failed";
+            if (summary.getSkippedCount() > 0) return "warning";
+            if (summary.getImportedCount() > 0) return "completed";
+        } else if (summaryValue instanceof Map) {
+            Map<String, Object> summary = (Map<String, Object>) summaryValue;
+            if (number(summary.get("failedCount")) > 0) return "failed";
+            if (number(summary.get("skippedCount")) > 0) return "warning";
+            if (number(summary.get("importedCount")) > 0) return "completed";
+        }
+        if ("COMPLETED".equals(status)) return "completed";
+        if ("FAILED".equals(status) && current.get("importSummary") != null) return "failed";
+        return "pending";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String workspaceDetail(Object value) {
+        if (!(value instanceof Map)) return "等待准备学生提交工作区";
+        Map<String, Object> summary = (Map<String, Object>) value;
+        return "已复制 " + number(summary.get("copiedCount")) + " 个学生提交文件，跳过 " + number(summary.get("skippedCount")) + " 个。";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String runtimeRubricDetail(Object value) {
+        if (!(value instanceof Map)) return "开始阅卷后将加载教师确认保存的评分标准";
+        Map<String, Object> rubric = (Map<String, Object>) value;
+        return "已使用 " + rubric.get("rubricRuntimeId");
+    }
+
+    private String preprocessDetail(Map<String, Object> current) {
+        if ("PREPROCESSING".equals(String.valueOf(current.get("status")))) return "正在生成可评分的中间材料";
+        return "预处理完成后进入大模型评分";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String gradingDetail(Map<String, Object> current) {
+        Object progressValue = current.get("scriptProgress");
+        if (progressValue instanceof Map) {
+            Map<String, Object> script = (Map<String, Object>) progressValue;
+            return "已完成 " + number(script.get("completed")) + "/" + number(script.get("total")) + "，失败 " + number(script.get("failed")) + "，待处理 " + number(script.get("pending")) + "。";
+        }
+        if ("COMPLETED".equals(String.valueOf(current.get("status")))) return "大模型评分已完成";
+        return "等待大模型评分";
+    }
+
+    @SuppressWarnings("unchecked")
+    private String importDetail(Object value) {
+        if (value instanceof GradingResultImportService.ImportSummary) {
+            GradingResultImportService.ImportSummary summary = (GradingResultImportService.ImportSummary) value;
+            return "导入 " + summary.getImportedCount() + " 个结果，跳过 " + summary.getSkippedCount() + " 个，失败 " + summary.getFailedCount() + " 个。";
+        }
+        if (value instanceof Map) {
+            Map<String, Object> summary = (Map<String, Object>) value;
+            return "导入 " + number(summary.get("importedCount")) + " 个结果，跳过 " + number(summary.get("skippedCount")) + " 个，失败 " + number(summary.get("failedCount")) + " 个。";
+        }
+        return "等待评分结果导入";
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> qualitySummary(Map<String, Object> current) {
+        Map<String, Object> summary = new HashMap<>();
+        int importSkipped = 0;
+        int importFailed = 0;
+        Object importValue = current.get("importSummary");
+        if (importValue instanceof GradingResultImportService.ImportSummary) {
+            GradingResultImportService.ImportSummary importSummary = (GradingResultImportService.ImportSummary) importValue;
+            importSkipped = importSummary.getSkippedCount();
+            importFailed = importSummary.getFailedCount();
+        } else if (importValue instanceof Map) {
+            Map<String, Object> importSummary = (Map<String, Object>) importValue;
+            importSkipped = number(importSummary.get("skippedCount"));
+            importFailed = number(importSummary.get("failedCount"));
+        }
+        int scriptFailed = 0;
+        Object scriptValue = current.get("scriptProgress");
+        if (scriptValue instanceof Map) {
+            scriptFailed = number(((Map<String, Object>) scriptValue).get("failed"));
+        }
+        boolean stalled = number(current.get("scriptProgressStaleSeconds")) > 180;
+        int needsReview = countNeedsReview(Long.valueOf(String.valueOf(current.get("assessmentId"))));
+        int lowConfidence = countLowConfidence(Long.valueOf(String.valueOf(current.get("assessmentId"))));
+        int total = importSkipped + importFailed + scriptFailed + (stalled ? 1 : 0) + needsReview + lowConfidence;
+        summary.put("totalIssues", total);
+        summary.put("importSkippedCount", importSkipped);
+        summary.put("importFailedCount", importFailed);
+        summary.put("scriptFailedCount", scriptFailed);
+        summary.put("progressStalled", stalled);
+        summary.put("needsReviewCount", needsReview);
+        summary.put("lowConfidenceCount", lowConfidence);
+        return summary;
+    }
+
+    private int countNeedsReview(Long assessmentId) {
+        try {
+            Integer count = repository.queryForInteger(
+                    "select count(*) from final_result fr join submission s on s.id = fr.submission_id where s.assessment_id = :assessmentId and fr.review_status = 'NEEDS_REVIEW'",
+                    com.homeworkgrader.util.Maps.of("assessmentId", assessmentId)
+            );
+            return count == null ? 0 : count;
+        } catch (Exception ex) {
+            return 0;
+        }
+    }
+
+    private int countLowConfidence(Long assessmentId) {
+        try {
+            Integer count = repository.queryForInteger(
+                    "select count(*) from score_item_result sir join grading_run gr on gr.id = sir.grading_run_id join submission s on s.id = gr.submission_id where s.assessment_id = :assessmentId and (sir.needs_review = 1 or sir.confidence < 0.7)",
+                    com.homeworkgrader.util.Maps.of("assessmentId", assessmentId)
+            );
+            return count == null ? 0 : count;
+        } catch (Exception ex) {
+            return 0;
+        }
+    }
+
+    private int number(Object value) {
+        if (value instanceof Number) return ((Number) value).intValue();
+        if (value == null) return 0;
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     private Map<String, Object> withScriptProgress(Map<String, Object> current) {

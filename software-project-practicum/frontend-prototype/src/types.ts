@@ -241,9 +241,36 @@ export type BatchProgress = {
   completed: number;
   currentStepLabel: string;
   qualityFlags: Array<{ flag: QualityFlag; count: number; label: string }>;
+  runtimeRubric?: RuntimeRubricInfo;
+  executionSteps?: ExecutionStep[];
+  qualitySummary?: QualitySummary;
 };
 
 export type RealGradingStatus = "QUEUED" | "PREPROCESSING" | "GRADING" | "COMPLETED" | "FAILED";
+
+export type RuntimeRubricInfo = {
+  rubricDefinitionId?: number;
+  rubricRuntimeId?: string;
+  rubricName?: string;
+  rubricYamlPath?: string;
+};
+
+export type ExecutionStep = {
+  key: string;
+  label: string;
+  status: "pending" | "running" | "completed" | "failed" | "warning";
+  detail?: string;
+};
+
+export type QualitySummary = {
+  totalIssues: number;
+  importSkippedCount?: number;
+  importFailedCount?: number;
+  scriptFailedCount?: number;
+  progressStalled?: boolean;
+  needsReviewCount?: number;
+  lowConfidenceCount?: number;
+};
 
 export type GradingProgressResponse = {
   assessmentId: string | number;
@@ -262,6 +289,9 @@ export type GradingProgressResponse = {
   };
   scriptProgressStaleSeconds?: number;
   scriptProgressError?: string;
+  runtimeRubric?: RuntimeRubricInfo;
+  executionSteps?: ExecutionStep[];
+  qualitySummary?: QualitySummary;
   importSummary?: {
     importedCount?: number;
     skippedCount?: number;
