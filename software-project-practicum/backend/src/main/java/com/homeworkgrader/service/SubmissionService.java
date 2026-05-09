@@ -55,8 +55,10 @@ public class SubmissionService {
         Long assetId = repository.insert("submission_asset", asset);
         Map<String, Object> response = new HashMap<>();
         response.put("submissionId", submissionId);
+        response.put("studentId", studentId);
         response.put("assetId", assetId);
-        response.put("file", stored);
+        response.put("file", stored.getFileName());
+        response.put("message", "作业上传成功，已加入待批改队列。");
         response.put("rawWorkspace", rawWorkspace(true, null, "Stored upload file. Grading raw workspace will be rebuilt when grading starts."));
         return response;
     }

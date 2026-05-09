@@ -210,20 +210,42 @@ export type SubmissionRecord = {
   id: string | number;
   assessment_id?: string | number;
   student_id?: string | number;
+  student_no?: string;
+  student_name?: string;
   source_submission_id?: string;
   submit_status?: string;
   submitted_at?: string;
+  attempt_no?: number;
+  file_name?: string;
+  file_ext?: string;
+  has_final_result?: boolean;
+  grading_status?: "PENDING" | "GRADED" | "FAILED" | string;
+  final_score?: number;
+  review_status?: string;
 };
 
 export type SubmissionUploadResult = {
   submissionId?: string | number;
+  studentId?: string | number;
   assetId?: string | number;
   file?: string;
+  message?: string;
   rawWorkspace?: {
     synced?: boolean;
     path?: string;
     message?: string;
   };
+};
+
+export type SubmissionSummary = {
+  assessmentId?: string | number;
+  studentCount: number;
+  submittedCount: number;
+  validSubmissionCount: number;
+  pendingGradingCount: number;
+  gradedCount: number;
+  failedCount: number;
+  supportedExtensions: string[];
 };
 
 export type ExportStartResult = {

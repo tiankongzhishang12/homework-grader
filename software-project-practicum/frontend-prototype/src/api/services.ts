@@ -18,6 +18,7 @@ import type {
   StudentDetail,
   StudentRow,
   SubmissionRecord,
+  SubmissionSummary,
   SubmissionUploadResult,
   TaskDetail,
   User,
@@ -183,6 +184,7 @@ export const submissionApi = {
     });
   },
   list: (assessmentId: string) => apiRequest<SubmissionRecord[]>(`/api/assessments/${assessmentId}/submissions`),
+  summary: (assessmentId: string) => apiRequest<SubmissionSummary>(`/api/assessments/${assessmentId}/submissions/summary`),
 };
 
 export const resultApi = {

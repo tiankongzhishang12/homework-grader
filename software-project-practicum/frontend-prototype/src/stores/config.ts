@@ -18,6 +18,7 @@ import type {
   RubricCompileResponse,
   RubricDraft,
   StandardAnswerRecord,
+  SubmissionSummary,
   SubmissionRecord,
   SubmissionUploadResult,
   WorkspaceConfig,
@@ -43,6 +44,7 @@ export const useConfigStore = defineStore("config", {
     currentTemplate: null as ExportTemplate | null,
     workspace: null as WorkspaceConfig | null,
     submissions: [] as SubmissionRecord[],
+    submissionSummary: null as SubmissionSummary | null,
     lastUploadResult: null as SubmissionUploadResult | null,
     lastExportResult: null as ExportStartResult | null,
     loading: false,
@@ -68,7 +70,7 @@ export const useConfigStore = defineStore("config", {
         const assessmentId = task?.assessmentId ?? null;
         const questionId = task?.questionId ?? null;
 
-        const [answers, rubrics, currentRubric, templates, currentTemplate, workspace, standardAnswers, submissions] = await Promise.all([
+        const [answers, rubrics, currentRubric, templates, currentTemplate, workspace, standardAnswers, submissions, submissionSummary] = await Promise.all([
           answerApi.list(taskId).catch(() => []),
           rubricApi.list().catch(() => []),
           rubricApi.binding(taskId).catch(() => null),
@@ -77,6 +79,7 @@ export const useConfigStore = defineStore("config", {
           workspaceApi.get(taskId).catch(() => null),
           questionId ? standardAnswerApi.list(questionId).catch(() => []) : Promise.resolve([]),
           assessmentId ? submissionApi.list(assessmentId).catch(() => []) : Promise.resolve([]),
+          assessmentId ? submissionApi.summary(assessmentId).catch(() => null) : Promise.resolve(null),
         ]);
 
         this.answers = answers;
@@ -87,6 +90,7 @@ export const useConfigStore = defineStore("config", {
         this.workspace = workspace;
         this.standardAnswers = standardAnswers;
         this.submissions = submissions;
+        this.submissionSummary = submissionSummary;
         this.standardAnswerDraft = standardAnswers[0]?.answer_text ?? "";
       } finally {
         this.loading = false;
@@ -276,12 +280,19 @@ export const useConfigStore = defineStore("config", {
       try {
         this.lastUploadResult = await submissionApi.upload(task.assessmentId, studentId.trim(), file);
         this.submissions = await submissionApi.list(task.assessmentId);
-        const rawMessage = this.lastUploadResult.rawWorkspace?.message ?? "学生作业已上传。";
-        useUiStore().pushToast(rawMessage, this.lastUploadResult.rawWorkspace?.synced ? "good" : "warn");
+        this.submissionSummary = await submissionApi.summary(task.assessmentId).catch(() => null);
+        useUiStore().pushToast(this.lastUploadResult.message ?? "作业上传成功，已加入待批改队列。", "good");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
       }
+    },
+    async loadSubmissionSummary(taskId: string) {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.assessmentId) return;
+      this.submissionSummary = await submissionApi.summary(task.assessmentId);
+      this.submissions = await submissionApi.list(task.assessmentId);
+      await useTaskContextStore().refreshBlockers(taskId);
     },
     async saveTemplate(taskId: string, template: ExportTemplate) {
       this.saving = true;
