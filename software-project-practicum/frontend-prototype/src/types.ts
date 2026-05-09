@@ -145,6 +145,39 @@ export type RubricDraft = {
   canBind: boolean;
 };
 
+export type RubricCompileResponse = {
+  rubricName: string;
+  totalScore: number;
+  dimensions: Array<{
+    code: string;
+    name: string;
+    maxScore: number;
+    description: string;
+    evidenceRequirements: string[];
+    levels: Array<{
+      level: string;
+      scoreRange: [number, number];
+      description: string;
+    }>;
+    deductionRules: Array<{
+      condition: string;
+      deduct: number;
+    }>;
+  }>;
+  capRules: Array<{
+    condition: string;
+    capScore: number;
+    reason?: string;
+  }>;
+  reviewFlags: Array<{
+    condition: string;
+    action: string;
+  }>;
+  warnings: string[];
+  canSave: boolean;
+  rubricJson: Record<string, unknown>;
+};
+
 export type ExportSheet = {
   id: string;
   name: string;

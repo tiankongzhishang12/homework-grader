@@ -15,6 +15,7 @@ import type {
   ExportStartResult,
   ExportTemplate,
   Rubric,
+  RubricCompileResponse,
   RubricDraft,
   StandardAnswerRecord,
   SubmissionRecord,
@@ -34,6 +35,8 @@ export const useConfigStore = defineStore("config", {
     standardAnswerDraft: "",
     rubrics: [] as Rubric[],
     currentRubric: null as Rubric | null,
+    compiledRubric: null as RubricCompileResponse | null,
+    rubricTeacherText: "",
     generatedDraft: null as RubricDraft | null,
     generatedDraftMeta: null as { source: "text_generated" | "rubric_copy"; copiedFromName?: string } | null,
     templates: [] as ExportTemplate[],
@@ -217,6 +220,46 @@ export const useConfigStore = defineStore("config", {
       } finally {
         this.saving = false;
       }
+    },
+    async compileRubricFromText(taskId: string, teacherText: string) {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.templateId) {
+        useUiStore().pushToast("请先初始化 assessment template，再生成评分标准。", "risk");
+        return;
+      }
+      if (!teacherText.trim()) {
+        useUiStore().pushToast("请先输入中文评分标准。", "risk");
+        return;
+      }
+
+      this.saving = true;
+      try {
+        this.rubricTeacherText = teacherText;
+        this.compiledRubric = await rubricApi.compile(task.templateId, {
+          teacherText: teacherText.trim(),
+          taskName: task.taskName,
+          totalScore: task.score,
+          language: "zh-CN",
+        });
+        useUiStore().pushToast("结构化评分标准草稿已生成。");
+      } catch (error) {
+        this.compiledRubric = null;
+        useUiStore().pushToast("评分标准生成失败，请检查模型配置或稍后重试。", "risk");
+      } finally {
+        this.saving = false;
+      }
+    },
+    async saveCompiledRubric(taskId: string) {
+      if (!this.compiledRubric) {
+        useUiStore().pushToast("请先生成评分标准草稿。", "risk");
+        return;
+      }
+      if (!this.compiledRubric.canSave) {
+        useUiStore().pushToast("当前草稿存在风险，请根据提示修改后重新生成。", "risk");
+        return;
+      }
+
+      await this.saveRubricDefinition(taskId, JSON.stringify(this.compiledRubric.rubricJson, null, 2));
     },
     async uploadSubmission(taskId: string, studentId: string, file: File) {
       const task = useTaskContextStore().currentTask;

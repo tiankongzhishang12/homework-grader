@@ -27,3 +27,11 @@ grader:
     preprocess-script: scripts/preprocess_student_dirs.py
     grading-script: scripts/batch_score_reports.py
     export-script: scripts/export_traceability_excel.py
+
+rubric:
+  compiler:
+    model: ${RUBRIC_LLM_MODEL:gpt-5.4}
+    base-url: ${RUBRIC_LLM_BASE_URL:http://localhost:8317/v1}
+    api-key: ${RUBRIC_LLM_API_KEY:}
+    timeout-seconds: ${RUBRIC_LLM_TIMEOUT_SECONDS:60}
+    max-retries: ${RUBRIC_LLM_MAX_RETRIES:1}

@@ -11,6 +11,7 @@ import type {
   FinalResultRecord,
   GradingProgressResponse,
   Rubric,
+  RubricCompileResponse,
   RubricDraft,
   ScoreItemRecord,
   StandardAnswerRecord,
@@ -93,6 +94,19 @@ export const rubricApi = {
   binding: (taskId: string) => apiRequest<Rubric>(`/api/tasks/${taskId}/rubric-binding`),
   generate: (payload: { prompt: string; baseRubricId?: string | null }) =>
     apiRequest<RubricDraft>("/api/rubrics/generate", { method: "POST", body: JSON.stringify(payload) }),
+  compile: (
+    templateId: string,
+    payload: {
+      teacherText: string;
+      taskName: string;
+      totalScore: number;
+      language?: string;
+    },
+  ) =>
+    apiRequest<RubricCompileResponse>(`/api/templates/${templateId}/rubrics/compile`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   create: (payload: Rubric) => apiRequest<Rubric>("/api/rubrics", { method: "POST", body: JSON.stringify(payload) }),
   update: (rubricId: string, payload: Partial<Rubric>) =>
     apiRequest<Rubric>(`/api/rubrics/${rubricId}`, { method: "PUT", body: JSON.stringify(payload) }),
