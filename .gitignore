@@ -6,6 +6,7 @@ _python313/
 .env
 .env.*
 *.local
+grader-config.yaml
 *.pem
 *.key
 *.p12

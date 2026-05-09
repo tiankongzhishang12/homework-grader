@@ -30,8 +30,9 @@ grader:
 
 rubric:
   compiler:
-    model: ${RUBRIC_LLM_MODEL:gpt-5.4}
-    base-url: ${RUBRIC_LLM_BASE_URL:http://localhost:8317/v1}
+    model: ${RUBRIC_LLM_MODEL:}
+    base-url: ${RUBRIC_LLM_BASE_URL:}
     api-key: ${RUBRIC_LLM_API_KEY:}
+    config-path: ${RUBRIC_LLM_CONFIG_PATH:../../grader-config.yaml}
     timeout-seconds: ${RUBRIC_LLM_TIMEOUT_SECONDS:60}
     max-retries: ${RUBRIC_LLM_MAX_RETRIES:1}

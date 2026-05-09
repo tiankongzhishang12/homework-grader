@@ -7,6 +7,7 @@ public class RubricCompilerProperties {
     private String model;
     private String baseUrl;
     private String apiKey;
+    private String configPath;
     private int timeoutSeconds = 60;
     private int maxRetries = 1;
 
@@ -32,6 +33,14 @@ public class RubricCompilerProperties {
 
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public String getConfigPath() {
+        return configPath;
+    }
+
+    public void setConfigPath(String configPath) {
+        this.configPath = configPath;
     }
 
     public int getTimeoutSeconds() {
