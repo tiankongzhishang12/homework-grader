@@ -31,6 +31,7 @@ public class GraderProperties {
         private String preprocessScript;
         private String gradingScript;
         private String exportScript;
+        private String configPath;
 
         public String getExecutable() {
             return executable;
@@ -70,6 +71,14 @@ public class GraderProperties {
 
         public void setExportScript(String exportScript) {
             this.exportScript = exportScript;
+        }
+
+        public String getConfigPath() {
+            return configPath;
+        }
+
+        public void setConfigPath(String configPath) {
+            this.configPath = configPath;
         }
     }
 }

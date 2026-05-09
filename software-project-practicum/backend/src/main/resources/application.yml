@@ -23,6 +23,7 @@ grader:
   python:
     executable: ../../.venv/Scripts/python.exe
     working-directory: ..
+    config-path: grader-config.minimal-demo.yaml
     preprocess-script: scripts/preprocess_student_dirs.py
     grading-script: scripts/batch_score_reports.py
     export-script: scripts/export_traceability_excel.py

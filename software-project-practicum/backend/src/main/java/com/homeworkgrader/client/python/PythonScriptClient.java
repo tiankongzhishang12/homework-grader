@@ -1,12 +1,12 @@
 package com.homeworkgrader.client.python;
 
 import com.homeworkgrader.config.GraderProperties;
-import java.util.Arrays;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -32,7 +32,14 @@ public class PythonScriptClient {
 
     private ScriptResult run(String script) throws IOException, InterruptedException {
         Instant startedAt = Instant.now();
-        ProcessBuilder builder = new ProcessBuilder(Arrays.asList(python.getExecutable(), script));
+        List<String> command = new ArrayList<>();
+        command.add(python.getExecutable());
+        command.add(script);
+        if (python.getConfigPath() != null && !python.getConfigPath().trim().isEmpty()) {
+            command.add("--config");
+            command.add(python.getConfigPath().trim());
+        }
+        ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(python.getWorkingDirectory().toAbsolutePath().normalize().toFile());
         Process process = builder.start();
         String stdout = readFully(process.getInputStream());

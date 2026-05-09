@@ -178,6 +178,36 @@ python software-project-practicum/scripts/verify_backend_minimal_demo.py --base-
 - `{workspace}/student-mapping.csv` 必须存在。
 - `{workspace}/scores/` 必须存在且至少有一个 `.json`。
 - 若 `scores/anon-001.json` 存在，优先使用它；否则脚本会回退到其他 `.json`，并在报告中写明实际检测到的 score 文件。
+
+## 2026-05-09 更新：full grading FAIL 原因与最小修复
+
+本次 `grading/start` 验收失败原因已经确认：
+
+- 后端虽然成功进入 `POST /api/assessments/{id}/grading/start`
+- 但 Python 预处理脚本没有收到 `minimal-demo` 专用配置
+- 因此 Python 侧仍按默认 `grader-config.yaml` 运行
+- 默认配置中的 `workspace_path` 仍落在 `workspace/practicum-batch`
+- 最终 preprocess 输出写回了 `workspace/practicum-batch`，而不是 `workspace/minimal-demo`
+
+已做最小修复：
+
+- 新增后端配置项 `grader.python.config-path`
+- 当前配置为 `grader-config.minimal-demo.yaml`
+- `PythonScriptClient` 调用 `preprocess_student_dirs.py`、`batch_score_reports.py`、`export_traceability_excel.py` 时，如果 `config-path` 非空，会自动追加：
+
+```text
+--config grader-config.minimal-demo.yaml
+```
+
+说明：
+
+- `config-path` 相对于 `grader.python.working-directory` 生效
+- 当前 `working-directory: ..`，因此 `grader-config.minimal-demo.yaml` 会在 `software-project-practicum/` 下解析
+
+下一次 full grading 验收前必须确认：
+
+- 后端日志中的 preprocess 输出路径是 `workspace/minimal-demo`
+- 不再出现 `Wrote ... to ...workspace/practicum-batch/...`
 ## 2026-05-08 更新：submission_asset 到 Python raw 工作区适配
 
 后端上传接口 `POST /api/assessments/{id}/submissions/upload` 现在会在保存 `submission` 和 `submission_asset` 后，额外尝试复制一份支持的学生提交文件到：
