@@ -14,6 +14,7 @@ import type {
   AnswerVersion,
   ExportStartResult,
   ExportTemplate,
+  GradeExportPrecheck,
   Rubric,
   RubricCompileResponse,
   RubricDraft,
@@ -47,6 +48,8 @@ export const useConfigStore = defineStore("config", {
     submissionSummary: null as SubmissionSummary | null,
     lastUploadResult: null as SubmissionUploadResult | null,
     lastExportResult: null as ExportStartResult | null,
+    exportPrecheck: null as GradeExportPrecheck | null,
+    loadingExportPrecheck: false,
     loading: false,
     saving: false,
   }),
@@ -340,6 +343,25 @@ export const useConfigStore = defineStore("config", {
       } finally {
         this.saving = false;
       }
+    },
+    async loadGradeExportPrecheck(taskId: string) {
+      const task = useTaskContextStore().currentTask;
+      if (!task?.assessmentId) {
+        this.exportPrecheck = null;
+        useUiStore().pushToast("当前任务缺少 assessmentId，无法执行导出前检查。", "risk");
+        return;
+      }
+
+      this.loadingExportPrecheck = true;
+      try {
+        this.exportPrecheck = await gradeExportApi.precheck(task.assessmentId);
+      } catch (error) {
+        this.exportPrecheck = null;
+        useUiStore().pushToast("导出前检查失败，请检查后端接口或当前任务数据。", "risk");
+      } finally {
+        this.loadingExportPrecheck = false;
+      }
+      void taskId;
     },
     async startGradeExport() {
       const task = useTaskContextStore().currentTask;

@@ -254,6 +254,34 @@ export type ExportStartResult = {
   report?: string | null;
 };
 
+export type GradeExportLevel = "PASS" | "WARN" | "BLOCK";
+
+export type GradeExportWarning = {
+  type: string;
+  level: "WARN" | "BLOCK";
+  studentCount: number;
+  message: string;
+};
+
+export type GradeExportPrecheck = {
+  assessmentId: string | number;
+  canExport: boolean;
+  exportLevel: GradeExportLevel;
+  summary: {
+    totalStudents: number;
+    submittedStudents: number;
+    gradedStudents: number;
+    confirmedStudents: number;
+    reviewRequiredStudents: number;
+    lowConfidenceStudents: number;
+    failedStudents: number;
+    missingResultStudents: number;
+  };
+  warnings: GradeExportWarning[];
+  blockers: GradeExportWarning[];
+  suggestedAction: string;
+};
+
 export type BatchProgress = {
   taskId: string;
   status: BatchStatus;
