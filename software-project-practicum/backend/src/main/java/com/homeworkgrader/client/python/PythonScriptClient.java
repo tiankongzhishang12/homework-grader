@@ -41,10 +41,12 @@ public class PythonScriptClient {
     }
 
     public ScriptResult runExport() throws IOException, InterruptedException {
+        // Legacy export script hook; no longer used by the formal Java grade export path.
         return run(python.getExportScript(), null);
     }
 
     public ScriptResult runExport(Path configPath) throws IOException, InterruptedException {
+        // Legacy export script hook; no longer used by the formal Java grade export path.
         return run(python.getExportScript(), configPath);
     }
 

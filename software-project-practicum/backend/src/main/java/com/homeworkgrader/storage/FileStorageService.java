@@ -91,6 +91,28 @@ public class FileStorageService {
         return reports;
     }
 
+    public Path assessmentReportPath(Long assessmentId, Long exportId) throws IOException {
+        Path relativePath = workspaceRoot.getFileSystem().getPath(
+                "reports",
+                "assessment-" + assessmentId,
+                "export-" + exportId + ".xlsx"
+        );
+        Path target = workspaceRoot.resolve(relativePath).normalize();
+        if (!target.startsWith(workspaceRoot)) {
+            throw new IOException("非法报表文件路径");
+        }
+        Files.createDirectories(target.getParent());
+        return target;
+    }
+
+    public String toWorkspaceRelativePath(Path path) throws IOException {
+        Path normalized = path.toAbsolutePath().normalize();
+        if (!normalized.startsWith(workspaceRoot)) {
+            throw new IOException("文件不在 workspace 目录下");
+        }
+        return workspaceRoot.relativize(normalized).toString().replace('\\', '/');
+    }
+
     public Path workspaceRoot() {
         return workspaceRoot;
     }

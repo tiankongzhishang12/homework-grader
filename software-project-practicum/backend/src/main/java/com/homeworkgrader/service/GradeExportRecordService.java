@@ -12,10 +12,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GradeExportRecordService {
+    private static final Logger log = LoggerFactory.getLogger(GradeExportRecordService.class);
+
     private final CrudJdbcRepository repository;
     private final ObjectMapper objectMapper;
 
@@ -55,6 +59,7 @@ public class GradeExportRecordService {
         values.put("completed_at", new Timestamp(System.currentTimeMillis()));
         values.put("failed_reason", null);
         repository.update("grade_export_record", exportId, values);
+        log.info("Grade export record updated: exportId={}, status={}", exportId, "COMPLETED");
     }
 
     public void markFailed(Long exportId, String failedReason) {
@@ -63,6 +68,7 @@ public class GradeExportRecordService {
         values.put("failed_reason", truncate(failedReason, 4000));
         values.put("completed_at", new Timestamp(System.currentTimeMillis()));
         repository.update("grade_export_record", exportId, values);
+        log.info("Grade export record updated: exportId={}, status={}", exportId, "FAILED");
     }
 
     public List<GradeExportRecordResponse> listByAssessmentId(Long assessmentId) {
