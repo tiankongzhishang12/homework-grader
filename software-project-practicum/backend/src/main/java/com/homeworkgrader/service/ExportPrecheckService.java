@@ -28,7 +28,7 @@ public class ExportPrecheckService {
         summary.setSubmittedStudents(countSubmittedStudents(assessmentId));
         summary.setGradedStudents(countGradedStudents(assessmentId));
         summary.setConfirmedStudents(countByReviewStatus(assessmentId, "'CONFIRMED', 'PUBLISHED'"));
-        summary.setReviewRequiredStudents(countByReviewStatus(assessmentId, "'AI_GENERATED', 'REVIEW_REQUIRED'"));
+        summary.setReviewRequiredStudents(countByReviewStatus(assessmentId, "'AI_GENERATED', 'REVIEW_REQUIRED', 'NEEDS_REVIEW'"));
         summary.setLowConfidenceStudents(countLowConfidenceStudents(assessmentId));
         // Current submission schema has no grading_status column. Keep 0 until failed submission grading state is persisted.
         summary.setFailedStudents(0);

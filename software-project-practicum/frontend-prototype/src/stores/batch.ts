@@ -14,7 +14,15 @@ import type {
   TaskDetail,
   User,
 } from "../types";
-import { hasLowConfidence, isReviewRequired, reviewStatusLabel } from "../utils/review-status";
+import {
+  canonicalReviewStatus,
+  hasLowConfidence,
+  isAdjustedStatus,
+  isConfirmedStatus,
+  isPendingConfirmation,
+  isReviewRequired,
+  reviewStatusLabel,
+} from "../utils/review-status";
 import { useAuthStore } from "./auth";
 import { useTaskContextStore } from "./task-context";
 import { useUiStore } from "./ui";
@@ -206,7 +214,9 @@ const mapFinalResultToStudentRow = (assessmentId: string, row: FinalResultRecord
   const studentId = toText(row.studentId ?? row.student_id, "");
   const submissionId = toText(row.submissionId ?? row.submission_id, "");
   const finalResultId = toText(row.id);
-  const reviewStatus = toText(row.reviewStatus ?? row.review_status, "AI_GENERATED");
+  const reviewStatus = canonicalReviewStatus(toText(row.reviewStatus ?? row.review_status, "AI_GENERATED"));
+  const studentName = toText(row.studentName ?? row.student_name, "");
+  const studentNo = toText(row.studentNo ?? row.student_no, "");
   const confidence = toOptionalNumber(row.overallConfidence ?? row.overall_confidence);
   const score = toNumber(row.finalScore ?? row.final_score);
 
@@ -216,18 +226,22 @@ const mapFinalResultToStudentRow = (assessmentId: string, row: FinalResultRecord
     submissionId,
     finalResultId,
     studentId,
-    studentNumber: toText(row.studentNo ?? row.student_no, submissionId ? `submission:${submissionId}` : "-"),
-    name: toText(row.studentName ?? row.student_name, studentId ? `student:${studentId}` : `final-result:${finalResultId}`),
-    anonymousId: studentId || submissionId || finalResultId,
+    studentNumber: studentNo || "学号缺失",
+    name: studentName || "未知学生",
+    anonymousId: submissionId || finalResultId || studentId || "-",
     score,
     grade: toText(row.grade, "-"),
     confidence,
     gateStatus: reviewStatus,
     reviewStatus,
     confirmedAt: toText(row.confirmedAt ?? row.confirmed_at, ""),
-    traceabilityGapCount: 0,
-    consistencyIssueCount: reviewStatus === "ADJUSTED" ? 1 : 0,
-    riskTags: [reviewStatusLabel(reviewStatus), ...(hasLowConfidence(confidence) ? ["低置信度"] : [])],
+    traceabilityGapCount: null,
+    consistencyIssueCount: isAdjustedStatus(reviewStatus) ? 1 : 0,
+    riskTags: [
+      reviewStatusLabel(reviewStatus),
+      ...(isPendingConfirmation(reviewStatus) ? ["待确认"] : []),
+      ...(hasLowConfidence(confidence) ? ["低置信度"] : []),
+    ],
   };
 };
 
@@ -245,6 +259,7 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
       averageScore: 0,
       totalStudents: 0,
       lowConfidenceCount: 0,
+      reviewRequiredCount: 0,
       gateWarningCount: 0,
       placeholderResidueCount: 0,
       scoreBands: emptyBands,
@@ -254,10 +269,10 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
 
   const averageScore = Number((students.reduce((sum, item) => sum + item.score, 0) / students.length).toFixed(1));
   const lowConfidenceCount = students.filter((item) => hasLowConfidence(item.confidence)).length;
-  const gateWarningCount = students.filter((item) => isReviewRequired(item.reviewStatus)).length;
+  const reviewRequiredCount = students.filter((item) => isReviewRequired(item.reviewStatus) || isPendingConfirmation(item.reviewStatus)).length;
   const reviewStatusCount = new Map<string, number>();
   students.forEach((item) => {
-    const key = item.reviewStatus ?? "UNKNOWN";
+    const key = canonicalReviewStatus(item.reviewStatus);
     reviewStatusCount.set(key, (reviewStatusCount.get(key) ?? 0) + 1);
   });
 
@@ -265,7 +280,8 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
     averageScore,
     totalStudents: students.length,
     lowConfidenceCount,
-    gateWarningCount,
+    reviewRequiredCount,
+    gateWarningCount: reviewRequiredCount,
     placeholderResidueCount: 0,
     scoreBands: [
       { label: "<60", value: students.filter((item) => item.score < 60).length },
@@ -314,7 +330,9 @@ const mapScoreItemsToStudentDetail = (
   qualityFindings: [
     `当前复核状态：${reviewStatusLabel(student.reviewStatus)}`,
     `系统评分：${student.score} 分`,
-    ...(isReviewRequired(student.reviewStatus) ? ["当前成绩尚未完成教师确认。"] : ["当前成绩已完成确认或发布。"]),
+    ...(isReviewRequired(student.reviewStatus) || isPendingConfirmation(student.reviewStatus)
+      ? ["当前成绩尚未完成教师确认。"]
+      : ["当前成绩已完成确认或发布。"]),
   ],
   dimensions: scoreItems.map((item, index) => {
     const evidenceJson = parseEvidenceJson(item.evidenceJson ?? item.evidence_json);
@@ -340,7 +358,7 @@ const mapScoreItemsToStudentDetail = (
   gates: [
     {
       name: "复核状态",
-      passed: !isReviewRequired(student.reviewStatus),
+      passed: isConfirmedStatus(student.reviewStatus) || isAdjustedStatus(student.reviewStatus),
       detail: `当前状态：${reviewStatusLabel(student.reviewStatus)}`,
       onFail: "建议操作：教师确认或调整后再发布成绩。",
     },
@@ -491,7 +509,7 @@ export const useBatchStore = defineStore("batch", {
         useUiStore().pushToast("Current student detail is missing finalResultId.", "risk");
         return;
       }
-      if (detail.reviewStatus === "CONFIRMED") {
+      if (isConfirmedStatus(detail.reviewStatus)) {
         return;
       }
 

@@ -8,7 +8,10 @@ import com.homeworkgrader.service.GradingResultImportService;
 import com.homeworkgrader.service.GradingWorkflowService;
 import com.homeworkgrader.util.Maps;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 public class GradingController {
+    private static final Logger log = LoggerFactory.getLogger(GradingController.class);
+
     private final CrudJdbcRepository repository;
     private final GradingResultImportService resultImportService;
     private final GradingWorkflowService workflowService;
@@ -69,12 +74,23 @@ public class GradingController {
 
     @GetMapping("/assessments/{id}/final-results")
     public ApiResponse<?> finalResults(@PathVariable Long id) {
-        return ApiResponse.ok(repository.query(
-                "select fr.*, s.assessment_id, s.student_id, s.attempt_no " +
-                        "from final_result fr join submission s on s.id = fr.submission_id " +
-                        "where s.assessment_id = :assessmentId order by fr.id desc",
-                Maps.of("assessmentId", id)
-        ));
+        try {
+            List<Map<String, Object>> rows = repository.query(
+                    "select fr.*, s.assessment_id, s.id as submission_id, s.student_id, s.attempt_no, " +
+                            "st.student_no, st.student_name, gr.confidence as overall_confidence, gr.model_name " +
+                            "from final_result fr " +
+                            "join submission s on s.id = fr.submission_id " +
+                            "join student st on st.id = s.student_id " +
+                            "left join grading_run gr on gr.id = fr.selected_grading_run_id " +
+                            "where s.assessment_id = :assessmentId order by fr.id desc",
+                    Maps.of("assessmentId", id)
+            );
+            log.info("Loaded final results for analysis: assessmentId={}, rowCount={}", id, rows.size());
+            return ApiResponse.ok(rows);
+        } catch (RuntimeException ex) {
+            log.error("Failed to load final results for analysis: assessmentId={}", id, ex);
+            throw ex;
+        }
     }
 
     @PutMapping("/final-results/{id}/confirm")

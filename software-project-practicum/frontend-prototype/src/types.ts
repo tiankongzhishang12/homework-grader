@@ -416,7 +416,7 @@ export type StudentRow = {
   gateStatus: string;
   reviewStatus?: string;
   confirmedAt?: string;
-  traceabilityGapCount: number;
+  traceabilityGapCount?: number | null;
   consistencyIssueCount: number;
   riskTags: string[];
 };
@@ -448,6 +448,7 @@ export type AnalysisSummary = {
   averageScore: number;
   totalStudents: number;
   lowConfidenceCount: number;
+  reviewRequiredCount?: number;
   gateWarningCount: number;
   placeholderResidueCount: number;
   scoreBands: Array<{ label: string; value: number }>;

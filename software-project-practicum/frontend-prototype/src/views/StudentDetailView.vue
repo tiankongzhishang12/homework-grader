@@ -6,7 +6,9 @@
         <h2 class="detail-hero__name">{{ batchStore.currentStudent.name }} / {{ batchStore.currentStudent.studentNumber }}</h2>
         <p class="detail-hero__summary">{{ batchStore.currentStudent.summary }}</p>
         <div class="tag-row">
-          <span class="tag">{{ batchStore.currentStudent.anonymousId }}</span>
+          <span v-if="batchStore.currentStudent.anonymousId && batchStore.currentStudent.anonymousId !== '-'" class="tag">
+            记录 {{ batchStore.currentStudent.anonymousId }}
+          </span>
           <span class="tag" :class="hasLowConfidence(batchStore.currentStudent.confidence) ? 'tag--warn' : 'tag--good'">
             置信度：{{ formatConfidence(batchStore.currentStudent.confidence) }}
           </span>
@@ -29,10 +31,10 @@
         <button
           class="action-button"
           type="button"
-          :disabled="batchStore.loading || !batchStore.currentStudent.finalResultId || batchStore.currentStudent.reviewStatus === 'CONFIRMED'"
+          :disabled="batchStore.loading || !batchStore.currentStudent.finalResultId || isConfirmedStatus(batchStore.currentStudent.reviewStatus)"
           @click="confirmCurrentStudent"
         >
-          {{ batchStore.currentStudent.reviewStatus === "CONFIRMED" ? "已确认" : "教师确认" }}
+          {{ isConfirmedStatus(batchStore.currentStudent.reviewStatus) ? "已确认" : "教师确认" }}
         </button>
       </div>
     </article>
@@ -166,14 +168,14 @@
 
         <div v-if="hasTraceabilityData && batchStore.currentStudent.traceability.uncoveredRequirements.length > 0" class="alert-strip">
           <strong>未覆盖需求：</strong>
-          <span>{{ batchStore.currentStudent.traceability.uncoveredRequirements.join("，") }}</span>
+          <span>{{ batchStore.currentStudent.traceability.uncoveredRequirements.join("；") }}</span>
         </div>
         <div v-if="!hasTraceabilityData" class="empty-state">当前评分结果暂未返回结构化追踪信息。</div>
       </section>
 
       <section class="panel">
         <div class="panel__header">
-          <h3>复核状态与材料摘要</h3>
+          <h3>复核处理建议</h3>
           <span class="panel__subtle">辅助判断该学生成绩是否需要人工处理</span>
         </div>
 
@@ -182,7 +184,7 @@
             <div class="gate-card__top">
               <strong>{{ item.name }}</strong>
               <span class="status-badge" :class="item.passed ? 'status-badge--good' : 'status-badge--risk'">
-                {{ item.passed ? "已通过" : "需处理" }}
+                {{ item.passed ? "已处理" : "需处理" }}
               </span>
             </div>
             <div class="gate-card__meta">{{ item.detail }}</div>
@@ -196,7 +198,7 @@
             <li>文档数：{{ batchStore.currentStudent.materials.documentCount }}</li>
             <li>字数：{{ batchStore.currentStudent.materials.wordCount }}</li>
             <li>图片数：{{ batchStore.currentStudent.materials.imageCount }}</li>
-            <li v-if="batchStore.currentStudent.materials.roles.length > 0">角色：{{ batchStore.currentStudent.materials.roles.join("，") }}</li>
+            <li v-if="batchStore.currentStudent.materials.roles.length > 0">角色：{{ batchStore.currentStudent.materials.roles.join("；") }}</li>
             <li v-for="log in batchStore.currentStudent.materials.logs" :key="log">{{ log }}</li>
           </ul>
         </article>
@@ -231,7 +233,16 @@ import { computed, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { useBatchStore } from "../stores/batch";
 import { useTaskContextStore } from "../stores/task-context";
-import { formatConfidence, hasLowConfidence, isReviewRequired, reviewStatusLabel, reviewStatusTone } from "../utils/review-status";
+import {
+  formatConfidence,
+  hasLowConfidence,
+  isAdjustedStatus,
+  isConfirmedStatus,
+  isPendingConfirmation,
+  isReviewRequired,
+  reviewStatusLabel,
+  reviewStatusTone,
+} from "../utils/review-status";
 
 const route = useRoute();
 const taskStore = useTaskContextStore();
@@ -276,7 +287,10 @@ const reviewRecommendation = computed(() => {
   const student = batchStore.currentStudent;
   if (!student) return "";
   if (isReviewRequired(student.reviewStatus)) return "当前成绩需要教师复核";
+  if (isPendingConfirmation(student.reviewStatus)) return "当前成绩需要教师确认";
   if (hasLowConfidence(student.confidence)) return "建议抽查低置信度评分";
+  if (isConfirmedStatus(student.reviewStatus)) return "当前成绩已确认";
+  if (isAdjustedStatus(student.reviewStatus)) return "当前成绩已调整";
   return "当前成绩可进入确认流程";
 });
 const reviewTone = computed(() => reviewStatusTone(batchStore.currentStudent?.reviewStatus));

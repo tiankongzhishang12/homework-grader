@@ -28,9 +28,9 @@
         <div class="stat-card__label">低置信度</div>
         <div class="stat-card__value">{{ batchStore.analytics.lowConfidenceCount }}</div>
       </article>
-      <article class="stat-card" :class="batchStore.analytics.gateWarningCount > 0 ? 'stat-card--risk' : 'stat-card--good'">
+      <article class="stat-card" :class="reviewRequiredCount > 0 ? 'stat-card--risk' : 'stat-card--good'">
         <div class="stat-card__label">待复核</div>
-        <div class="stat-card__value">{{ batchStore.analytics.gateWarningCount }}</div>
+        <div class="stat-card__value">{{ reviewRequiredCount }}</div>
       </article>
     </div>
 
@@ -38,10 +38,10 @@
       <div class="panel__header panel__header--stack">
         <div>
           <h3>结果列表</h3>
-          <p class="panel__description">优先查看待复核、待确认或低置信度样本。置信度缺失时不会按 0 处理。</p>
+          <p class="panel__description">优先查看待复核、待确认或低置信度样本。置信度缺失时不按 0 处理。</p>
         </div>
         <div class="filter-toolbar">
-          <input v-model="keyword" class="field__input field__input--search" type="text" placeholder="搜索学生姓名、学号或匿名 ID" />
+          <input v-model="keyword" class="field__input field__input--search" type="text" placeholder="搜索学生姓名、学号或记录标识" />
           <button
             class="filter-chip"
             :class="{ 'filter-chip--active': attentionOnly }"
@@ -59,7 +59,7 @@
             <tr>
               <th>学生</th>
               <th>总分</th>
-              <th>等级</th>
+              <th>复核状态</th>
               <th>风险摘要</th>
               <th>查看详情</th>
             </tr>
@@ -70,21 +70,24 @@
                 <div class="student-cell">
                   <strong>{{ student.name }}</strong>
                   <span>{{ student.studentNumber }}</span>
-                  <span>{{ student.anonymousId }}</span>
+                  <span v-if="student.anonymousId && student.anonymousId !== '-'">记录 {{ student.anonymousId }}</span>
                 </div>
               </td>
               <td>
                 <div class="score-pill">{{ student.score }}</div>
               </td>
-              <td>{{ student.grade || "-" }}</td>
+              <td>
+                <span class="status-badge" :class="reviewStatusTone(student.reviewStatus)">
+                  {{ reviewStatusLabel(student.reviewStatus) }}
+                </span>
+              </td>
               <td>
                 <div class="risk-summary">
-                  <span class="status-badge" :class="riskTone(student)">{{ riskLabel(student) }}</span>
                   <span class="risk-summary__detail">
                     复核状态：{{ reviewStatusLabel(student.reviewStatus) }} · 置信度：{{ formatConfidence(student.confidence) }}
                   </span>
                   <div v-if="student.riskTags.length > 0" class="tag-row">
-                    <span v-for="tag in student.riskTags" :key="tag" class="tag" :class="riskTone(student) === 'status-badge--good' ? 'tag--good' : 'tag--warn'">
+                    <span v-for="tag in student.riskTags" :key="tag" class="tag" :class="riskTagTone(student)">
                       {{ tag }}
                     </span>
                   </div>
@@ -149,7 +152,15 @@ import { RouterLink } from "vue-router";
 import { useBatchStore } from "../stores/batch";
 import { useTaskContextStore } from "../stores/task-context";
 import type { StudentRow } from "../types";
-import { formatConfidence, hasLowConfidence, isReviewRequired, reviewStatusLabel, reviewStatusTone } from "../utils/review-status";
+import {
+  formatConfidence,
+  hasLowConfidence,
+  isAdjustedStatus,
+  isPendingConfirmation,
+  isReviewRequired,
+  reviewStatusLabel,
+  reviewStatusTone,
+} from "../utils/review-status";
 
 const taskStore = useTaskContextStore();
 const batchStore = useBatchStore();
@@ -166,19 +177,20 @@ watch(
   { immediate: true },
 );
 
+const reviewRequiredCount = computed(() => batchStore.analytics?.reviewRequiredCount ?? batchStore.analytics?.gateWarningCount ?? 0);
+
 const hasAttention = (student: StudentRow) =>
   isReviewRequired(student.reviewStatus) ||
-  student.reviewStatus === "ADJUSTED" ||
+  isPendingConfirmation(student.reviewStatus) ||
+  isAdjustedStatus(student.reviewStatus) ||
   hasLowConfidence(student.confidence) ||
   student.consistencyIssueCount > 1;
 
-const riskTone = (student: StudentRow) => reviewStatusTone(student.reviewStatus);
-
-const riskLabel = (student: StudentRow) => reviewStatusLabel(student.reviewStatus);
+const riskTagTone = (student: StudentRow) => (reviewStatusTone(student.reviewStatus) === "status-badge--good" ? "tag--good" : "tag--warn");
 
 const analysisVerdict = computed(() => {
   if (!batchStore.analytics) return "";
-  if (batchStore.analytics.gateWarningCount > 0) return "存在待复核样本";
+  if (reviewRequiredCount.value > 0) return "存在待复核样本";
   if (batchStore.analytics.lowConfidenceCount > 0) return "建议抽查低置信度样本";
   return "可进入导出确认";
 });
