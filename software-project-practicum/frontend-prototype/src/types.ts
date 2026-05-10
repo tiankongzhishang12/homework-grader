@@ -413,7 +413,7 @@ export type StudentRow = {
   score: number;
   grade: string;
   confidence?: number | null;
-  gateStatus: string;
+  gateStatus: string; // legacy: 新页面请使用 reviewStatus，不再将其展示为“门禁”
   reviewStatus?: string;
   confirmedAt?: string;
   traceabilityGapCount?: number | null;
@@ -449,7 +449,7 @@ export type AnalysisSummary = {
   totalStudents: number;
   lowConfidenceCount: number;
   reviewRequiredCount?: number;
-  gateWarningCount: number;
+  gateWarningCount: number; // legacy compatibility
   placeholderResidueCount: number;
   scoreBands: Array<{ label: string; value: number }>;
   topIssues: Array<{ title: string; count: number; detail: string }>;

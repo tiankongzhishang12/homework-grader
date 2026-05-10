@@ -20,7 +20,7 @@ import {
   isAdjustedStatus,
   isConfirmedStatus,
   isPendingConfirmation,
-  isReviewRequired,
+  isTeacherActionRequired,
   reviewStatusLabel,
 } from "../utils/review-status";
 import { useAuthStore } from "./auth";
@@ -188,10 +188,10 @@ const mapProgress = (taskId: string, progress: GradingProgressResponse): BatchPr
   const scriptFailed = toNumber(scriptProgress?.failed);
   const scriptTotal = toNumber(scriptProgress?.total);
   const qualityFlags: BatchProgress["qualityFlags"] = [];
-  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "缁撴灉瀵煎叆璺宠繃" });
-  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "缁撴灉瀵煎叆澶辫触" });
-  if (scriptFailed > 0) qualityFlags.push({ flag: "gate_warning", count: scriptFailed, label: "璇勫垎澶辫触" });
-  if (toNumber(progress.scriptProgressStaleSeconds) > 180) qualityFlags.push({ flag: "gate_warning", count: 1, label: "杩涘害鍋滄粸" });
+  if (skipped > 0) qualityFlags.push({ flag: "traceability_gap", count: skipped, label: "结果导入跳过" });
+  if (failed > 0) qualityFlags.push({ flag: "gate_warning", count: failed, label: "结果导入失败" });
+  if (scriptFailed > 0) qualityFlags.push({ flag: "gate_warning", count: scriptFailed, label: "评分失败" });
+  if (toNumber(progress.scriptProgressStaleSeconds) > 180) qualityFlags.push({ flag: "gate_warning", count: 1, label: "进度停滞" });
 
   return {
     taskId,
@@ -232,6 +232,7 @@ const mapFinalResultToStudentRow = (assessmentId: string, row: FinalResultRecord
     score,
     grade: toText(row.grade, "-"),
     confidence,
+    // legacy compatibility only; new UI should use reviewStatus.
     gateStatus: reviewStatus,
     reviewStatus,
     confirmedAt: toText(row.confirmedAt ?? row.confirmed_at, ""),
@@ -269,7 +270,7 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
 
   const averageScore = Number((students.reduce((sum, item) => sum + item.score, 0) / students.length).toFixed(1));
   const lowConfidenceCount = students.filter((item) => hasLowConfidence(item.confidence)).length;
-  const reviewRequiredCount = students.filter((item) => isReviewRequired(item.reviewStatus) || isPendingConfirmation(item.reviewStatus)).length;
+  const reviewRequiredCount = students.filter((item) => isTeacherActionRequired(item.reviewStatus)).length;
   const reviewStatusCount = new Map<string, number>();
   students.forEach((item) => {
     const key = canonicalReviewStatus(item.reviewStatus);
@@ -330,7 +331,7 @@ const mapScoreItemsToStudentDetail = (
   qualityFindings: [
     `当前复核状态：${reviewStatusLabel(student.reviewStatus)}`,
     `系统评分：${student.score} 分`,
-    ...(isReviewRequired(student.reviewStatus) || isPendingConfirmation(student.reviewStatus)
+    ...(isTeacherActionRequired(student.reviewStatus)
       ? ["当前成绩尚未完成教师确认。"]
       : ["当前成绩已完成确认或发布。"]),
   ],
@@ -506,7 +507,7 @@ export const useBatchStore = defineStore("batch", {
     async confirmCurrentStudent() {
       const detail = this.currentStudent;
       if (!detail?.finalResultId) {
-        useUiStore().pushToast("Current student detail is missing finalResultId.", "risk");
+        useUiStore().pushToast("当前学生详情缺少成绩记录，无法确认。", "risk");
         return;
       }
       if (isConfirmedStatus(detail.reviewStatus)) {
@@ -515,7 +516,7 @@ export const useBatchStore = defineStore("batch", {
 
       const teacherId = resolveTeacherId(useAuthStore().user);
       if (!teacherId) {
-        useUiStore().pushToast("Current login user is missing teacherId.", "risk");
+        useUiStore().pushToast("当前登录用户缺少教师身份，无法确认。", "risk");
         return;
       }
 
@@ -528,9 +529,9 @@ export const useBatchStore = defineStore("batch", {
           await this.loadResults(taskId);
           await this.loadStudent(detail.id, taskId, detail.submissionId, detail.finalResultId);
         }
-        useUiStore().pushToast("Teacher confirmation submitted.");
+        useUiStore().pushToast("已确认该学生成绩。");
       } catch (error) {
-        const message = error instanceof ApiError ? error.message : "Failed to confirm final result.";
+        const message = error instanceof ApiError ? error.message : "确认成绩失败，请稍后重试。";
         useUiStore().pushToast(message, "risk");
       } finally {
         this.loading = false;

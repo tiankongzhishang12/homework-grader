@@ -7,7 +7,7 @@
         <p class="detail-hero__summary">{{ batchStore.currentStudent.summary }}</p>
         <div class="tag-row">
           <span v-if="batchStore.currentStudent.anonymousId && batchStore.currentStudent.anonymousId !== '-'" class="tag">
-            记录 {{ batchStore.currentStudent.anonymousId }}
+            提交记录 #{{ batchStore.currentStudent.anonymousId }}
           </span>
           <span class="tag" :class="hasLowConfidence(batchStore.currentStudent.confidence) ? 'tag--warn' : 'tag--good'">
             置信度：{{ formatConfidence(batchStore.currentStudent.confidence) }}
@@ -239,7 +239,7 @@ import {
   isAdjustedStatus,
   isConfirmedStatus,
   isPendingConfirmation,
-  isReviewRequired,
+  isTeacherActionRequired,
   reviewStatusLabel,
   reviewStatusTone,
 } from "../utils/review-status";
@@ -286,8 +286,9 @@ const hasMaterialSummary = computed(() => {
 const reviewRecommendation = computed(() => {
   const student = batchStore.currentStudent;
   if (!student) return "";
-  if (isReviewRequired(student.reviewStatus)) return "当前成绩需要教师复核";
-  if (isPendingConfirmation(student.reviewStatus)) return "当前成绩需要教师确认";
+  if (isTeacherActionRequired(student.reviewStatus)) {
+    return isPendingConfirmation(student.reviewStatus) ? "当前成绩需要教师确认" : "当前成绩需要教师复核";
+  }
   if (hasLowConfidence(student.confidence)) return "建议抽查低置信度评分";
   if (isConfirmedStatus(student.reviewStatus)) return "当前成绩已确认";
   if (isAdjustedStatus(student.reviewStatus)) return "当前成绩已调整";

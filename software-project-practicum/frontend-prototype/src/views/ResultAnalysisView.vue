@@ -70,7 +70,7 @@
                 <div class="student-cell">
                   <strong>{{ student.name }}</strong>
                   <span>{{ student.studentNumber }}</span>
-                  <span v-if="student.anonymousId && student.anonymousId !== '-'">记录 {{ student.anonymousId }}</span>
+                  <span v-if="student.anonymousId && student.anonymousId !== '-'">提交记录 #{{ student.anonymousId }}</span>
                 </div>
               </td>
               <td>
@@ -156,8 +156,7 @@ import {
   formatConfidence,
   hasLowConfidence,
   isAdjustedStatus,
-  isPendingConfirmation,
-  isReviewRequired,
+  isTeacherActionRequired,
   reviewStatusLabel,
   reviewStatusTone,
 } from "../utils/review-status";
@@ -180,8 +179,7 @@ watch(
 const reviewRequiredCount = computed(() => batchStore.analytics?.reviewRequiredCount ?? batchStore.analytics?.gateWarningCount ?? 0);
 
 const hasAttention = (student: StudentRow) =>
-  isReviewRequired(student.reviewStatus) ||
-  isPendingConfirmation(student.reviewStatus) ||
+  isTeacherActionRequired(student.reviewStatus) ||
   isAdjustedStatus(student.reviewStatus) ||
   hasLowConfidence(student.confidence) ||
   student.consistencyIssueCount > 1;

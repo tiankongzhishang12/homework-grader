@@ -33,6 +33,11 @@ export const isReviewRequired = (status?: string | null) => canonicalReviewStatu
 
 export const isPendingConfirmation = (status?: string | null) => canonicalReviewStatus(status) === "AI_GENERATED";
 
+export const isTeacherActionRequired = (status?: string | null) => {
+  const canonical = canonicalReviewStatus(status);
+  return canonical === "REVIEW_REQUIRED" || canonical === "AI_GENERATED";
+};
+
 export const isConfirmedStatus = (status?: string | null) => {
   const canonical = canonicalReviewStatus(status);
   return canonical === "CONFIRMED" || canonical === "PUBLISHED";
