@@ -85,6 +85,23 @@ public class FileStorageService {
         return resolved;
     }
 
+    public Path resolveExportFile(String relativePath) throws IOException {
+        if (relativePath == null || relativePath.trim().isEmpty()) {
+            throw new IOException("Export file path is missing.");
+        }
+        Path resolved = workspaceRoot.resolve(relativePath.trim()).normalize();
+        if (!resolved.startsWith(workspaceRoot)) {
+            throw new IOException("Export file path is outside workspace.");
+        }
+        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new IOException("Export file does not exist: " + relativePath);
+        }
+        if (!resolved.getFileName().toString().toLowerCase().endsWith(".xlsx")) {
+            throw new IOException("Export file is not an xlsx file.");
+        }
+        return resolved;
+    }
+
     public Path reportsRoot() throws IOException {
         Path reports = workspaceRoot.resolve("reports").normalize();
         Files.createDirectories(reports);

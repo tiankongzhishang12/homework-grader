@@ -6,6 +6,7 @@ import com.homeworkgrader.dto.GradeExportPrecheckResponse;
 import com.homeworkgrader.dto.GradeExportRecordResponse;
 import com.homeworkgrader.repository.CrudJdbcRepository;
 import com.homeworkgrader.util.Maps;
+import java.io.FileNotFoundException;
 import java.sql.Timestamp;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -85,6 +87,24 @@ public class GradeExportRecordService {
 
     public GradeExportRecordResponse getById(Long exportId) {
         return toResponse(repository.get("grade_export_record", exportId));
+    }
+
+    public GradeExportRecordResponse getDownloadRecord(Long exportId) throws FileNotFoundException {
+        GradeExportRecordResponse record;
+        try {
+            record = getById(exportId);
+        } catch (EmptyResultDataAccessException ex) {
+            throw new FileNotFoundException("Export record was not found.");
+        }
+        if (!"COMPLETED".equals(record.getStatus())) {
+            log.warn("Attempted to download non-completed grade export: exportId={}, status={}", exportId, record.getStatus());
+            throw new IllegalStateException("Export record is not completed yet.");
+        }
+        if (record.getFilePath() == null || record.getFilePath().trim().isEmpty()) {
+            log.warn("Grade export record is missing file_path: exportId={}", exportId);
+            throw new FileNotFoundException("Export file path is missing.");
+        }
+        return record;
     }
 
     private GradeExportRecordResponse toResponse(Map<String, Object> row) {

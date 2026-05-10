@@ -105,9 +105,7 @@
           <p class="rubric-card__summary">
             {{ configStore.lastExportResult.report ? `已生成报表：${configStore.lastExportResult.report}` : configStore.lastExportResult.failedReason ?? "后端已触发导出。" }}
           </p>
-          <button class="action-button action-button--ghost" :disabled="configStore.saving" @click="downloadLatestReport">
-            下载最新报表
-          </button>
+          <p class="rubric-card__summary">建议优先使用下方导出历史中对应记录的下载按钮。</p>
         </div>
       </aside>
     </div>
@@ -123,7 +121,7 @@
             {{ configStore.loadingGradeExportRecords ? "刷新中..." : "刷新历史" }}
           </button>
           <button class="action-button action-button--ghost" :disabled="configStore.saving || !latestCompletedRecord" @click="downloadLatestReport">
-            下载最新报表
+            下载最新报表（兼容入口）
           </button>
         </div>
       </div>
@@ -137,9 +135,19 @@
                 记录 #{{ item.id }} · {{ item.createdAt }} · 风险等级 {{ item.exportLevel ?? "-" }}
               </div>
             </div>
-            <span class="status-badge" :class="statusClass(item.status)">
-              {{ statusLabel(item.status) }}
-            </span>
+            <div class="toolbar__actions">
+              <button
+                v-if="canDownloadRecord(item)"
+                class="action-button action-button--ghost"
+                :disabled="configStore.downloadingExportId === item.id"
+                @click="downloadRecord(item)"
+              >
+                {{ configStore.downloadingExportId === item.id ? "下载中..." : "下载" }}
+              </button>
+              <span class="status-badge" :class="statusClass(item.status)">
+                {{ statusLabel(item.status) }}
+              </span>
+            </div>
           </div>
           <ul class="detail-list">
             <li>总人数：{{ item.totalStudents }}，已评分：{{ item.gradedStudents }}</li>
@@ -161,7 +169,7 @@ import { useBatchStore } from "../stores/batch";
 import { useConfigStore } from "../stores/config";
 import { useTaskContextStore } from "../stores/task-context";
 import { useUiStore } from "../stores/ui";
-import type { GradeExportStatus } from "../types";
+import type { GradeExportRecord, GradeExportStatus } from "../types";
 
 const taskStore = useTaskContextStore();
 const configStore = useConfigStore();
@@ -260,6 +268,13 @@ const createExport = async () => {
 
 const downloadLatestReport = async () => {
   await configStore.downloadLatestReport();
+};
+
+const canDownloadRecord = (item: GradeExportRecord) => item.status === "COMPLETED" && Boolean(item.fileName && item.filePath);
+
+const downloadRecord = async (item: GradeExportRecord) => {
+  if (!canDownloadRecord(item)) return;
+  await configStore.downloadGradeExportRecord(item.id, item.fileName);
 };
 
 const statusLabel = (status: GradeExportStatus) => {

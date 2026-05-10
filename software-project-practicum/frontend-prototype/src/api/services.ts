@@ -210,7 +210,17 @@ export const gradeExportApi = {
     apiRequest<GradeExportRecord[]>(`/api/assessments/${assessmentId}/grade-exports`),
   start: (assessmentId: string) =>
     apiRequest<ExportStartResult>(`/api/assessments/${assessmentId}/grades/export`, { method: "POST" }),
-  // Phase 1 temporary compatibility download. Later export phases should replace this with exportId-based downloads.
+  downloadById: async (exportId: string | number) => {
+    const response = await fetch(`${API_BASE}/api/grade-exports/${exportId}/download`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      throw new Error("下载导出文件失败。");
+    }
+    return response.blob();
+  },
+  // Compatibility entry kept for old reports while export history uses exportId downloads.
   downloadLatest: async () => {
     const response = await fetch(`${API_BASE}/api/reports/latest/download`, {
       method: "POST",

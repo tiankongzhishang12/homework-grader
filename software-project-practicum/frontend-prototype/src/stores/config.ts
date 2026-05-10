@@ -53,6 +53,7 @@ export const useConfigStore = defineStore("config", {
     gradeExportRecords: [] as GradeExportRecord[],
     loadingExportPrecheck: false,
     loadingGradeExportRecords: false,
+    downloadingExportId: null as string | number | null,
     loading: false,
     saving: false,
   }),
@@ -426,6 +427,26 @@ export const useConfigStore = defineStore("config", {
         useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
       } finally {
         this.saving = false;
+      }
+    },
+    async downloadGradeExportRecord(exportId: string | number, fileName?: string | null) {
+      this.downloadingExportId = exportId;
+      try {
+        const blob = await gradeExportApi.downloadById(exportId);
+        const url = window.URL.createObjectURL(blob);
+        try {
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = fileName || `grade-export-${exportId}.xlsx`;
+          anchor.click();
+        } finally {
+          window.URL.revokeObjectURL(url);
+        }
+        useUiStore().pushToast("导出文件下载已开始。");
+      } catch (error) {
+        useUiStore().pushToast("导出文件下载失败，请检查文件是否存在或导出记录状态。", "risk");
+      } finally {
+        this.downloadingExportId = null;
       }
     },
     configChecklist(taskId: string) {
