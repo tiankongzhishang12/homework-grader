@@ -14,6 +14,7 @@ import type {
   TaskDetail,
   User,
 } from "../types";
+import { hasLowConfidence, isReviewRequired, reviewStatusLabel } from "../utils/review-status";
 import { useAuthStore } from "./auth";
 import { useTaskContextStore } from "./task-context";
 import { useUiStore } from "./ui";
@@ -33,6 +34,12 @@ const toText = (value: unknown, fallback = "") => (value === null || value === u
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const toOptionalNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 const parseEvidenceJson = (raw: unknown): ScoreItemEvidencePayload | null => {
@@ -200,7 +207,7 @@ const mapFinalResultToStudentRow = (assessmentId: string, row: FinalResultRecord
   const submissionId = toText(row.submissionId ?? row.submission_id, "");
   const finalResultId = toText(row.id);
   const reviewStatus = toText(row.reviewStatus ?? row.review_status, "AI_GENERATED");
-  const confidence = toNumber(row.overallConfidence ?? row.overall_confidence);
+  const confidence = toOptionalNumber(row.overallConfidence ?? row.overall_confidence);
   const score = toNumber(row.finalScore ?? row.final_score);
 
   return {
@@ -213,14 +220,14 @@ const mapFinalResultToStudentRow = (assessmentId: string, row: FinalResultRecord
     name: toText(row.studentName ?? row.student_name, studentId ? `student:${studentId}` : `final-result:${finalResultId}`),
     anonymousId: studentId || submissionId || finalResultId,
     score,
-    grade: toText(row.grade, reviewStatus),
+    grade: toText(row.grade, "-"),
     confidence,
     gateStatus: reviewStatus,
     reviewStatus,
     confirmedAt: toText(row.confirmedAt ?? row.confirmed_at, ""),
     traceabilityGapCount: 0,
     consistencyIssueCount: reviewStatus === "ADJUSTED" ? 1 : 0,
-    riskTags: [reviewStatus, ...(confidence > 0 && confidence < 0.8 ? ["LOW_CONFIDENCE"] : [])],
+    riskTags: [reviewStatusLabel(reviewStatus), ...(hasLowConfidence(confidence) ? ["低置信度"] : [])],
   };
 };
 
@@ -246,8 +253,8 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
   }
 
   const averageScore = Number((students.reduce((sum, item) => sum + item.score, 0) / students.length).toFixed(1));
-  const lowConfidenceCount = students.filter((item) => item.confidence > 0 && item.confidence < 0.8).length;
-  const gateWarningCount = students.filter((item) => item.reviewStatus !== "CONFIRMED").length;
+  const lowConfidenceCount = students.filter((item) => hasLowConfidence(item.confidence)).length;
+  const gateWarningCount = students.filter((item) => isReviewRequired(item.reviewStatus)).length;
   const reviewStatusCount = new Map<string, number>();
   students.forEach((item) => {
     const key = item.reviewStatus ?? "UNKNOWN";
@@ -268,9 +275,9 @@ const buildAnalytics = (students: StudentRow[]): AnalysisSummary => {
       { label: "90+", value: students.filter((item) => item.score >= 90).length },
     ],
     topIssues: [...reviewStatusCount.entries()].map(([title, count]) => ({
-      title,
+      title: reviewStatusLabel(title),
       count,
-      detail: `${count} final_result rows are currently in ${title}.`,
+      detail: `${count} 名学生当前处于${reviewStatusLabel(title)}状态。`,
     })),
   };
 };
@@ -281,7 +288,7 @@ const normalizeEvidence = (item: ScoreItemRecord) => {
   if (item.evidence_text) return item.evidence_text;
   if (item.evidence) return item.evidence;
   if (evidenceJsonText) return toText(evidenceJsonText);
-  return "No evidence text was returned by the backend.";
+  return "当前评分项暂未返回评分证据。";
 };
 
 const mapScoreItemsToStudentDetail = (
@@ -303,11 +310,11 @@ const mapScoreItemsToStudentDetail = (
   confidence: student.confidence,
   reviewStatus: student.reviewStatus,
   confirmedAt: student.confirmedAt,
-  summary: `submission ${student.submissionId} score-items loaded from the real backend.`,
+  summary: "该学生当前成绩已生成，请结合评分项明细和复核状态进行确认。",
   qualityFindings: [
-    `final_result.review_status = ${student.reviewStatus ?? "UNKNOWN"}`,
-    `submission_id = ${student.submissionId ?? "-"}`,
-    `final_score = ${student.score}`,
+    `当前复核状态：${reviewStatusLabel(student.reviewStatus)}`,
+    `系统评分：${student.score} 分`,
+    ...(isReviewRequired(student.reviewStatus) ? ["当前成绩尚未完成教师确认。"] : ["当前成绩已完成确认或发布。"]),
   ],
   dimensions: scoreItems.map((item, index) => {
     const evidenceJson = parseEvidenceJson(item.evidenceJson ?? item.evidence_json);
@@ -316,12 +323,12 @@ const mapScoreItemsToStudentDetail = (
       name: toText(evidenceJson?.criterion_name ?? item.criterionName ?? item.criterion_name ?? item.id, `Score Item ${index + 1}`),
       score: toNumber(item.score),
       maxScore: toNumber(item.maxScore ?? item.max_score),
-      confidence: toNumber(item.confidence),
+      confidence: toOptionalNumber(item.confidence),
       evidence: normalizeEvidence(item),
-      reasoning: toText(evidenceJson?.reasoning ?? item.commentText ?? item.comment_text ?? item.comment, "No reasoning text was returned."),
+      reasoning: toText(evidenceJson?.reasoning ?? item.commentText ?? item.comment_text ?? item.comment, "当前评分项暂未返回评语。"),
       matched: Array.isArray(evidenceJson?.matched_core_points) ? evidenceJson.matched_core_points : [],
       missing: Array.isArray(evidenceJson?.missing_points) ? evidenceJson.missing_points : [],
-      improvement: toText(evidenceJson?.improvement, "No improvement suggestion was returned."),
+      improvement: toText(evidenceJson?.improvement, "当前评分项暂未返回改进建议。"),
     };
   }),
   traceability: {
@@ -332,10 +339,10 @@ const mapScoreItemsToStudentDetail = (
   },
   gates: [
     {
-      name: "Review Status",
-      passed: student.reviewStatus === "CONFIRMED",
-      detail: `Current status: ${student.reviewStatus ?? "UNKNOWN"}`,
-      onFail: "Teacher confirmation or adjustment is still required before publish.",
+      name: "复核状态",
+      passed: !isReviewRequired(student.reviewStatus),
+      detail: `当前状态：${reviewStatusLabel(student.reviewStatus)}`,
+      onFail: "建议操作：教师确认或调整后再发布成绩。",
     },
   ],
   materials: {
@@ -343,7 +350,7 @@ const mapScoreItemsToStudentDetail = (
     wordCount: 0,
     imageCount: 0,
     roles: [],
-    logs: ["score-items does not yet return raw material summary fields."],
+    logs: [],
   },
 });
 

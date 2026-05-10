@@ -2,22 +2,23 @@
   <section class="view" v-if="taskStore.currentTask && batchStore.currentStudent">
     <article class="detail-hero detail-hero--summary">
       <div class="detail-hero__content">
-        <div class="eyebrow">样本解释</div>
+        <div class="eyebrow">学生详情</div>
         <h2 class="detail-hero__name">{{ batchStore.currentStudent.name }} / {{ batchStore.currentStudent.studentNumber }}</h2>
         <p class="detail-hero__summary">{{ batchStore.currentStudent.summary }}</p>
         <div class="tag-row">
           <span class="tag">{{ batchStore.currentStudent.anonymousId }}</span>
-          <span class="tag" :class="batchStore.currentStudent.confidence < 0.8 ? 'tag--warn' : 'tag--good'">
-            置信度 {{ batchStore.currentStudent.confidence }}
+          <span class="tag" :class="hasLowConfidence(batchStore.currentStudent.confidence) ? 'tag--warn' : 'tag--good'">
+            置信度：{{ formatConfidence(batchStore.currentStudent.confidence) }}
           </span>
-          <span class="tag">{{ batchStore.currentStudent.grade }}</span>
+          <span class="tag">复核状态：{{ reviewStatusLabel(batchStore.currentStudent.reviewStatus) }}</span>
+          <span v-if="batchStore.currentStudent.grade && batchStore.currentStudent.grade !== '-'" class="tag">{{ batchStore.currentStudent.grade }}</span>
         </div>
       </div>
 
       <div class="detail-hero__aside">
         <div class="detail-score">
           <div class="detail-score__main">{{ batchStore.currentStudent.score }}</div>
-          <div class="detail-score__sub">百分制 {{ batchStore.currentStudent.percentileScore }}</div>
+          <div class="detail-score__sub">当前总分</div>
         </div>
         <RouterLink
           :to="{ name: 'task-analysis', params: { taskId: taskStore.currentTask.id }, query: { keyword: route.query.keyword ?? '' } }"
@@ -42,24 +43,24 @@
           <span class="eyebrow">复核摘要</span>
           <h3>{{ reviewRecommendation }}</h3>
         </div>
-        <span class="status-badge" :class="reviewTone">{{ reviewRecommendation }}</span>
+        <span class="status-badge" :class="reviewTone">{{ reviewStatusLabel(batchStore.currentStudent.reviewStatus) }}</span>
       </div>
       <div class="review-summary-grid">
         <article class="summary-item">
           <span>总分</span>
-          <strong>{{ batchStore.currentStudent.score }} / {{ batchStore.currentStudent.percentileScore }}</strong>
+          <strong>{{ batchStore.currentStudent.score }}</strong>
         </article>
         <article class="summary-item">
           <span>置信度</span>
-          <strong>{{ batchStore.currentStudent.confidence }}</strong>
+          <strong>{{ formatConfidence(batchStore.currentStudent.confidence) }}</strong>
         </article>
         <article class="summary-item">
-          <span>未覆盖需求</span>
-          <strong>{{ uncoveredCount }}</strong>
+          <span>复核状态</span>
+          <strong>{{ reviewStatusLabel(batchStore.currentStudent.reviewStatus) }}</strong>
         </article>
         <article class="summary-item">
-          <span>门禁状态</span>
-          <strong>{{ gateSummary }}</strong>
+          <span>评分项</span>
+          <strong>{{ batchStore.currentStudent.dimensions.length }}</strong>
         </article>
       </div>
       <ul class="detail-list review-summary-panel__findings">
@@ -71,7 +72,7 @@
       <section class="panel">
         <div class="panel__header">
           <h3>首要结论</h3>
-          <span class="panel__subtle">先看结论，再决定是否深入核查</span>
+          <span class="panel__subtle">先看成绩和复核结论，再查看评分项明细</span>
         </div>
         <ul class="detail-list">
           <li v-for="item in batchStore.currentStudent.qualityFindings" :key="item">{{ item }}</li>
@@ -81,7 +82,7 @@
       <section class="panel">
         <div class="panel__header">
           <h3>改进建议</h3>
-          <span class="panel__subtle">按维度汇总最值得反馈给学生的内容</span>
+          <span class="panel__subtle">来自评分项明细中的可反馈内容</span>
         </div>
         <div class="issue-stack">
           <article v-for="item in improvementHighlights" :key="item.id" class="detail-block detail-block--highlight">
@@ -95,8 +96,8 @@
     <section class="panel">
       <div class="panel__header">
         <div>
-          <h3>维度得分</h3>
-          <p class="panel__description">默认先展示得分、简述和操作建议，证据与推理折叠在卡片下方。</p>
+          <h3>评分项明细</h3>
+          <p class="panel__description">展示每个评分项的得分、证据、评语和建议，供教师确认或复核。</p>
         </div>
       </div>
 
@@ -105,26 +106,27 @@
           <div class="dimension-summary-card__top">
             <div>
               <h4>{{ item.name }}</h4>
-              <p class="dimension-summary-card__meta">得分 {{ item.score }}/{{ item.maxScore }} · 置信度 {{ item.confidence }}</p>
+              <p class="dimension-summary-card__meta">得分 {{ item.score }}/{{ item.maxScore }} · 置信度：{{ formatConfidence(item.confidence) }}</p>
             </div>
             <span class="pill">{{ scoreToneLabel(item.score, item.maxScore) }}</span>
           </div>
 
           <div class="content-grid content-grid--two">
             <article class="detail-list-card">
-              <h4>主要证据</h4>
+              <h4>评分证据</h4>
               <p>{{ item.evidence }}</p>
             </article>
             <article class="detail-list-card detail-list-card--risk">
-              <h4>主要缺失</h4>
-              <ul>
+              <h4>需关注内容</h4>
+              <ul v-if="item.missing.length > 0">
                 <li v-for="miss in item.missing" :key="miss">{{ miss }}</li>
               </ul>
+              <p v-else>当前评分项暂未返回需关注内容。</p>
             </article>
           </div>
 
           <article class="detail-block">
-            <h4>评分推理</h4>
+            <h4>评语</h4>
             <p>{{ item.reasoning }}</p>
           </article>
 
@@ -140,10 +142,10 @@
       <section class="panel">
         <div class="panel__header">
           <h3>追踪分析</h3>
-          <span class="panel__subtle">查看需求覆盖与缺口</span>
+          <span class="panel__subtle">结构化证据追踪信息</span>
         </div>
 
-        <div class="traceability-grid traceability-grid--compact">
+        <div v-if="hasTraceabilityData" class="traceability-grid traceability-grid--compact">
           <article class="trace-column">
             <h4>需求清单</h4>
             <ul>
@@ -162,16 +164,17 @@
           </article>
         </div>
 
-        <div class="alert-strip">
+        <div v-if="hasTraceabilityData && batchStore.currentStudent.traceability.uncoveredRequirements.length > 0" class="alert-strip">
           <strong>未覆盖需求：</strong>
-          <span>{{ batchStore.currentStudent.traceability.uncoveredRequirements.join("；") }}</span>
+          <span>{{ batchStore.currentStudent.traceability.uncoveredRequirements.join("，") }}</span>
         </div>
+        <div v-if="!hasTraceabilityData" class="empty-state">当前评分结果暂未返回结构化追踪信息。</div>
       </section>
 
       <section class="panel">
         <div class="panel__header">
-          <h3>门禁与材料摘要</h3>
-          <span class="panel__subtle">辅助判断这份样本是否需要人工复核</span>
+          <h3>复核状态与材料摘要</h3>
+          <span class="panel__subtle">辅助判断该学生成绩是否需要人工处理</span>
         </div>
 
         <div class="gate-grid">
@@ -179,24 +182,25 @@
             <div class="gate-card__top">
               <strong>{{ item.name }}</strong>
               <span class="status-badge" :class="item.passed ? 'status-badge--good' : 'status-badge--risk'">
-                {{ item.passed ? "通过" : "未通过" }}
+                {{ item.passed ? "已通过" : "需处理" }}
               </span>
             </div>
             <div class="gate-card__meta">{{ item.detail }}</div>
-            <div class="gate-card__meta">on_fail: {{ item.onFail }}</div>
+            <div class="gate-card__meta">{{ item.onFail }}</div>
           </article>
         </div>
 
-        <article class="detail-list-card">
+        <article v-if="hasMaterialSummary" class="detail-list-card">
           <h4>原始材料摘要</h4>
           <ul>
             <li>文档数：{{ batchStore.currentStudent.materials.documentCount }}</li>
             <li>字数：{{ batchStore.currentStudent.materials.wordCount }}</li>
             <li>图片数：{{ batchStore.currentStudent.materials.imageCount }}</li>
-            <li>角色：{{ batchStore.currentStudent.materials.roles.join("；") }}</li>
+            <li v-if="batchStore.currentStudent.materials.roles.length > 0">角色：{{ batchStore.currentStudent.materials.roles.join("，") }}</li>
             <li v-for="log in batchStore.currentStudent.materials.logs" :key="log">{{ log }}</li>
           </ul>
         </article>
+        <div v-else class="empty-state">当前评分结果暂未返回原始材料摘要。</div>
       </section>
     </div>
   </section>
@@ -204,12 +208,12 @@
   <section v-else class="view">
     <section class="panel">
       <div class="empty-state">
-        <h4>{{ batchStore.loading ? "正在加载样本解释" : "未找到该学生的样本解释" }}</h4>
+        <h4>{{ batchStore.loading ? "正在加载学生详情" : "未找到该学生的评分详情" }}</h4>
         <p>
           {{
             batchStore.loading
               ? "系统正在读取学生评分详情，请稍候。"
-              : "当前学生 ID 没有匹配到评分详情，可能是列表 ID 与详情结果文件未对齐。"
+              : "当前学生 ID 没有匹配到评分详情，请返回结果分析页重新选择。"
           }}
         </p>
         <div class="toolbar__actions">
@@ -227,6 +231,7 @@ import { computed, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { useBatchStore } from "../stores/batch";
 import { useTaskContextStore } from "../stores/task-context";
+import { formatConfidence, hasLowConfidence, isReviewRequired, reviewStatusLabel, reviewStatusTone } from "../utils/review-status";
 
 const route = useRoute();
 const taskStore = useTaskContextStore();
@@ -252,24 +257,29 @@ const confirmCurrentStudent = async () => {
 };
 
 const improvementHighlights = computed(() => batchStore.currentStudent?.dimensions.slice(0, 3) ?? []);
-const uncoveredCount = computed(() => batchStore.currentStudent?.traceability.uncoveredRequirements.length ?? 0);
-const gateSummary = computed(() => {
-  const gates = batchStore.currentStudent?.gates ?? [];
-  const failed = gates.filter((item) => !item.passed).length;
-  return failed > 0 ? `${failed} 项未通过` : "全部通过";
+const hasTraceabilityData = computed(() => {
+  const traceability = batchStore.currentStudent?.traceability;
+  if (!traceability) return false;
+  return (
+    traceability.requirements.length > 0 ||
+    traceability.hldCoverage.length > 0 ||
+    traceability.lldCoverage.length > 0 ||
+    traceability.uncoveredRequirements.length > 0
+  );
+});
+const hasMaterialSummary = computed(() => {
+  const materials = batchStore.currentStudent?.materials;
+  if (!materials) return false;
+  return materials.documentCount > 0 || materials.wordCount > 0 || materials.imageCount > 0 || materials.roles.length > 0 || materials.logs.length > 0;
 });
 const reviewRecommendation = computed(() => {
   const student = batchStore.currentStudent;
   if (!student) return "";
-  if (student.gates.some((item) => !item.passed)) return "必须人工复核";
-  if (student.confidence < 0.8 || uncoveredCount.value > 0) return "建议抽查复核";
-  return "可直接通过";
+  if (isReviewRequired(student.reviewStatus)) return "当前成绩需要教师复核";
+  if (hasLowConfidence(student.confidence)) return "建议抽查低置信度评分";
+  return "当前成绩可进入确认流程";
 });
-const reviewTone = computed(() => {
-  if (reviewRecommendation.value === "必须人工复核") return "status-badge--risk";
-  if (reviewRecommendation.value === "建议抽查复核") return "status-badge--warn";
-  return "status-badge--good";
-});
+const reviewTone = computed(() => reviewStatusTone(batchStore.currentStudent?.reviewStatus));
 
 const scoreToneLabel = (score: number, maxScore: number) => {
   const ratio = maxScore === 0 ? 0 : score / maxScore;

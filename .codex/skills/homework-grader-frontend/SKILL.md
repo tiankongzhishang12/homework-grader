@@ -7,6 +7,10 @@ description: Use this skill for the Vue frontend prototype in Homework Grader, i
 
 Use this skill when a task touches `software-project-practicum/frontend-prototype/`.
 
+Encoding and UI checks:
+
+- When checking Chinese text, rendered pages, Vue templates, or file content, do not trust PowerShell console output alone. PowerShell may show mojibake even when the file/browser is correct. Confirm with UTF-8 file reads, direct file inspection, frontend build errors, browser rendering, or another non-console path before changing Chinese text.
+
 Read references as needed:
 
 - `references/frontend-architecture.md`

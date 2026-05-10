@@ -412,7 +412,7 @@ export type StudentRow = {
   anonymousId: string;
   score: number;
   grade: string;
-  confidence: number;
+  confidence?: number | null;
   gateStatus: string;
   reviewStatus?: string;
   confirmedAt?: string;
@@ -466,7 +466,7 @@ export type StudentDetail = {
   score: number;
   percentileScore: number;
   grade: string;
-  confidence: number;
+  confidence?: number | null;
   reviewStatus?: string;
   confirmedAt?: string;
   summary: string;
@@ -476,7 +476,7 @@ export type StudentDetail = {
     name: string;
     score: number;
     maxScore: number;
-    confidence: number;
+    confidence?: number | null;
     evidence: string;
     reasoning: string;
     matched: string[];
