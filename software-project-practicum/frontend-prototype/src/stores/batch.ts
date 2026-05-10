@@ -486,6 +486,15 @@ export const useBatchStore = defineStore("batch", {
           return;
         }
 
+        if (finalResultId) {
+          this.currentStudent = await finalResultApi.analysisDetail(finalResultId);
+          return;
+        }
+
+        if (this.students.length === 0) {
+          await this.loadResults(taskId);
+        }
+
         const selectedRow =
           this.students.find((item) => item.submissionId === submissionId) ??
           this.students.find((item) => item.finalResultId === finalResultId) ??

@@ -160,6 +160,8 @@ export const gradingApi = {
 
 export const finalResultApi = {
   list: (assessmentId: string) => apiRequest<FinalResultRecord[]>(`/api/assessments/${assessmentId}/final-results`),
+  analysisDetail: (finalResultId: string | number) =>
+    apiRequest<StudentDetail>(`/api/final-results/${finalResultId}/analysis-detail`),
   confirm: (finalResultId: string, teacherId: string | number) =>
     apiRequest<unknown>(`/api/final-results/${finalResultId}/confirm`, {
       method: "PUT",
