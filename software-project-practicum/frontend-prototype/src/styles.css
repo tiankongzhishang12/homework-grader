@@ -1724,7 +1724,33 @@ a { color: inherit; text-decoration: none; }
 }
 
 .table--analysis {
-  min-width: 860px;
+  min-width: 980px;
+}
+.analysis-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(150px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+.analysis-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.analysis-result-count {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+}
+.analysis-result-count--filtered {
+  color: var(--primary);
+  border-color: rgba(26, 95, 122, 0.22);
+  background: rgba(26, 95, 122, 0.06);
 }
 .student-cell {
   display: flex;
@@ -1750,6 +1776,43 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.score-band-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.score-band-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.65fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.score-band-row div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.score-band-row span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.score-band-meter {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(26, 95, 122, 0.1);
+}
+.score-band-meter span {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  background: var(--primary);
 }
 .student-result-card-list {
   display: none;
@@ -2368,11 +2431,11 @@ a { color: inherit; text-decoration: none; }
     text-align: center;
     padding: 9px 12px;
   }
-  .topbar, .hero-card, .detail-hero, .panel__header, .filter-row, .toolbar, .filter-toolbar, .course-work-card, .assignment-shell__top, .assignment-shell__actions, .assignment-heading, .tab-row, .course-card, .course-card__title-row, .course-workspace-toolbar {
+  .topbar, .hero-card, .detail-hero, .panel__header, .filter-row, .toolbar, .filter-toolbar, .analysis-filter-actions, .course-work-card, .assignment-shell__top, .assignment-shell__actions, .assignment-heading, .tab-row, .course-card, .course-card__title-row, .course-workspace-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
-  .stats-grid, .stats-grid--compact, .score-grid, .content-grid--two, .detail-blocks, .gate-grid, .traceability-grid, .content-grid--rubric, .content-grid--generator, .content-grid--rubric-library, .settings-shell, .task-board, .info-strip, .summary-grid, .task-summary-grid, .module-grid, .step-grid, .task-list-grid, .sheet-column-list, .selector-layout, .course-home-layout, .course-workspace-layout, .setup-layout, .workspace-flow-grid, .config-subpage-grid, .config-form-grid, .submission-summary-grid, .submission-management-grid {
+  .stats-grid, .stats-grid--compact, .score-grid, .content-grid--two, .detail-blocks, .gate-grid, .traceability-grid, .analysis-filter-grid, .score-band-row, .content-grid--rubric, .content-grid--generator, .content-grid--rubric-library, .settings-shell, .task-board, .info-strip, .summary-grid, .task-summary-grid, .module-grid, .step-grid, .task-list-grid, .sheet-column-list, .selector-layout, .course-home-layout, .course-workspace-layout, .setup-layout, .workspace-flow-grid, .config-subpage-grid, .config-form-grid, .submission-summary-grid, .submission-management-grid {
     grid-template-columns: 1fr;
   }
   .answer-management-grid,
