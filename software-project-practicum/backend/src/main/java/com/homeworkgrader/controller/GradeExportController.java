@@ -60,7 +60,7 @@ public class GradeExportController {
         try {
             file = fileStorageService.resolveExportFile(record.getFilePath());
         } catch (Exception ex) {
-            log.warn("Grade export file is unavailable: exportId={}, filePath={}", exportId, record.getFilePath());
+            logDownloadValidationFailure(exportId, record.getFilePath(), ex);
             log.error("Failed to resolve or read grade export file: exportId={}, filePath={}", exportId, record.getFilePath(), ex);
             throw ex;
         }
@@ -78,5 +78,18 @@ public class GradeExportController {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void logDownloadValidationFailure(Long exportId, String filePath, Exception ex) {
+        String message = ex.getMessage() == null ? "" : ex.getMessage();
+        if (message.contains("does not exist")) {
+            log.warn("Grade export file does not exist or is not a regular file: exportId={}, filePath={}", exportId, filePath);
+        } else if (message.contains("not an xlsx")) {
+            log.warn("Grade export file is not xlsx: exportId={}, filePath={}", exportId, filePath);
+        } else if (message.contains("missing")) {
+            log.warn("Grade export file_path is missing: exportId={}", exportId);
+        } else {
+            log.warn("Grade export file is unavailable: exportId={}, filePath={}", exportId, filePath);
+        }
     }
 }

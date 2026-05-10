@@ -61,7 +61,8 @@ public class GradeExportRecordService {
         values.put("completed_at", new Timestamp(System.currentTimeMillis()));
         values.put("failed_reason", null);
         repository.update("grade_export_record", exportId, values);
-        log.info("Grade export record updated: exportId={}, status={}", exportId, "COMPLETED");
+        log.info("Grade export record updated: exportId={}, status={}, fileName={}, filePath={}, fileSize={}",
+                exportId, "COMPLETED", fileName, filePath, fileSize);
     }
 
     public void markFailed(Long exportId, String failedReason) {
@@ -70,7 +71,8 @@ public class GradeExportRecordService {
         values.put("failed_reason", truncate(failedReason, 4000));
         values.put("completed_at", new Timestamp(System.currentTimeMillis()));
         repository.update("grade_export_record", exportId, values);
-        log.info("Grade export record updated: exportId={}, status={}", exportId, "FAILED");
+        log.info("Grade export record updated: exportId={}, status={}, failedReason={}",
+                exportId, "FAILED", truncate(failedReason, 200));
     }
 
     public List<GradeExportRecordResponse> listByAssessmentId(Long assessmentId) {

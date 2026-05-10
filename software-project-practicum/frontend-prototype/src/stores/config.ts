@@ -30,6 +30,7 @@ import { useUiStore } from "./ui";
 
 const toText = (value: unknown, fallback = "") => (value === null || value === undefined ? fallback : String(value));
 const standardAnswerContent = (item: StandardAnswerRecord | null | undefined) => toText(item?.answer_text ?? item?.answer_json, "");
+type DownloadGradeExportOptions = { silentSuccess?: boolean; throwOnError?: boolean };
 
 export const useConfigStore = defineStore("config", {
   state: () => ({
@@ -395,16 +396,26 @@ export const useConfigStore = defineStore("config", {
 
       this.saving = true;
       try {
-        this.lastExportResult = await gradeExportApi.start(task.assessmentId);
+        const result = await gradeExportApi.start(task.assessmentId);
+        this.lastExportResult = result;
         await this.loadGradeExportRecords(task.id);
         await this.loadGradeExportPrecheck(task.id);
-        if (this.lastExportResult.status === "FAILED") {
-        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
+        if (result.status === "FAILED") {
+          useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
+        } else if (result.status === "COMPLETED" && result.exportId) {
+          const record = this.gradeExportRecords.find((item) => String(item.id) === String(result.exportId));
+          const fileName = result.report ?? record?.fileName ?? undefined;
+          try {
+            await this.downloadGradeExportRecord(result.exportId, fileName, { silentSuccess: true, throwOnError: true });
+            useUiStore().pushToast("成绩导出完成，文件下载已开始。");
+          } catch (error) {
+            useUiStore().pushToast("成绩导出完成，但自动下载失败，可在导出历史中手动下载。", "warn");
+          }
         } else {
-          const idPart = this.lastExportResult.exportId ? " (record #" + this.lastExportResult.exportId + ")" : "";
-          useUiStore().pushToast(this.lastExportResult.report ? "Export completed: " + this.lastExportResult.report + idPart : "Export started" + idPart + ".");
+          const idPart = result.exportId ? " (record #" + result.exportId + ")" : "";
+          useUiStore().pushToast(result.report ? "Export completed: " + result.report + idPart : "Export started" + idPart + ".");
         }
-        return this.lastExportResult;
+        return result;
       } catch (error) {
         useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return null;
@@ -429,7 +440,7 @@ export const useConfigStore = defineStore("config", {
         this.saving = false;
       }
     },
-    async downloadGradeExportRecord(exportId: string | number, fileName?: string | null) {
+    async downloadGradeExportRecord(exportId: string | number, fileName?: string | null, options: DownloadGradeExportOptions = {}) {
       this.downloadingExportId = exportId;
       try {
         const blob = await gradeExportApi.downloadById(exportId);
@@ -442,8 +453,13 @@ export const useConfigStore = defineStore("config", {
         } finally {
           window.URL.revokeObjectURL(url);
         }
-        useUiStore().pushToast("导出文件下载已开始。");
+        if (!options.silentSuccess) {
+          useUiStore().pushToast("导出文件下载已开始。");
+        }
       } catch (error) {
+        if (options.throwOnError) {
+          throw error;
+        }
         useUiStore().pushToast("导出文件下载失败，请检查文件是否存在或导出记录状态。", "risk");
       } finally {
         this.downloadingExportId = null;

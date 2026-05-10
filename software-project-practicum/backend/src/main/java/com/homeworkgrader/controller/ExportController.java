@@ -73,10 +73,12 @@ public class ExportController {
             log.info("Grade export Excel generated: assessmentId={}, exportId={}, fileName={}, filePath={}, fileSize={}",
                     id, exportId, fileName, relativePath, fileSize);
             markCompleted(exportId, fileName, relativePath, fileSize);
+            log.info("Grade export completed and ready for download: assessmentId={}, exportId={}, report={}, filePath={}, fileSize={}, status={}",
+                    id, exportId, fileName, relativePath, fileSize, "COMPLETED");
             return ApiResponse.ok(exportResult(id, exportId, "COMPLETED", null, fileName, "成绩导出完成。", null));
         } catch (Exception ex) {
             String failedReason = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
-            log.error("Grade export failed: assessmentId={}, exportId={}, reason={}", id, exportId, failedReason, ex);
+            log.error("Grade export failed before download: assessmentId={}, exportId={}, reason={}", id, exportId, failedReason, ex);
             markFailed(exportId, failedReason);
             return ApiResponse.ok(exportResult(id, exportId, "FAILED", null, null, "成绩导出失败。", failedReason));
         }

@@ -5,7 +5,7 @@
         <div class="eyebrow">导出中心</div>
         <h2 class="hero-card__title">成绩报表导出</h2>
         <p class="hero-card__text">
-          系统会先执行导出前检查，并将每次真实导出写入导出记录，便于后续追踪导出时间、风险快照和生成结果。
+          系统会先执行导出前检查，并将每次真实导出写入导出记录，便于追踪导出时间、风险快照和生成结果。
         </p>
       </div>
       <div class="hero-card__meta hero-card__meta--summary">
@@ -83,7 +83,7 @@
         <div class="panel__header panel__header--stack">
           <div>
             <h3>真实导出操作</h3>
-            <p class="panel__description">导出将创建一条数据库记录，并调用真实报表生成脚本。</p>
+            <p class="panel__description">导出成功后会自动下载本次生成的 Excel；也可以稍后在导出历史中重新下载。</p>
           </div>
           <button class="action-button" :disabled="exportButtonDisabled" @click="createExport">
             {{ exportButtonText }}
@@ -105,7 +105,7 @@
           <p class="rubric-card__summary">
             {{ configStore.lastExportResult.report ? `已生成报表：${configStore.lastExportResult.report}` : configStore.lastExportResult.failedReason ?? "后端已触发导出。" }}
           </p>
-          <p class="rubric-card__summary">建议优先使用下方导出历史中对应记录的下载按钮。</p>
+          <p class="rubric-card__summary">建议优先使用导出历史中对应记录的下载按钮。</p>
         </div>
       </aside>
     </div>
@@ -114,7 +114,7 @@
       <div class="panel__header">
         <div>
           <h3>真实导出历史</h3>
-          <p class="panel__description">这里展示 grade_export_record 中的真实导出记录。下载仍是临时“最新报表”入口，尚未支持按 exportId 下载。</p>
+          <p class="panel__description">这里展示 grade_export_record 中的真实导出记录。建议优先下载指定记录；最新报表入口仅用于兼容。</p>
         </div>
         <div class="toolbar__actions">
           <button class="action-button action-button--ghost" :disabled="configStore.loadingGradeExportRecords" @click="reloadRecords">
@@ -281,7 +281,6 @@ const statusLabel = (status: GradeExportStatus) => {
   const map = { PROCESSING: "导出中", COMPLETED: "已完成", FAILED: "失败" };
   return map[status] ?? status;
 };
-
 const statusClass = (status: GradeExportStatus) => {
   if (status === "COMPLETED") return "status-badge--good";
   if (status === "FAILED") return "status-badge--risk";
