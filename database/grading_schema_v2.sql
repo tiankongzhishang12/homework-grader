@@ -267,3 +267,36 @@ CREATE TABLE IF NOT EXISTS grade_publish_record (
   CONSTRAINT fk_grade_publish_offering FOREIGN KEY (course_offering_id) REFERENCES course_offering(id),
   CONSTRAINT fk_grade_publish_teacher FOREIGN KEY (published_by_teacher_id) REFERENCES teacher(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS grade_export_record (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  assessment_id BIGINT NOT NULL,
+  file_name VARCHAR(255) NULL,
+  file_path VARCHAR(500) NULL,
+  file_size BIGINT NULL,
+  status VARCHAR(32) NOT NULL,
+  export_level VARCHAR(32) NULL,
+  can_export TINYINT NULL,
+  total_students INT NOT NULL DEFAULT 0,
+  submitted_students INT NOT NULL DEFAULT 0,
+  graded_students INT NOT NULL DEFAULT 0,
+  confirmed_students INT NOT NULL DEFAULT 0,
+  review_required_students INT NOT NULL DEFAULT 0,
+  low_confidence_students INT NOT NULL DEFAULT 0,
+  failed_students INT NOT NULL DEFAULT 0,
+  missing_result_students INT NOT NULL DEFAULT 0,
+  warning_count INT NOT NULL DEFAULT 0,
+  blocker_count INT NOT NULL DEFAULT 0,
+  risk_summary_json JSON NULL,
+  risk_confirm_reason VARCHAR(1000) NULL,
+  created_by_teacher_id BIGINT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  started_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  failed_reason TEXT NULL,
+  KEY idx_grade_export_assessment (assessment_id),
+  KEY idx_grade_export_status (status),
+  KEY idx_grade_export_created_at (created_at),
+  CONSTRAINT fk_grade_export_record_assessment FOREIGN KEY (assessment_id) REFERENCES assessment(id),
+  CONSTRAINT fk_grade_export_record_teacher FOREIGN KEY (created_by_teacher_id) REFERENCES teacher(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

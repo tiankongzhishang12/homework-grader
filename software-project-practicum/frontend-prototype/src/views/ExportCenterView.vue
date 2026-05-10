@@ -5,12 +5,12 @@
         <div class="eyebrow">导出中心</div>
         <h2 class="hero-card__title">成绩报表导出</h2>
         <p class="hero-card__text">
-          系统会先执行导出前检查，统一判断当前任务是否可以导出、有哪些风险以及是否需要先复核。
+          系统会先执行导出前检查，并将每次真实导出写入导出记录，便于后续追踪导出时间、风险快照和生成结果。
         </p>
       </div>
       <div class="hero-card__meta hero-card__meta--summary">
         <span class="pill" :class="levelPillClass">{{ exportLevelLabel }}</span>
-        <span v-if="configStore.currentTemplate" class="pill">{{ configStore.currentTemplate.version }}</span>
+        <span class="pill">历史 {{ configStore.gradeExportRecords.length }} 条</span>
       </div>
     </div>
 
@@ -75,10 +75,6 @@
               <li v-for="item in configStore.exportPrecheck.warnings" :key="`warning-${item.type}`">{{ item.message }}</li>
             </ul>
           </article>
-
-          <article v-if="configStore.exportPrecheck.blockers.length === 0 && configStore.exportPrecheck.warnings.length === 0" class="inline-alert inline-alert--good">
-            当前成绩结果满足导出条件，可以直接导出。
-          </article>
         </div>
         <div v-else class="empty-state">尚未完成导出前检查。</div>
       </section>
@@ -87,7 +83,7 @@
         <div class="panel__header panel__header--stack">
           <div>
             <h3>真实导出操作</h3>
-            <p class="panel__description">导出仍调用 POST /api/assessments/{assessmentId}/grades/export。</p>
+            <p class="panel__description">导出将创建一条数据库记录，并调用真实报表生成脚本。</p>
           </div>
           <button class="action-button" :disabled="exportButtonDisabled" @click="createExport">
             {{ exportButtonText }}
@@ -95,17 +91,19 @@
         </div>
 
         <article v-if="configStore.exportPrecheck?.exportLevel === 'WARN'" class="inline-alert inline-alert--warn">
-          当前成绩可以导出，但存在风险。确认风险后允许继续导出。
+          当前成绩可以导出，但存在风险。确认风险后允许继续导出，风险快照会写入导出记录。
         </article>
         <article v-if="configStore.exportPrecheck?.exportLevel === 'BLOCK'" class="inline-alert inline-alert--risk">
           当前任务暂不可导出，请先处理阻断问题。
         </article>
 
         <div v-if="configStore.lastExportResult" class="config-record-card">
-          <div class="rubric-card__title">最近一次真实导出结果</div>
-          <div class="rubric-card__meta">assessmentId {{ configStore.lastExportResult.assessmentId ?? taskStore.currentTask.assessmentId }}</div>
+          <div class="rubric-card__title">最近一次导出结果</div>
+          <div class="rubric-card__meta">
+            记录 #{{ configStore.lastExportResult.exportId ?? "-" }} · {{ exportResultStatusLabel }}
+          </div>
           <p class="rubric-card__summary">
-            {{ configStore.lastExportResult.report ? `已生成报表：${configStore.lastExportResult.report}` : "后端已触发导出，暂未返回报表文件名。" }}
+            {{ configStore.lastExportResult.report ? `已生成报表：${configStore.lastExportResult.report}` : configStore.lastExportResult.failedReason ?? "后端已触发导出。" }}
           </p>
           <button class="action-button action-button--ghost" :disabled="configStore.saving" @click="downloadLatestReport">
             下载最新报表
@@ -117,68 +115,42 @@
     <section class="panel">
       <div class="panel__header">
         <div>
-          <h3>当前导出模板</h3>
-          <p class="panel__description">模板展示仍沿用现有配置；导出风险判断以后端 precheck 为准。</p>
+          <h3>真实导出历史</h3>
+          <p class="panel__description">这里展示 grade_export_record 中的真实导出记录。下载仍是临时“最新报表”入口，尚未支持按 exportId 下载。</p>
         </div>
-        <button v-if="configStore.currentTemplate" class="action-button action-button--ghost" @click="togglePreview">
-          {{ showPreview ? "收起字段预览" : "预览导出字段" }}
-        </button>
-      </div>
-
-      <div v-if="configStore.currentTemplate" class="config-card-stack">
-        <article v-for="sheet in configStore.currentTemplate.sheets" :key="sheet.id" class="config-record-card">
-          <div class="config-record-card__top">
-            <div>
-              <div class="rubric-card__title">{{ sheet.name }}</div>
-              <div class="rubric-card__meta">{{ sheet.columns.filter((item) => item.enabled).length }} 个字段已启用</div>
-            </div>
-          </div>
-          <div class="tag-row">
-            <span v-for="column in sheet.columns.filter((item) => item.enabled)" :key="column.id" class="tag">{{ column.label }}</span>
-          </div>
-        </article>
-      </div>
-      <div v-else class="empty-state">当前任务尚未配置导出模板，仍可在检查通过后尝试真实成绩导出。</div>
-
-      <div v-if="showPreview" class="config-card-stack">
-        <article v-for="group in previewGroups" :key="group.sheetName" class="config-record-card">
-          <div class="config-record-card__top">
-            <div>
-              <div class="rubric-card__title">{{ group.sheetName }}</div>
-              <div class="rubric-card__meta">{{ group.enabledColumns.length }} 个字段</div>
-            </div>
-          </div>
-          <div v-if="group.enabledColumns.length > 0" class="tag-row">
-            <span v-for="column in group.enabledColumns" :key="column" class="tag">{{ column }}</span>
-          </div>
-          <div v-else class="empty-state empty-state--small">当前 sheet 暂未启用字段。</div>
-        </article>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel__header">
-        <div>
-          <h3>临时导出结果</h3>
-          <p class="panel__description">第一阶段不再读取 demo 导出历史。这里仅展示本页面最近一次真实导出触发结果。</p>
+        <div class="toolbar__actions">
+          <button class="action-button action-button--ghost" :disabled="configStore.loadingGradeExportRecords" @click="reloadRecords">
+            {{ configStore.loadingGradeExportRecords ? "刷新中..." : "刷新历史" }}
+          </button>
+          <button class="action-button action-button--ghost" :disabled="configStore.saving || !latestCompletedRecord" @click="downloadLatestReport">
+            下载最新报表
+          </button>
         </div>
-        <button class="action-button action-button--ghost" :disabled="configStore.saving || !configStore.lastExportResult" @click="downloadLatestReport">
-          下载最新报表
-        </button>
       </div>
-      <div v-if="configStore.lastExportResult" class="config-card-stack">
-        <article class="config-record-card">
+
+      <div v-if="configStore.gradeExportRecords.length > 0" class="config-card-stack">
+        <article v-for="item in configStore.gradeExportRecords" :key="item.id" class="config-record-card">
           <div class="config-record-card__top">
             <div>
-              <div class="rubric-card__title">{{ configStore.lastExportResult.report ?? "真实导出任务已触发" }}</div>
-              <div class="rubric-card__meta">assessmentId {{ configStore.lastExportResult.assessmentId ?? taskStore.currentTask.assessmentId }}</div>
+              <div class="rubric-card__title">{{ item.fileName ?? "尚未生成文件" }}</div>
+              <div class="rubric-card__meta">
+                记录 #{{ item.id }} · {{ item.createdAt }} · 风险等级 {{ item.exportLevel ?? "-" }}
+              </div>
             </div>
-            <span class="status-badge status-badge--good">已触发</span>
+            <span class="status-badge" :class="statusClass(item.status)">
+              {{ statusLabel(item.status) }}
+            </span>
           </div>
-          <p class="rubric-card__summary">下载入口暂时使用“最新报表”接口，后续会切换为按 exportId 下载。</p>
+          <ul class="detail-list">
+            <li>总人数：{{ item.totalStudents }}，已评分：{{ item.gradedStudents }}</li>
+            <li>待确认：{{ item.reviewRequiredStudents }}，低置信度：{{ item.lowConfidenceStudents }}</li>
+            <li>风险数量：{{ item.warningCount }}，阻断数量：{{ item.blockerCount }}</li>
+            <li v-if="item.completedAt">完成时间：{{ item.completedAt }}</li>
+            <li v-if="item.status === 'FAILED' && item.failedReason">失败原因：{{ item.failedReason }}</li>
+          </ul>
         </article>
       </div>
-      <div v-else class="empty-state">尚未在本页面触发真实成绩导出。</div>
+      <div v-else class="empty-state">当前任务还没有真实导出记录。</div>
     </section>
   </section>
 </template>
@@ -189,6 +161,7 @@ import { useBatchStore } from "../stores/batch";
 import { useConfigStore } from "../stores/config";
 import { useTaskContextStore } from "../stores/task-context";
 import { useUiStore } from "../stores/ui";
+import type { GradeExportStatus } from "../types";
 
 const taskStore = useTaskContextStore();
 const configStore = useConfigStore();
@@ -203,6 +176,7 @@ watch(
       await Promise.all([
         configStore.loadTaskConfig(taskId),
         configStore.loadGradeExportPrecheck(taskId),
+        configStore.loadGradeExportRecords(taskId),
         batchStore.loadResults(taskId),
         batchStore.loadProgress(taskId),
       ]);
@@ -223,14 +197,11 @@ const emptySummary = {
 };
 
 const precheckSummary = computed(() => configStore.exportPrecheck?.summary ?? emptySummary);
+const latestCompletedRecord = computed(() => configStore.gradeExportRecords.find((item) => item.status === "COMPLETED"));
 
 const exportLevelLabel = computed(() => {
   if (!configStore.exportPrecheck) return "等待检查";
-  const map = {
-    PASS: "可以导出",
-    WARN: "有风险",
-    BLOCK: "暂不可导出",
-  };
+  const map = { PASS: "可以导出", WARN: "有风险", BLOCK: "暂不可导出" };
   return map[configStore.exportPrecheck.exportLevel] ?? configStore.exportPrecheck.exportLevel;
 });
 
@@ -255,21 +226,16 @@ const exportButtonText = computed(() => {
 });
 
 const exportButtonDisabled = computed(() => configStore.saving || configStore.loadingExportPrecheck || configStore.exportPrecheck?.exportLevel === "BLOCK");
-
-const previewGroups = computed(() =>
-  configStore.currentTemplate?.sheets.map((sheet) => ({
-    sheetName: sheet.name,
-    enabledColumns: sheet.columns.filter((item) => item.enabled).map((item) => item.label),
-  })) ?? [],
-);
-
-const togglePreview = () => {
-  showPreview.value = !showPreview.value;
-};
+const exportResultStatusLabel = computed(() => configStore.lastExportResult?.status ? statusLabel(configStore.lastExportResult.status) : "已触发");
 
 const reloadPrecheck = async () => {
   const taskId = taskStore.currentTask?.id;
   if (taskId) await configStore.loadGradeExportPrecheck(taskId);
+};
+
+const reloadRecords = async () => {
+  const taskId = taskStore.currentTask?.id;
+  if (taskId) await configStore.loadGradeExportRecords(taskId);
 };
 
 const createExport = async () => {
@@ -294,5 +260,16 @@ const createExport = async () => {
 
 const downloadLatestReport = async () => {
   await configStore.downloadLatestReport();
+};
+
+const statusLabel = (status: GradeExportStatus) => {
+  const map = { PROCESSING: "导出中", COMPLETED: "已完成", FAILED: "失败" };
+  return map[status] ?? status;
+};
+
+const statusClass = (status: GradeExportStatus) => {
+  if (status === "COMPLETED") return "status-badge--good";
+  if (status === "FAILED") return "status-badge--risk";
+  return "status-badge--warn";
 };
 </script>

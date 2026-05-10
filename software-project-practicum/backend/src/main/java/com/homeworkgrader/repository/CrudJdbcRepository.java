@@ -20,7 +20,7 @@ public class CrudJdbcRepository {
             "assessment", "assessment_template", "question_definition", "rubric_definition",
             "standard_answer", "answer_card_layout", "submission", "submission_asset",
             "extraction_run", "extraction_result", "grading_run", "score_item_result",
-            "final_result", "course_grade", "grade_publish_record"
+            "final_result", "course_grade", "grade_publish_record", "grade_export_record"
     ));
 
     private final JdbcTemplate jdbcTemplate;

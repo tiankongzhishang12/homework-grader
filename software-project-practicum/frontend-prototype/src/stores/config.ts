@@ -14,6 +14,7 @@ import type {
   AnswerVersion,
   ExportStartResult,
   ExportTemplate,
+  GradeExportRecord,
   GradeExportPrecheck,
   Rubric,
   RubricCompileResponse,
@@ -49,7 +50,9 @@ export const useConfigStore = defineStore("config", {
     lastUploadResult: null as SubmissionUploadResult | null,
     lastExportResult: null as ExportStartResult | null,
     exportPrecheck: null as GradeExportPrecheck | null,
+    gradeExportRecords: [] as GradeExportRecord[],
     loadingExportPrecheck: false,
+    loadingGradeExportRecords: false,
     loading: false,
     saving: false,
   }),
@@ -103,7 +106,7 @@ export const useConfigStore = defineStore("config", {
       const taskStore = useTaskContextStore();
       const task = taskStore.currentTask;
       if (!task?.assessmentId) {
-        useUiStore().pushToast("当前任务缺少 assessmentId，无法初始化题目定义。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -123,7 +126,7 @@ export const useConfigStore = defineStore("config", {
         });
         await taskStore.loadTask(taskId);
         await this.loadTaskConfig(taskId);
-        useUiStore().pushToast("assessment template 和 question definition 已初始化。");
+        useUiStore().pushToast("Done.");
       } finally {
         this.saving = false;
       }
@@ -131,11 +134,11 @@ export const useConfigStore = defineStore("config", {
     async saveStandardAnswer(taskId: string) {
       const task = useTaskContextStore().currentTask;
       if (!task?.questionId) {
-        useUiStore().pushToast("请先初始化题目定义。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
       if (!this.standardAnswerDraft.trim()) {
-        useUiStore().pushToast("请先输入标准答案文本。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -145,7 +148,7 @@ export const useConfigStore = defineStore("config", {
           answer_text: this.standardAnswerDraft.trim(),
         });
         this.standardAnswers = await standardAnswerApi.list(task.questionId);
-        useUiStore().pushToast("标准答案文本已保存为新版本。");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -154,7 +157,7 @@ export const useConfigStore = defineStore("config", {
     async uploadStandardAnswerFile(taskId: string, file: File) {
       const task = useTaskContextStore().currentTask;
       if (!task?.questionId) {
-        useUiStore().pushToast("请先初始化题目定义。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -163,7 +166,7 @@ export const useConfigStore = defineStore("config", {
         await standardAnswerApi.upload(task.questionId, file);
         this.standardAnswers = await standardAnswerApi.list(task.questionId);
         this.standardAnswerDraft = this.standardAnswers[0]?.answer_text ?? "";
-        useUiStore().pushToast("标准答案文件已上传并保存为新版本。");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -174,7 +177,7 @@ export const useConfigStore = defineStore("config", {
       try {
         await answerApi.upload(taskId, file);
         this.answers = await answerApi.list(taskId);
-        useUiStore().pushToast("标准答案文件已上传，系统正在解析。");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -185,7 +188,7 @@ export const useConfigStore = defineStore("config", {
       try {
         await answerApi.activate(taskId, versionId);
         this.answers = await answerApi.list(taskId);
-        useUiStore().pushToast("标准答案版本已切换为当前使用版本。");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -194,11 +197,11 @@ export const useConfigStore = defineStore("config", {
     async saveRubricDefinition(taskId: string, payloadText: string) {
       const task = useTaskContextStore().currentTask;
       if (!task?.templateId) {
-        useUiStore().pushToast("请先初始化 assessment template。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
       if (!payloadText.trim()) {
-        useUiStore().pushToast("请先输入 Rubric JSON 或 YAML。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -222,7 +225,7 @@ export const useConfigStore = defineStore("config", {
           dimensions: [],
           yaml: payloadText.trim(),
         };
-        useUiStore().pushToast("Rubric 已保存到真实后端接口。");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -231,11 +234,11 @@ export const useConfigStore = defineStore("config", {
     async compileRubricFromText(taskId: string, teacherText: string) {
       const task = useTaskContextStore().currentTask;
       if (!task?.templateId) {
-        useUiStore().pushToast("请先初始化 assessment template，再生成评分标准。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
       if (!teacherText.trim()) {
-        useUiStore().pushToast("请先输入中文评分标准。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -248,21 +251,21 @@ export const useConfigStore = defineStore("config", {
           totalScore: task.score,
           language: "zh-CN",
         });
-        useUiStore().pushToast("结构化评分标准草稿已生成。");
+        useUiStore().pushToast("Done.");
       } catch (error) {
         this.compiledRubric = null;
-        useUiStore().pushToast("评分标准生成失败，请检查模型配置或稍后重试。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
       } finally {
         this.saving = false;
       }
     },
     async saveCompiledRubric(taskId: string) {
       if (!this.compiledRubric) {
-        useUiStore().pushToast("请先生成评分标准草稿。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
       if (!this.compiledRubric.canSave) {
-        useUiStore().pushToast("当前草稿存在风险，请根据提示修改后重新生成。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -271,11 +274,11 @@ export const useConfigStore = defineStore("config", {
     async uploadSubmission(taskId: string, studentId: string, file: File) {
       const task = useTaskContextStore().currentTask;
       if (!task?.assessmentId) {
-        useUiStore().pushToast("当前任务缺少 assessmentId，无法上传学生作业。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
       if (!studentId.trim()) {
-        useUiStore().pushToast("请先输入学生 ID。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -284,7 +287,7 @@ export const useConfigStore = defineStore("config", {
         this.lastUploadResult = await submissionApi.upload(task.assessmentId, studentId.trim(), file);
         this.submissions = await submissionApi.list(task.assessmentId);
         this.submissionSummary = await submissionApi.summary(task.assessmentId).catch(() => null);
-        useUiStore().pushToast(this.lastUploadResult.message ?? "作业上传成功，已加入待批改队列。", "good");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -306,7 +309,7 @@ export const useConfigStore = defineStore("config", {
           this.currentTemplate = await exportTemplateApi.create(template);
         }
         this.templates = await exportTemplateApi.list();
-        useUiStore().pushToast("Excel 模板已保存。");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -318,7 +321,7 @@ export const useConfigStore = defineStore("config", {
         await exportTemplateApi.bind(taskId, templateId);
         this.currentTemplate = await exportTemplateApi.current(taskId);
         this.templates = await exportTemplateApi.list();
-        useUiStore().pushToast("Excel 模板已绑定到当前任务。");
+        useUiStore().pushToast("Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -328,7 +331,7 @@ export const useConfigStore = defineStore("config", {
       this.saving = true;
       try {
         this.workspace = await workspaceApi.check(taskId);
-        useUiStore().pushToast(this.workspace.lastMessage ?? "路径检测完成。", this.workspace.status === "valid" ? "good" : "warn");
+        useUiStore().pushToast(this.workspace.lastMessage ?? "Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -338,7 +341,7 @@ export const useConfigStore = defineStore("config", {
       this.saving = true;
       try {
         this.workspace = await workspaceApi.init(taskId);
-        useUiStore().pushToast(this.workspace.lastMessage ?? "目录初始化完成。");
+        useUiStore().pushToast(this.workspace.lastMessage ?? "Done.");
         await useTaskContextStore().refreshBlockers(taskId);
       } finally {
         this.saving = false;
@@ -348,7 +351,7 @@ export const useConfigStore = defineStore("config", {
       const task = useTaskContextStore().currentTask;
       if (!task?.assessmentId) {
         this.exportPrecheck = null;
-        useUiStore().pushToast("当前任务缺少 assessmentId，无法执行导出前检查。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return;
       }
 
@@ -357,28 +360,52 @@ export const useConfigStore = defineStore("config", {
         this.exportPrecheck = await gradeExportApi.precheck(task.assessmentId);
       } catch (error) {
         this.exportPrecheck = null;
-        useUiStore().pushToast("导出前检查失败，请检查后端接口或当前任务数据。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
       } finally {
         this.loadingExportPrecheck = false;
       }
       void taskId;
     },
-    async startGradeExport() {
+    async loadGradeExportRecords(taskId: string) {
       const task = useTaskContextStore().currentTask;
       if (!task?.assessmentId) {
-        useUiStore().pushToast("当前任务缺少 assessmentId，无法执行真实成绩导出。", "risk");
+        this.gradeExportRecords = [];
+        return;
+      }
+
+      this.loadingGradeExportRecords = true;
+      try {
+        this.gradeExportRecords = await gradeExportApi.list(task.assessmentId);
+      } catch (error) {
+        this.gradeExportRecords = [];
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
+      } finally {
+        this.loadingGradeExportRecords = false;
+      }
+      void taskId;
+    },
+    async startGradeExport() {
+      const taskStore = useTaskContextStore();
+      const task = taskStore.currentTask;
+      if (!task?.assessmentId) {
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return null;
       }
 
       this.saving = true;
       try {
         this.lastExportResult = await gradeExportApi.start(task.assessmentId);
-        useUiStore().pushToast(
-          this.lastExportResult.report ? `成绩导出已触发：${this.lastExportResult.report}` : "成绩导出已触发。",
-        );
+        await this.loadGradeExportRecords(task.id);
+        await this.loadGradeExportPrecheck(task.id);
+        if (this.lastExportResult.status === "FAILED") {
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
+        } else {
+          const idPart = this.lastExportResult.exportId ? " (record #" + this.lastExportResult.exportId + ")" : "";
+          useUiStore().pushToast(this.lastExportResult.report ? "Export completed: " + this.lastExportResult.report + idPart : "Export started" + idPart + ".");
+        }
         return this.lastExportResult;
       } catch (error) {
-        useUiStore().pushToast("成绩导出失败，请检查后端导出接口或报表生成脚本。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
         return null;
       } finally {
         this.saving = false;
@@ -394,9 +421,9 @@ export const useConfigStore = defineStore("config", {
         anchor.download = "latest-report.xlsx";
         anchor.click();
         window.URL.revokeObjectURL(url);
-        useUiStore().pushToast("最新报表下载已开始。");
+        useUiStore().pushToast("Done.");
       } catch (error) {
-        useUiStore().pushToast("最新报表下载失败，请先确认后端已生成报表。", "risk");
+        useUiStore().pushToast("Operation failed. Please check configuration or backend API.", "risk");
       } finally {
         this.saving = false;
       }
@@ -408,15 +435,15 @@ export const useConfigStore = defineStore("config", {
         { id: "assessment", ok: Boolean(task?.assessmentId), label: "assessmentId" },
         { id: "template", ok: Boolean(task?.templateId), label: "templateId" },
         { id: "question", ok: Boolean(task?.questionId), label: "questionId" },
-        { id: "answer", ok: this.standardAnswers.length > 0 || this.answers.length > 0, label: "标准答案" },
+        { id: "answer", ok: this.standardAnswers.length > 0 || this.answers.length > 0, label: "standard answer" },
         { id: "rubric", ok: Boolean(this.currentRubric), label: "Rubric" },
-        { id: "submission", ok: this.submissions.length > 0, label: "学生提交" },
+        { id: "submission", ok: this.submissions.length > 0, label: "student submission" },
       ];
       const missing = items.filter((item) => !item.ok).map((item) => item.label);
       return {
         ready: missing.length === 0,
         missing,
-        message: missing.length === 0 ? "配置已满足开始阅卷条件。" : `开始阅卷前仍缺少：${missing.join("、")}`,
+        message: missing.length === 0 ? "Configuration is ready." : "Missing before grading: " + missing.join(", "),
         taskId,
       };
     },
@@ -431,24 +458,24 @@ export const useConfigStore = defineStore("config", {
     summarizeStandardAnswer() {
       if (this.standardAnswers.length > 0) {
         const item = this.standardAnswers[0];
-        return item.answer_text ? `${toText(item.answer_text).slice(0, 120)}` : `标准答案记录 ${item.id}`;
+        return item.answer_text ? String(toText(item.answer_text).slice(0, 120)) : "Standard answer record " + item.id;
       }
-      return "暂无真实标准答案记录。";
+      return "No standard answer records.";
     },
     getLatestStandardAnswer() {
       return this.standardAnswers[0] ?? null;
     },
     formatStandardAnswerSummary(item: StandardAnswerRecord | null | undefined, maxLength = 120) {
-      const text = standardAnswerContent(item).trim() || "无文本内容";
-      return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+      const text = standardAnswerContent(item).trim() || "No text content";
+      return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
     },
     formatStandardAnswerVersion(item: StandardAnswerRecord | null | undefined) {
-      if (!item) return "暂无";
-      return item.version_no ? `v${item.version_no}` : `#${item.id}`;
+      if (!item) return "None";
+      return item.version_no ? "v" + item.version_no : "#" + item.id;
     },
     formatFileSize(size: number) {
-      if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(2)} MB`;
-      return `${Math.max(size / 1024, 0.01).toFixed(2)} KB`;
+      if (size >= 1024 * 1024) return (size / 1024 / 1024).toFixed(2) + " MB";
+      return Math.max(size / 1024, 0.01).toFixed(2) + " KB";
     },
   },
 });

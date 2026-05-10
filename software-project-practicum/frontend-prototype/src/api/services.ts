@@ -6,6 +6,7 @@ import type {
   BatchProgress,
   ConfigBlocker,
   ExportRecord,
+  GradeExportRecord,
   GradeExportPrecheck,
   ExportStartResult,
   ExportTemplate,
@@ -205,6 +206,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 export const gradeExportApi = {
   precheck: (assessmentId: string) =>
     apiRequest<GradeExportPrecheck>(`/api/assessments/${assessmentId}/grade-export/precheck`),
+  list: (assessmentId: string) =>
+    apiRequest<GradeExportRecord[]>(`/api/assessments/${assessmentId}/grade-exports`),
   start: (assessmentId: string) =>
     apiRequest<ExportStartResult>(`/api/assessments/${assessmentId}/grades/export`, { method: "POST" }),
   // Phase 1 temporary compatibility download. Later export phases should replace this with exportId-based downloads.

@@ -250,11 +250,16 @@ export type SubmissionSummary = {
 
 export type ExportStartResult = {
   assessmentId?: string | number;
+  exportId?: string | number;
+  status?: GradeExportStatus;
   scriptResult?: unknown;
   report?: string | null;
+  message?: string;
+  failedReason?: string | null;
 };
 
 export type GradeExportLevel = "PASS" | "WARN" | "BLOCK";
+export type GradeExportStatus = "PROCESSING" | "COMPLETED" | "FAILED";
 
 export type GradeExportWarning = {
   type: string;
@@ -280,6 +285,31 @@ export type GradeExportPrecheck = {
   warnings: GradeExportWarning[];
   blockers: GradeExportWarning[];
   suggestedAction: string;
+};
+
+export type GradeExportRecord = {
+  id: string | number;
+  assessmentId: string | number;
+  fileName?: string | null;
+  filePath?: string | null;
+  fileSize?: number | null;
+  status: GradeExportStatus;
+  exportLevel?: GradeExportLevel;
+  canExport?: boolean;
+  totalStudents: number;
+  submittedStudents: number;
+  gradedStudents: number;
+  confirmedStudents: number;
+  reviewRequiredStudents: number;
+  lowConfidenceStudents: number;
+  failedStudents: number;
+  missingResultStudents: number;
+  warningCount: number;
+  blockerCount: number;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  failedReason?: string | null;
 };
 
 export type BatchProgress = {
